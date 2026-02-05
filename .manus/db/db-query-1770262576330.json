@@ -1,0 +1,94 @@
+{
+  "query": "SELECT id, name, email, \"staffId\", pin FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, name, email, \"staffId\", pin FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Egenie Tang",
+      "email": "egenie.tang@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "2",
+      "name": "Eva Lee",
+      "email": "eva.lee@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "3",
+      "name": "Maggie Liang",
+      "email": "maggie.liang@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "4",
+      "name": "Maggie Wong",
+      "email": "maggie.wong@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "5",
+      "name": "Ting Siew",
+      "email": "ting.siew@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "6",
+      "name": "Win Lee",
+      "email": "win.lee@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "7",
+      "name": "Wing Ho",
+      "email": "wing.ho@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "8",
+      "name": "Sharon Li",
+      "email": "sharon.li@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "9",
+      "name": "Hailey Hoi Ling Wong",
+      "email": "hailey.wong@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "10",
+      "name": "Bon Lau",
+      "email": "bon.lau@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "11",
+      "name": "Sze",
+      "email": "sze@mschu.local",
+      "staffId": "staffId",
+      "pin": "NULL"
+    },
+    {
+      "id": "30001",
+      "name": "info+maggielang",
+      "email": "info+maggielang@mschusoapandbeaut.com",
+      "staffId": "staffId",
+      "pin": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tstaffId\tpin\n1\tEgenie Tang\tegenie.tang@mschu.local\tstaffId\tNULL\n2\tEva Lee\teva.lee@mschu.local\tstaffId\tNULL\n3\tMaggie Liang\tmaggie.liang@mschu.local\tstaffId\tNULL\n4\tMaggie Wong\tmaggie.wong@mschu.local\tstaffId\tNULL\n5\tTing Siew\tting.siew@mschu.local\tstaffId\tNULL\n6\tWin Lee\twin.lee@mschu.local\tstaffId\tNULL\n7\tWing Ho\twing.ho@mschu.local\tstaffId\tNULL\n8\tSharon Li\tsharon.li@mschu.local\tstaffId\tNULL\n9\tHailey Hoi Ling Wong\thailey.wong@mschu.local\tstaffId\tNULL\n10\tBon Lau\tbon.lau@mschu.local\tstaffId\tNULL\n11\tSze\tsze@mschu.local\tstaffId\tNULL\n30001\tinfo+maggielang\tinfo+maggielang@mschusoapandbeaut.com\tstaffId\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1531
+}

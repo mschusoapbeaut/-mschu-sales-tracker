@@ -89,3 +89,8 @@
 - [x] Add PIN setup/management in Profile screen
 - [x] Create Shopify POS tile linking to app (via App URL configuration)
 - [x] Provide deployment and installation instructions
+
+
+## Staff Email and PIN Setup
+- [x] Update staff accounts with email addresses
+- [x] Set PINs for all 11 staff members
