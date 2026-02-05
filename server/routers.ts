@@ -4,6 +4,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import * as GoogleDrive from "./google-drive";
+import * as DriveSync from "./drive-sync";
 
 // Helper to get date ranges
 function getDateRange(period: "week" | "month" | "year") {
@@ -183,6 +185,174 @@ export const appRouter = router({
         throw new Error("Unauthorized: Admin access required");
       }
       return db.getReportUploads();
+    }),
+  }),
+
+  // Google Drive integration endpoints
+  drive: router({
+    // Get Google Drive auth URL
+    getAuthUrl: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      const oauth2Client = GoogleDrive.createOAuth2Client();
+      const authUrl = GoogleDrive.getAuthUrl(oauth2Client, String(ctx.user.id));
+      return { authUrl };
+    }),
+
+    // Handle OAuth callback and save credentials
+    saveCredentials: protectedProcedure
+      .input(z.object({
+        code: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const oauth2Client = GoogleDrive.createOAuth2Client();
+        const tokens = await GoogleDrive.getTokensFromCode(oauth2Client, input.code);
+        
+        if (!tokens.access_token || !tokens.refresh_token) {
+          throw new Error("Failed to get valid tokens from Google");
+        }
+        
+        await db.saveDriveCredentials({
+          userId: ctx.user.id,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600000),
+        });
+        
+        return { success: true };
+      }),
+
+    // Get current Drive connection status
+    status: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      
+      const credentials = await db.getDriveCredentials(ctx.user.id);
+      if (!credentials) {
+        return { connected: false };
+      }
+      
+      return {
+        connected: true,
+        folderId: credentials.folderId,
+        folderName: credentials.folderName,
+        lastSyncAt: credentials.lastSyncAt,
+        syncEnabled: credentials.syncEnabled === 1,
+      };
+    }),
+
+    // List folders from Google Drive
+    listFolders: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      
+      const credentials = await db.getDriveCredentials(ctx.user.id);
+      if (!credentials) {
+        throw new Error("Google Drive not connected");
+      }
+      
+      const drive = GoogleDrive.createDriveClient(credentials.accessToken, credentials.refreshToken);
+      const folders = await GoogleDrive.listFolders(drive);
+      
+      return folders.map(f => ({
+        id: f.id || "",
+        name: f.name || "Unnamed folder",
+      }));
+    }),
+
+    // Set folder to sync from
+    setFolder: protectedProcedure
+      .input(z.object({
+        folderId: z.string(),
+        folderName: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const credentials = await db.getDriveCredentials(ctx.user.id);
+        if (!credentials) {
+          throw new Error("Google Drive not connected");
+        }
+        
+        // Validate folder access
+        const drive = GoogleDrive.createDriveClient(credentials.accessToken, credentials.refreshToken);
+        const validation = await GoogleDrive.validateFolderAccess(drive, input.folderId);
+        
+        if (!validation.valid) {
+          throw new Error(validation.error || "Invalid folder");
+        }
+        
+        await db.updateDriveCredentials(ctx.user.id, {
+          folderId: input.folderId,
+          folderName: input.folderName,
+        });
+        
+        return { success: true };
+      }),
+
+    // Trigger manual sync
+    sync: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      
+      const credentials = await db.getDriveCredentials(ctx.user.id);
+      if (!credentials) {
+        throw new Error("Google Drive not connected");
+      }
+      
+      const result = await DriveSync.syncDriveReports(credentials.id);
+      return result;
+    }),
+
+    // Get sync history
+    syncHistory: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      
+      const credentials = await db.getDriveCredentials(ctx.user.id);
+      if (!credentials) {
+        return [];
+      }
+      
+      return db.getSyncHistory(credentials.id);
+    }),
+
+    // Toggle sync enabled/disabled
+    toggleSync: protectedProcedure
+      .input(z.object({
+        enabled: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        await db.updateDriveCredentials(ctx.user.id, {
+          syncEnabled: input.enabled ? 1 : 0,
+        });
+        
+        return { success: true };
+      }),
+
+    // Disconnect Google Drive
+    disconnect: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      
+      await db.deleteDriveCredentials(ctx.user.id);
+      return { success: true };
     }),
   }),
 });

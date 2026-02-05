@@ -260,3 +260,94 @@ export async function getReportUploads(limit: number = 10) {
     .orderBy(desc(reportUploads.createdAt))
     .limit(limit);
 }
+
+
+// ============ GOOGLE DRIVE FUNCTIONS ============
+
+import { driveCredentials, driveSyncHistory, InsertDriveCredential, InsertDriveSyncHistory } from "../drizzle/schema";
+
+export async function saveDriveCredentials(data: InsertDriveCredential) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Upsert - update if exists, insert if not
+  await db.insert(driveCredentials).values(data).onDuplicateKeyUpdate({
+    set: {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresAt: data.expiresAt,
+      folderId: data.folderId,
+      folderName: data.folderName,
+    },
+  });
+}
+
+export async function getDriveCredentials(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select()
+    .from(driveCredentials)
+    .where(eq(driveCredentials.userId, userId))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getActiveDriveCredentials() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select()
+    .from(driveCredentials)
+    .where(eq(driveCredentials.syncEnabled, 1));
+}
+
+export async function updateDriveCredentials(userId: number, data: Partial<InsertDriveCredential>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(driveCredentials).set(data).where(eq(driveCredentials.userId, userId));
+}
+
+export async function deleteDriveCredentials(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(driveCredentials).where(eq(driveCredentials.userId, userId));
+}
+
+export async function addSyncHistory(data: InsertDriveSyncHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(driveSyncHistory).values(data);
+}
+
+export async function getSyncHistory(credentialId: number, limit: number = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select()
+    .from(driveSyncHistory)
+    .where(eq(driveSyncHistory.credentialId, credentialId))
+    .orderBy(desc(driveSyncHistory.syncedAt))
+    .limit(limit);
+}
+
+export async function getLastSyncedFile(credentialId: number, fileId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select()
+    .from(driveSyncHistory)
+    .where(and(
+      eq(driveSyncHistory.credentialId, credentialId),
+      eq(driveSyncHistory.fileId, fileId),
+      eq(driveSyncHistory.status, "success")
+    ))
+    .orderBy(desc(driveSyncHistory.syncedAt))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : null;
+}

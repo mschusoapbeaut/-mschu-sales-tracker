@@ -43,3 +43,13 @@
 - [x] Brand colors implementation (sage green theme)
 - [x] App name configuration (Ms. Chu Sales Tracker)
 - [x] Splash screen with brand color
+
+
+## Google Drive Integration
+- [x] Set up Google Drive API credentials (requires user to provide)
+- [x] Implement OAuth flow for Google Drive connection
+- [x] Create file listing from specified Drive folder
+- [x] Auto-download and parse CSV/Excel reports
+- [x] Add scheduled sync functionality (every 30 minutes)
+- [x] Create UI for Drive connection settings
+- [x] Display sync status and history

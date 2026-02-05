@@ -56,3 +56,41 @@ export const reportUploads = mysqlTable("reportUploads", {
 
 export type ReportUpload = typeof reportUploads.$inferSelect;
 export type InsertReportUpload = typeof reportUploads.$inferInsert;
+
+/**
+ * Google Drive credentials table - stores OAuth tokens for Drive access
+ */
+export const driveCredentials = mysqlTable("driveCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(), // Only one Drive connection per user/org
+  accessToken: text("accessToken").notNull(),
+  refreshToken: text("refreshToken").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  folderId: varchar("folderId", { length: 100 }), // Target folder to sync from
+  folderName: varchar("folderName", { length: 255 }),
+  lastSyncAt: timestamp("lastSyncAt"),
+  syncEnabled: int("syncEnabled").default(1).notNull(), // 1 = enabled, 0 = disabled
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DriveCredential = typeof driveCredentials.$inferSelect;
+export type InsertDriveCredential = typeof driveCredentials.$inferInsert;
+
+/**
+ * Drive sync history - tracks files that have been synced
+ */
+export const driveSyncHistory = mysqlTable("driveSyncHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  credentialId: int("credentialId").notNull(),
+  fileId: varchar("fileId", { length: 100 }).notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileModifiedTime: timestamp("fileModifiedTime").notNull(),
+  recordsImported: int("recordsImported").default(0),
+  status: mysqlEnum("status", ["success", "failed", "skipped"]).notNull(),
+  errorMessage: text("errorMessage"),
+  syncedAt: timestamp("syncedAt").defaultNow().notNull(),
+});
+
+export type DriveSyncHistory = typeof driveSyncHistory.$inferSelect;
+export type InsertDriveSyncHistory = typeof driveSyncHistory.$inferInsert;

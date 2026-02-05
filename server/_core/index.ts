@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { syncAllDriveConnections } from "../drive-sync";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -77,7 +78,40 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
+    
+    // Start scheduled Google Drive sync (every 30 minutes)
+    startScheduledSync();
   });
+}
+
+// Scheduled sync for Google Drive
+let syncInterval: ReturnType<typeof setInterval> | null = null;
+const SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+function startScheduledSync() {
+  // Run initial sync after 1 minute delay
+  setTimeout(async () => {
+    console.log("[DriveSync] Running initial sync...");
+    try {
+      const result = await syncAllDriveConnections();
+      console.log(`[DriveSync] Initial sync complete: ${result.successful}/${result.total} successful`);
+    } catch (error) {
+      console.error("[DriveSync] Initial sync failed:", error);
+    }
+  }, 60000);
+
+  // Set up recurring sync
+  syncInterval = setInterval(async () => {
+    console.log("[DriveSync] Running scheduled sync...");
+    try {
+      const result = await syncAllDriveConnections();
+      console.log(`[DriveSync] Scheduled sync complete: ${result.successful}/${result.total} successful`);
+    } catch (error) {
+      console.error("[DriveSync] Scheduled sync failed:", error);
+    }
+  }, SYNC_INTERVAL_MS);
+
+  console.log(`[DriveSync] Scheduled sync enabled (every ${SYNC_INTERVAL_MS / 60000} minutes)`);
 }
 
 startServer().catch(console.error);

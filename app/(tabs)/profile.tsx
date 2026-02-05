@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { useState, useEffect } from "react";
+import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,12 +11,15 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colors = useColors();
   const { user, isAuthenticated, logout } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const isAdmin = user?.role === "admin" || false;
+  const utils = trpc.useUtils();
 
   // Admin queries
   const { data: teamSummary, isLoading: teamLoading, refetch: refetchTeam } = trpc.admin.teamSummary.useQuery(
@@ -28,6 +31,87 @@ export default function ProfileScreen() {
     undefined,
     { enabled: isAuthenticated && isAdmin }
   );
+
+  // Google Drive queries
+  const { data: driveStatus, refetch: refetchDriveStatus } = trpc.drive.status.useQuery(
+    undefined,
+    { enabled: isAuthenticated && isAdmin }
+  );
+
+  const { data: authUrl } = trpc.drive.getAuthUrl.useQuery(
+    undefined,
+    { enabled: isAuthenticated && isAdmin && !driveStatus?.connected }
+  );
+
+  const { data: driveFolders, isLoading: foldersLoading } = trpc.drive.listFolders.useQuery(
+    undefined,
+    { enabled: isAuthenticated && isAdmin && driveStatus?.connected && showFolderPicker }
+  );
+
+  const { data: syncHistory, refetch: refetchSyncHistory } = trpc.drive.syncHistory.useQuery(
+    undefined,
+    { enabled: isAuthenticated && isAdmin && driveStatus?.connected }
+  );
+
+  // Google Drive mutations
+  const saveCredentialsMutation = trpc.drive.saveCredentials.useMutation({
+    onSuccess: () => {
+      refetchDriveStatus();
+      Alert.alert("Success", "Google Drive connected successfully!");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const setFolderMutation = trpc.drive.setFolder.useMutation({
+    onSuccess: () => {
+      setShowFolderPicker(false);
+      refetchDriveStatus();
+      Alert.alert("Success", "Folder selected successfully!");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const syncMutation = trpc.drive.sync.useMutation({
+    onSuccess: (result) => {
+      refetchSyncHistory();
+      refetchTeam();
+      if (result.success) {
+        Alert.alert(
+          "Sync Complete",
+          `Processed ${result.filesProcessed} files, imported ${result.recordsImported} records`
+        );
+      } else {
+        Alert.alert("Sync Issues", result.errors.join("\n"));
+      }
+    },
+    onError: (error) => {
+      Alert.alert("Sync Error", error.message);
+    },
+  });
+
+  const disconnectMutation = trpc.drive.disconnect.useMutation({
+    onSuccess: () => {
+      refetchDriveStatus();
+      Alert.alert("Disconnected", "Google Drive has been disconnected");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  // Handle OAuth callback code from URL params
+  useEffect(() => {
+    const code = params.code as string | undefined;
+    if (code && isAdmin) {
+      saveCredentialsMutation.mutate({ code });
+      // Clear the URL params
+      router.setParams({ code: undefined });
+    }
+  }, [params.code, isAdmin]);
 
   // Import mutation
   const importMutation = trpc.admin.importSales.useMutation({
@@ -58,6 +142,31 @@ export default function ProfileScreen() {
         },
       ]);
     }
+  };
+
+  const handleConnectDrive = () => {
+    if (authUrl?.authUrl) {
+      Linking.openURL(authUrl.authUrl);
+    }
+  };
+
+  const handleDisconnectDrive = () => {
+    Alert.alert(
+      "Disconnect Google Drive",
+      "Are you sure you want to disconnect Google Drive? Auto-sync will stop.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Disconnect",
+          style: "destructive",
+          onPress: () => disconnectMutation.mutate(),
+        },
+      ]
+    );
+  };
+
+  const handleSelectFolder = (folderId: string, folderName: string) => {
+    setFolderMutation.mutate({ folderId, folderName });
   };
 
   const handleUploadReport = async () => {
@@ -112,6 +221,17 @@ export default function ProfileScreen() {
     return `HK$${num.toLocaleString("en-HK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return "Never";
+    const d = new Date(date);
+    return d.toLocaleDateString("en-HK", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
@@ -146,9 +266,182 @@ export default function ProfileScreen() {
         {/* Admin Section */}
         {isAdmin && (
           <>
+            {/* Google Drive Integration */}
+            <View className="px-5 py-3">
+              <Text className="text-lg font-semibold text-foreground mb-3">Google Drive Sync</Text>
+              
+              <View className="bg-surface rounded-2xl border border-border p-4">
+                {driveStatus?.connected ? (
+                  <>
+                    {/* Connected Status */}
+                    <View className="flex-row items-center mb-3">
+                      <MaterialIcons name="cloud-done" size={24} color={colors.success} />
+                      <Text className="text-foreground font-medium ml-2">Connected to Google Drive</Text>
+                    </View>
+
+                    {/* Folder Selection */}
+                    <View className="mb-3">
+                      <Text className="text-sm text-muted mb-1">Sync Folder:</Text>
+                      {driveStatus.folderName ? (
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center flex-1">
+                            <MaterialIcons name="folder" size={20} color={colors.primary} />
+                            <Text className="text-foreground ml-2">{driveStatus.folderName}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => setShowFolderPicker(true)}
+                            className="px-3 py-1 bg-primary/10 rounded-lg"
+                          >
+                            <Text className="text-primary text-sm">Change</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => setShowFolderPicker(true)}
+                          className="py-2 px-4 bg-primary/10 rounded-lg flex-row items-center justify-center"
+                        >
+                          <MaterialIcons name="folder-open" size={20} color={colors.primary} />
+                          <Text className="text-primary ml-2">Select Folder</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Last Sync */}
+                    <View className="mb-3">
+                      <Text className="text-sm text-muted">
+                        Last synced: {formatDate(driveStatus.lastSyncAt)}
+                      </Text>
+                    </View>
+
+                    {/* Sync Button */}
+                    <TouchableOpacity
+                      onPress={() => syncMutation.mutate()}
+                      disabled={syncMutation.isPending || !driveStatus.folderId}
+                      className={`py-3 rounded-xl flex-row items-center justify-center ${
+                        driveStatus.folderId ? "bg-primary" : "bg-border"
+                      }`}
+                    >
+                      {syncMutation.isPending ? (
+                        <ActivityIndicator size="small" color={colors.background} />
+                      ) : (
+                        <>
+                          <MaterialIcons name="sync" size={20} color={driveStatus.folderId ? colors.background : colors.muted} />
+                          <Text className={`font-medium ml-2 ${driveStatus.folderId ? "text-background" : "text-muted"}`}>
+                            Sync Now
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Disconnect */}
+                    <TouchableOpacity
+                      onPress={handleDisconnectDrive}
+                      className="mt-3 py-2 items-center"
+                    >
+                      <Text className="text-error text-sm">Disconnect Google Drive</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    {/* Not Connected */}
+                    <View className="items-center py-4">
+                      <MaterialIcons name="cloud-off" size={48} color={colors.muted} />
+                      <Text className="text-muted mt-2 text-center">
+                        Connect Google Drive to automatically sync sales reports
+                      </Text>
+                      <TouchableOpacity
+                        onPress={handleConnectDrive}
+                        disabled={saveCredentialsMutation.isPending}
+                        className="mt-4 py-3 px-6 bg-primary rounded-xl flex-row items-center"
+                      >
+                        {saveCredentialsMutation.isPending ? (
+                          <ActivityIndicator size="small" color={colors.background} />
+                        ) : (
+                          <>
+                            <MaterialIcons name="add-to-drive" size={20} color={colors.background} />
+                            <Text className="text-background font-medium ml-2">Connect Google Drive</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+
+            {/* Folder Picker Modal */}
+            {showFolderPicker && (
+              <View className="px-5 py-3">
+                <View className="bg-surface rounded-2xl border border-border p-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text className="font-semibold text-foreground">Select Folder</Text>
+                    <TouchableOpacity onPress={() => setShowFolderPicker(false)}>
+                      <MaterialIcons name="close" size={24} color={colors.muted} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {foldersLoading ? (
+                    <View className="py-8 items-center">
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text className="text-muted mt-2">Loading folders...</Text>
+                    </View>
+                  ) : driveFolders && driveFolders.length > 0 ? (
+                    <ScrollView style={{ maxHeight: 300 }}>
+                      {driveFolders.map((folder) => (
+                        <TouchableOpacity
+                          key={folder.id}
+                          onPress={() => handleSelectFolder(folder.id, folder.name)}
+                          disabled={setFolderMutation.isPending}
+                          className="py-3 px-2 flex-row items-center border-b border-border"
+                        >
+                          <MaterialIcons name="folder" size={24} color={colors.primary} />
+                          <Text className="text-foreground ml-3 flex-1">{folder.name}</Text>
+                          <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <View className="py-8 items-center">
+                      <Text className="text-muted">No folders found</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Sync History */}
+            {driveStatus?.connected && syncHistory && syncHistory.length > 0 && (
+              <View className="px-5 py-3">
+                <Text className="text-sm font-medium text-muted mb-2">Recent Sync History</Text>
+                <View className="bg-surface rounded-xl border border-border overflow-hidden">
+                  {syncHistory.slice(0, 5).map((item, index) => (
+                    <View
+                      key={item.id}
+                      className={`p-3 flex-row items-center ${
+                        index < Math.min(syncHistory.length, 5) - 1 ? "border-b border-border" : ""
+                      }`}
+                    >
+                      <MaterialIcons
+                        name={item.status === "success" ? "check-circle" : item.status === "failed" ? "error" : "remove-circle"}
+                        size={16}
+                        color={item.status === "success" ? colors.success : item.status === "failed" ? colors.error : colors.muted}
+                      />
+                      <View className="ml-2 flex-1">
+                        <Text className="text-sm text-foreground" numberOfLines={1}>{item.fileName}</Text>
+                        <Text className="text-xs text-muted">{formatDate(item.syncedAt)}</Text>
+                      </View>
+                      {item.status === "success" && (
+                        <Text className="text-xs text-muted">{item.recordsImported} records</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Upload Report */}
             <View className="px-5 py-3">
-              <Text className="text-lg font-semibold text-foreground mb-3">Admin Panel</Text>
+              <Text className="text-lg font-semibold text-foreground mb-3">Manual Upload</Text>
               
               <TouchableOpacity
                 onPress={handleUploadReport}
