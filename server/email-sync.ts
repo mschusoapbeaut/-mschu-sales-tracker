@@ -333,9 +333,9 @@ async function importCSVData(csvData: string): Promise<number> {
   return imported;
 }
 
-// Schedule auto-fetch every 6 hours
+// Schedule auto-fetch every 1 hour
 let syncInterval: ReturnType<typeof setInterval> | null = null;
-const SIX_HOURS = 6 * 60 * 60 * 1000;
+const ONE_HOUR = 1 * 60 * 60 * 1000;
 
 export function startScheduledEmailSync() {
   if (syncInterval) {
@@ -359,7 +359,7 @@ export function startScheduledEmailSync() {
     }
   }, 60000);
 
-  // Schedule recurring sync every 6 hours
+  // Schedule recurring sync every 1 hour
   syncInterval = setInterval(async () => {
     console.log("[EmailSync] Running scheduled email sync...");
     const result = await fetchAndProcessEmails();
@@ -368,9 +368,9 @@ export function startScheduledEmailSync() {
     } else {
       console.error("[EmailSync] Scheduled sync failed:", result.error);
     }
-  }, SIX_HOURS);
+  }, ONE_HOUR);
 
-  console.log("[EmailSync] Scheduled auto-fetch every 6 hours");
+  console.log("[EmailSync] Scheduled auto-fetch every 1 hour");
 }
 
 export function stopScheduledEmailSync() {

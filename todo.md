@@ -119,7 +119,7 @@
 - [x] Support Outlook/Hotmail IMAP (outlook.office365.com)
 - [x] Auto-fetch CSV/Excel attachments from unread emails
 - [x] Parse and import sales data from attachments
-- [x] Schedule auto-fetch every 6 hours
+- [x] Schedule auto-fetch every 1 hour
 - [x] Add API endpoints: /api/email/status, /api/email/test, /api/email/fetch
 - [x] Use environment variables for credentials (EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_ENABLED)
 - [ ] Add Railway environment variables (user action required)
