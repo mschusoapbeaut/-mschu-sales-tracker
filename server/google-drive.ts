@@ -88,11 +88,12 @@ export async function listFolders(drive: drive_v3.Drive): Promise<drive_v3.Schem
   return response.data.files || [];
 }
 
-// Download file content as string
+// Download file content as string or buffer
 export async function downloadFileContent(
   drive: drive_v3.Drive,
-  fileId: string
-): Promise<string> {
+  fileId: string,
+  asBinary: boolean = false
+): Promise<string | ArrayBuffer> {
   const response = await drive.files.get(
     { fileId, alt: "media" },
     { responseType: "stream" }
@@ -103,7 +104,14 @@ export async function downloadFileContent(
     const stream = response.data as Readable;
     
     stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    stream.on("end", () => {
+      const buffer = Buffer.concat(chunks);
+      if (asBinary) {
+        resolve(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+      } else {
+        resolve(buffer.toString("utf-8"));
+      }
+    });
     stream.on("error", reject);
   });
 }

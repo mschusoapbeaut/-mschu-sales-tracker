@@ -98,6 +98,7 @@ export async function getAllUsers() {
     name: users.name,
     email: users.email,
     role: users.role,
+    staffId: users.staffId,
     monthlyTarget: users.monthlyTarget,
     createdAt: users.createdAt,
   }).from(users).orderBy(users.name);
@@ -108,6 +109,31 @@ export async function updateUserTarget(userId: number, target: string) {
   if (!db) throw new Error("Database not available");
   
   await db.update(users).set({ monthlyTarget: target }).where(eq(users.id, userId));
+}
+
+export async function updateUserStaffId(userId: number, staffId: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users).set({ staffId }).where(eq(users.id, userId));
+}
+
+export async function getStaffMapping(): Promise<Record<string, number>> {
+  const db = await getDb();
+  if (!db) return {};
+  
+  const result = await db.select({
+    id: users.id,
+    staffId: users.staffId,
+  }).from(users).where(sql`${users.staffId} IS NOT NULL`);
+  
+  const mapping: Record<string, number> = {};
+  for (const user of result) {
+    if (user.staffId) {
+      mapping[user.staffId] = user.id;
+    }
+  }
+  return mapping;
 }
 
 // ============ SALES FUNCTIONS ============

@@ -1,11 +1,12 @@
 /**
  * Google Drive Sync Service
  * Handles automatic extraction and import of sales reports from Google Drive
+ * Supports both CSV and Excel (.xlsx) files with WVReferredByStaff mapping
  */
 
 import * as GoogleDrive from "./google-drive";
 import * as db from "./db";
-import { parseCSV } from "../lib/report-parser";
+import { parseCSV, parseExcel } from "../lib/report-parser";
 
 interface SyncResult {
   success: boolean;
@@ -54,11 +55,14 @@ export async function syncDriveReports(credentialId: number): Promise<SyncResult
     // Create Drive client
     const drive = GoogleDrive.createDriveClient(accessToken, credentials.refreshToken);
 
-    // List files in the configured folder
+    // List files in the configured folder (CSV and Excel)
     const files = await GoogleDrive.listFilesInFolder(drive, credentials.folderId);
     console.log(`[DriveSync] Found ${files.length} files in folder`);
 
-    // Get all users for mapping
+    // Get staff ID mapping for Excel files
+    const staffMapping = await db.getStaffMapping();
+    
+    // Get all users for CSV name-based mapping
     const allUsers = await db.getAllUsers();
     const userMapping: Record<string, number> = {};
     allUsers.forEach((u) => {
@@ -69,6 +73,16 @@ export async function syncDriveReports(credentialId: number): Promise<SyncResult
     // Process each file
     for (const file of files) {
       if (!file.id || !file.name) continue;
+
+      // Check file extension
+      const fileName = file.name.toLowerCase();
+      const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+      const isCSV = fileName.endsWith('.csv');
+      
+      if (!isExcel && !isCSV) {
+        console.log(`[DriveSync] Skipping ${file.name} - unsupported format`);
+        continue;
+      }
 
       try {
         // Check if file was already synced with same modification time
@@ -84,10 +98,17 @@ export async function syncDriveReports(credentialId: number): Promise<SyncResult
         console.log(`[DriveSync] Processing ${file.name}...`);
 
         // Download file content
-        const content = await GoogleDrive.downloadFileContent(drive, file.id);
+        const content = await GoogleDrive.downloadFileContent(drive, file.id, isExcel);
 
-        // Parse CSV content
-        const parseResult = parseCSV(content, userMapping);
+        // Parse based on file type
+        let parseResult;
+        if (isExcel) {
+          // For Excel, use staff ID mapping (WVReferredByStaff)
+          parseResult = parseExcel(content, staffMapping, false);
+        } else {
+          // For CSV, use name-based mapping
+          parseResult = parseCSV(content as string, userMapping);
+        }
 
         if (!parseResult.success || parseResult.records.length === 0) {
           await db.addSyncHistory({

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Linking, TextInput } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
@@ -17,6 +18,15 @@ export default function ProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showStaffMapping, setShowStaffMapping] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<{ userId: number; staffId: string } | null>(null);
+  const [unmappedStaffIds, setUnmappedStaffIds] = useState<string[]>([]);
+  const [excelImportResult, setExcelImportResult] = useState<{
+    success: boolean;
+    importedCount: number;
+    errors: string[];
+    warnings: string[];
+  } | null>(null);
 
   const isAdmin = user?.role === "admin" || false;
   const utils = trpc.useUtils();
@@ -27,7 +37,7 @@ export default function ProfileScreen() {
     { enabled: isAuthenticated && isAdmin }
   );
 
-  const { data: allUsers } = trpc.admin.users.useQuery(
+  const { data: allUsers, refetch: refetchUsers } = trpc.admin.users.useQuery(
     undefined,
     { enabled: isAuthenticated && isAdmin }
   );
@@ -103,6 +113,35 @@ export default function ProfileScreen() {
     },
   });
 
+  // Staff mapping mutation
+  const updateStaffIdMutation = trpc.admin.updateStaffId.useMutation({
+    onSuccess: () => {
+      refetchUsers();
+      setEditingStaffId(null);
+      Alert.alert("Success", "Staff ID updated successfully");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  // Excel import mutation
+  const importExcelMutation = trpc.admin.importExcel.useMutation({
+    onSuccess: (result) => {
+      setExcelImportResult(result);
+      if (result.success) {
+        refetchTeam();
+        Alert.alert("Success", `Imported ${result.importedCount} sales records`);
+      } else if (result.unmappedStaffIds && result.unmappedStaffIds.length > 0) {
+        setUnmappedStaffIds(result.unmappedStaffIds);
+        setShowStaffMapping(true);
+      }
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
   // Handle OAuth callback code from URL params
   useEffect(() => {
     const code = params.code as string | undefined;
@@ -113,7 +152,7 @@ export default function ProfileScreen() {
     }
   }, [params.code, isAdmin]);
 
-  // Import mutation
+  // Import mutation (for CSV)
   const importMutation = trpc.admin.importSales.useMutation({
     onSuccess: (data) => {
       Alert.alert("Success", `Imported ${data.importedCount} sales records`);
@@ -172,7 +211,12 @@ export default function ProfileScreen() {
   const handleUploadReport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "text/plain", "application/vnd.ms-excel"],
+        type: [
+          "text/csv",
+          "text/plain",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ],
         copyToCacheDirectory: true,
       });
 
@@ -180,25 +224,58 @@ export default function ProfileScreen() {
 
       setUploading(true);
       const asset = result.assets[0];
+      const fileName = asset.name || "report";
+      const isExcel = fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls");
 
-      // Read file content
-      const response = await fetch(asset.uri);
-      const content = await response.text();
-
-      // Create user mapping from allUsers
-      const userMapping: Record<string, number> = {};
-      allUsers?.forEach((u) => {
-        if (u.name) {
-          userMapping[u.name.toLowerCase()] = u.id;
+      if (isExcel) {
+        // Handle Excel file
+        let base64Data: string;
+        
+        if (Platform.OS === "web") {
+          // For web, fetch and convert to base64
+          const response = await fetch(asset.uri);
+          const blob = await response.blob();
+          base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1]); // Remove data URL prefix
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          // For native, use FileSystem
+          base64Data = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
         }
-        if (u.email) {
-          userMapping[u.email.toLowerCase()] = u.id;
-        }
-      });
 
-      // Parse the CSV
-      const parsed = parseCSV(content, userMapping);
-      setParseResult(parsed);
+        // Import Excel file
+        importExcelMutation.mutate({
+          fileData: base64Data,
+          fileName: fileName,
+        });
+      } else {
+        // Handle CSV file
+        const response = await fetch(asset.uri);
+        const content = await response.text();
+
+        // Create user mapping from allUsers
+        const userMapping: Record<string, number> = {};
+        allUsers?.forEach((u) => {
+          if (u.name) {
+            userMapping[u.name.toLowerCase()] = u.id;
+          }
+          if (u.email) {
+            userMapping[u.email.toLowerCase()] = u.id;
+          }
+        });
+
+        // Parse the CSV
+        const parsed = parseCSV(content, userMapping);
+        setParseResult(parsed);
+      }
       setUploading(false);
     } catch (error) {
       setUploading(false);
@@ -212,6 +289,13 @@ export default function ProfileScreen() {
 
     importMutation.mutate({
       sales: parseResult.records,
+    });
+  };
+
+  const handleSaveStaffId = (userId: number, staffId: string) => {
+    updateStaffIdMutation.mutate({
+      userId,
+      staffId: staffId.trim() || null,
     });
   };
 
@@ -266,6 +350,95 @@ export default function ProfileScreen() {
         {/* Admin Section */}
         {isAdmin && (
           <>
+            {/* Staff ID Mapping */}
+            <View className="px-5 py-3">
+              <TouchableOpacity
+                onPress={() => setShowStaffMapping(!showStaffMapping)}
+                className="flex-row items-center justify-between"
+              >
+                <Text className="text-lg font-semibold text-foreground">Staff ID Mapping</Text>
+                <MaterialIcons
+                  name={showStaffMapping ? "expand-less" : "expand-more"}
+                  size={24}
+                  color={colors.muted}
+                />
+              </TouchableOpacity>
+
+              {showStaffMapping && (
+                <View className="mt-3 bg-surface rounded-2xl border border-border overflow-hidden">
+                  <View className="p-3 bg-primary/10 border-b border-border">
+                    <Text className="text-sm text-foreground">
+                      Map each user to their WVReferredByStaff ID from the sales report
+                    </Text>
+                  </View>
+
+                  {unmappedStaffIds.length > 0 && (
+                    <View className="p-3 bg-warning/10 border-b border-border">
+                      <Text className="text-sm text-warning font-medium mb-1">Unmapped Staff IDs found:</Text>
+                      <Text className="text-xs text-muted">{unmappedStaffIds.join(", ")}</Text>
+                    </View>
+                  )}
+
+                  {allUsers?.map((u, index) => (
+                    <View
+                      key={u.id}
+                      className={`p-3 flex-row items-center ${
+                        index < (allUsers?.length || 0) - 1 ? "border-b border-border" : ""
+                      }`}
+                    >
+                      <View className="flex-1">
+                        <Text className="font-medium text-foreground">{u.name || "Unknown"}</Text>
+                        <Text className="text-xs text-muted">{u.email}</Text>
+                      </View>
+                      
+                      {editingStaffId?.userId === u.id ? (
+                        <View className="flex-row items-center">
+                          <TextInput
+                            value={editingStaffId.staffId}
+                            onChangeText={(text) => setEditingStaffId({ ...editingStaffId, staffId: text })}
+                            placeholder="Staff ID"
+                            keyboardType="numeric"
+                            className="w-32 px-2 py-1 bg-background border border-border rounded text-foreground text-sm"
+                            placeholderTextColor={colors.muted}
+                          />
+                          <TouchableOpacity
+                            onPress={() => handleSaveStaffId(u.id, editingStaffId.staffId)}
+                            disabled={updateStaffIdMutation.isPending}
+                            className="ml-2 p-1"
+                          >
+                            <MaterialIcons name="check" size={20} color={colors.success} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setEditingStaffId(null)}
+                            className="ml-1 p-1"
+                          >
+                            <MaterialIcons name="close" size={20} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => setEditingStaffId({ userId: u.id, staffId: u.staffId || "" })}
+                          className="flex-row items-center"
+                        >
+                          {u.staffId ? (
+                            <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded">
+                              <Text className="text-sm text-primary">{u.staffId}</Text>
+                              <MaterialIcons name="edit" size={14} color={colors.primary} className="ml-1" />
+                            </View>
+                          ) : (
+                            <View className="flex-row items-center bg-warning/10 px-2 py-1 rounded">
+                              <Text className="text-sm text-warning">Not set</Text>
+                              <MaterialIcons name="add" size={14} color={colors.warning} className="ml-1" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
             {/* Google Drive Integration */}
             <View className="px-5 py-3">
               <Text className="text-lg font-semibold text-foreground mb-3">Google Drive Sync</Text>
@@ -445,10 +618,10 @@ export default function ProfileScreen() {
               
               <TouchableOpacity
                 onPress={handleUploadReport}
-                disabled={uploading}
+                disabled={uploading || importExcelMutation.isPending}
                 className="bg-primary rounded-xl p-4 flex-row items-center justify-center active:opacity-80"
               >
-                {uploading ? (
+                {uploading || importExcelMutation.isPending ? (
                   <ActivityIndicator size="small" color={colors.background} />
                 ) : (
                   <>
@@ -459,11 +632,51 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <Text className="text-xs text-muted mt-2 text-center">
-                Supported formats: CSV with columns for Date, Salesperson, Product, Quantity, Price, Total
+                Supports Excel (.xlsx) with WVReferredByStaff tags or CSV files
               </Text>
             </View>
 
-            {/* Parse Result Preview */}
+            {/* Excel Import Result */}
+            {excelImportResult && !excelImportResult.success && (
+              <View className="px-5 py-3">
+                <View className="bg-surface rounded-2xl border border-border p-4">
+                  <View className="flex-row items-center mb-2">
+                    <MaterialIcons name="warning" size={20} color={colors.warning} />
+                    <Text className="text-warning font-medium ml-2">Import Issues</Text>
+                  </View>
+                  
+                  {excelImportResult.errors.length > 0 && (
+                    <View className="mb-2">
+                      <Text className="text-sm text-error">Errors:</Text>
+                      {excelImportResult.errors.slice(0, 3).map((e, i) => (
+                        <Text key={i} className="text-xs text-muted">• {e}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {excelImportResult.warnings.length > 0 && (
+                    <View className="mb-2">
+                      <Text className="text-sm text-warning">Warnings:</Text>
+                      {excelImportResult.warnings.slice(0, 5).map((w, i) => (
+                        <Text key={i} className="text-xs text-muted">• {w}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setExcelImportResult(null);
+                      setShowStaffMapping(true);
+                    }}
+                    className="mt-2 py-2 rounded-lg bg-primary items-center"
+                  >
+                    <Text className="font-medium text-background">Configure Staff Mapping</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Parse Result Preview (for CSV) */}
             {parseResult && (
               <View className="px-5 py-3">
                 <View className="bg-surface rounded-2xl border border-border p-4">

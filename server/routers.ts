@@ -6,6 +6,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import * as GoogleDrive from "./google-drive";
 import * as DriveSync from "./drive-sync";
+import { parseExcel, extractStaffIds } from "../lib/report-parser";
 
 // Helper to get date ranges
 function getDateRange(period: "week" | "month" | "year") {
@@ -186,6 +187,107 @@ export const appRouter = router({
       }
       return db.getReportUploads();
     }),
+
+    // Update user's staff ID for report mapping (admin only)
+    updateStaffId: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        staffId: z.string().nullable(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        await db.updateUserStaffId(input.userId, input.staffId);
+        return { success: true };
+      }),
+
+    // Get staff mapping for Excel import
+    getStaffMapping: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      return db.getStaffMapping();
+    }),
+
+    // Import Excel report with staff ID mapping
+    importExcel: protectedProcedure
+      .input(z.object({
+        fileData: z.string(), // Base64 encoded Excel file
+        fileName: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        // Get staff mapping from database
+        const staffMapping = await db.getStaffMapping();
+        
+        // Parse Excel file
+        const result = parseExcel(input.fileData, staffMapping, true);
+        
+        if (!result.success || result.records.length === 0) {
+          return {
+            success: false,
+            importedCount: 0,
+            errors: result.errors,
+            warnings: result.warnings,
+            unmappedStaffIds: extractStaffIds(input.fileData, true),
+          };
+        }
+        
+        // Import sales data
+        const salesData = result.records.map(r => ({
+          userId: r.userId,
+          productName: r.productName,
+          productCategory: r.productCategory || null,
+          quantity: r.quantity,
+          unitPrice: r.unitPrice,
+          totalAmount: r.totalAmount,
+          saleDate: new Date(r.saleDate),
+          customerName: r.customerName || null,
+          orderReference: r.orderReference || null,
+        }));
+        
+        const count = await db.createSalesBatch(salesData);
+        
+        // Create report upload record
+        await db.createReportUpload({
+          uploadedBy: ctx.user.id,
+          fileName: input.fileName,
+          recordsImported: count,
+          status: "completed",
+        });
+        
+        return {
+          success: true,
+          importedCount: count,
+          errors: result.errors,
+          warnings: result.warnings,
+          unmappedStaffIds: [],
+        };
+      }),
+
+    // Extract staff IDs from Excel file for mapping setup
+    extractStaffIds: protectedProcedure
+      .input(z.object({
+        fileData: z.string(), // Base64 encoded Excel file
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const staffIds = extractStaffIds(input.fileData, true);
+        const existingMapping = await db.getStaffMapping();
+        
+        return {
+          staffIds,
+          mappedCount: staffIds.filter(id => existingMapping[id]).length,
+          unmappedCount: staffIds.filter(id => !existingMapping[id]).length,
+        };
+      }),
   }),
 
   // Google Drive integration endpoints

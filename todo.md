@@ -53,3 +53,11 @@
 - [x] Add scheduled sync functionality (every 30 minutes)
 - [x] Create UI for Drive connection settings
 - [x] Display sync status and history
+
+
+## Excel Report Parsing Update
+- [x] Support Excel (.xlsx) file format parsing
+- [x] Map WVReferredByStaff (Column E) to staff member
+- [x] Extract order_date (Column A), order_name (Column B), sales_channel (Column C)
+- [x] Extract net_sales (Column H), total_sales (Column I), refund_adj (Column J)
+- [x] Auto-match staff IDs to registered users via Staff ID Mapping UI
