@@ -1,0 +1,88 @@
+{
+  "query": "SELECT id, name, email, role FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, name, email, role FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Egenie Tang",
+      "email": "egenie.tang@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "2",
+      "name": "Eva Lee",
+      "email": "eva.lee@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "3",
+      "name": "Maggie Liang",
+      "email": "maggie.liang@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "4",
+      "name": "Maggie Wong",
+      "email": "maggie.wong@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "5",
+      "name": "Ting Siew",
+      "email": "ting.siew@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "6",
+      "name": "Win Lee",
+      "email": "win.lee@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "7",
+      "name": "Wing Ho",
+      "email": "wing.ho@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "8",
+      "name": "Sharon Li",
+      "email": "sharon.li@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "9",
+      "name": "Hailey Hoi Ling Wong",
+      "email": "hailey.wong@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "10",
+      "name": "Bon Lau",
+      "email": "bon.lau@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "11",
+      "name": "Sze",
+      "email": "sze@mschu.local",
+      "role": "user"
+    },
+    {
+      "id": "30001",
+      "name": "info+maggielang",
+      "email": "info+maggielang@mschusoapandbeaut.com",
+      "role": "user"
+    },
+    {
+      "id": "60002",
+      "name": "cindchu",
+      "email": "cindchu@hotmail.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n1\tEgenie Tang\tegenie.tang@mschu.local\tuser\n2\tEva Lee\teva.lee@mschu.local\tuser\n3\tMaggie Liang\tmaggie.liang@mschu.local\tuser\n4\tMaggie Wong\tmaggie.wong@mschu.local\tuser\n5\tTing Siew\tting.siew@mschu.local\tuser\n6\tWin Lee\twin.lee@mschu.local\tuser\n7\tWing Ho\twing.ho@mschu.local\tuser\n8\tSharon Li\tsharon.li@mschu.local\tuser\n9\tHailey Hoi Ling Wong\thailey.wong@mschu.local\tuser\n10\tBon Lau\tbon.lau@mschu.local\tuser\n11\tSze\tsze@mschu.local\tuser\n30001\tinfo+maggielang\tinfo+maggielang@mschusoapandbeaut.com\tuser\n60002\tcindchu\tcindchu@hotmail.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1541
+}

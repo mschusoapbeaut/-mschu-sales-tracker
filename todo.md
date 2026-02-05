@@ -94,3 +94,16 @@
 ## Staff Email and PIN Setup
 - [x] Update staff accounts with email addresses
 - [x] Set PINs for all 11 staff members
+
+
+## Manual Report Upload
+- [ ] Add manual Excel/CSV upload option in admin panel
+- [ ] Allow admins to upload reports without Google Drive
+
+
+## Manus Web Publish
+- [ ] Verify app is production-ready
+- [ ] Save checkpoint for publishing
+- [ ] Publish via Manus UI
+- [ ] Test published app URL
+- [ ] Update Google OAuth redirect URI for production

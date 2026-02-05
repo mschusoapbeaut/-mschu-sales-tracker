@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, email, role FROM users WHERE email = 'cindychu@mschusoapandbeaut.com';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, name, email, role FROM users WHERE email = 'cindychu@mschusoapandbeaut.com';",
+  "rows": [
+    {
+      "id": "60027",
+      "name": "Cindy Chu",
+      "email": "cindychu@mschusoapandbeaut.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n60027\tCindy Chu\tcindychu@mschusoapandbeaut.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 1521
+}
