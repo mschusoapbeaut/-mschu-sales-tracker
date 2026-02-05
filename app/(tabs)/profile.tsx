@@ -10,6 +10,111 @@ import { trpc } from "@/lib/trpc";
 import { parseCSV, ParseResult } from "@/lib/report-parser";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
+// Component for users to set their own Staff ID
+function MyStaffIdSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [staffIdInput, setStaffIdInput] = useState("");
+  const utils = trpc.useUtils();
+
+  // Get current user's staff ID
+  const { data: staffIdData, refetch } = trpc.user.getStaffId.useQuery();
+
+  // Mutation to update staff ID
+  const updateStaffIdMutation = trpc.user.updateMyStaffId.useMutation({
+    onSuccess: () => {
+      refetch();
+      utils.sales.summary.invalidate();
+      utils.sales.list.invalidate();
+      setIsEditing(false);
+      Alert.alert("Success", "Your Staff ID has been updated. Your sales data will now be linked to your account.");
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message);
+    },
+  });
+
+  const handleStartEdit = () => {
+    setStaffIdInput(staffIdData?.staffId || "");
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    updateStaffIdMutation.mutate({
+      staffId: staffIdInput.trim() || null,
+    });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setStaffIdInput("");
+  };
+
+  return (
+    <View className="px-5 py-3">
+      <Text className="text-lg font-semibold text-foreground mb-3">My Staff ID</Text>
+      
+      <View className="bg-surface rounded-2xl border border-border p-4">
+        <Text className="text-sm text-muted mb-3">
+          Enter your WVReferredByStaff ID to link your sales data to your account.
+        </Text>
+        
+        {isEditing ? (
+          <View>
+            <TextInput
+              value={staffIdInput}
+              onChangeText={setStaffIdInput}
+              placeholder="Enter your Staff ID (e.g., 78319091759)"
+              keyboardType="numeric"
+              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <View className="flex-row mt-3 gap-2">
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={updateStaffIdMutation.isPending}
+                className="flex-1 bg-primary py-3 rounded-lg items-center"
+              >
+                {updateStaffIdMutation.isPending ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Text className="text-background font-semibold">Save</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCancel}
+                className="flex-1 bg-surface border border-border py-3 rounded-lg items-center"
+              >
+                <Text className="text-foreground font-semibold">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={handleStartEdit}
+            className="flex-row items-center justify-between py-2"
+          >
+            <View className="flex-1">
+              {staffIdData?.staffId ? (
+                <View className="flex-row items-center">
+                  <MaterialIcons name="check-circle" size={18} color={colors.success} />
+                  <Text className="text-foreground font-medium ml-2">{staffIdData.staffId}</Text>
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <MaterialIcons name="warning" size={18} color={colors.warning} />
+                  <Text className="text-warning ml-2">Not set - tap to add your Staff ID</Text>
+                </View>
+              )}
+            </View>
+            <MaterialIcons name="edit" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -346,6 +451,9 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* My Staff ID Section - for all users */}
+        <MyStaffIdSection colors={colors} />
 
         {/* Admin Section */}
         {isAdmin && (

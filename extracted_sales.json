@@ -1,0 +1,425 @@
+[
+  {
+    "order_date": "2025-12-01",
+    "order_name": "70261",
+    "sales_channel": "Online Store",
+    "net_sales": 909.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-01",
+    "order_name": "70257",
+    "sales_channel": "Online Store",
+    "net_sales": 1107.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-01",
+    "order_name": "70258",
+    "sales_channel": "Online Store",
+    "net_sales": 1116.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-02",
+    "order_name": "70344",
+    "sales_channel": "Online Store",
+    "net_sales": 1060.0,
+    "staff_id": "78319550511",
+    "staff_name": "Win Lee",
+    "user_id": 6
+  },
+  {
+    "order_date": "2025-12-04",
+    "order_name": "70499",
+    "sales_channel": "Online Store",
+    "net_sales": 380.0,
+    "staff_id": "118809198875",
+    "staff_name": "Sze",
+    "user_id": 11
+  },
+  {
+    "order_date": "2025-12-04",
+    "order_name": "70542",
+    "sales_channel": "Online Store",
+    "net_sales": 440.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-04",
+    "order_name": "70547",
+    "sales_channel": "Online Store",
+    "net_sales": 688.5,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-04",
+    "order_name": "70572",
+    "sales_channel": "Online Store",
+    "net_sales": 800.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-05",
+    "order_name": "70573",
+    "sales_channel": "Online Store",
+    "net_sales": 490.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-05",
+    "order_name": "70615",
+    "sales_channel": "Online Store",
+    "net_sales": 610.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-05",
+    "order_name": "70617",
+    "sales_channel": "Online Store",
+    "net_sales": 265.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-06",
+    "order_name": "70708",
+    "sales_channel": "Online Store",
+    "net_sales": 0.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-06",
+    "order_name": "70750",
+    "sales_channel": "Online Store",
+    "net_sales": 1060.0,
+    "staff_id": "101232115995",
+    "staff_name": "Sharon Li",
+    "user_id": 8
+  },
+  {
+    "order_date": "2025-12-07",
+    "order_name": "70765",
+    "sales_channel": "Online Store",
+    "net_sales": 810.0,
+    "staff_id": "101232115995",
+    "staff_name": "Sharon Li",
+    "user_id": 8
+  },
+  {
+    "order_date": "2025-12-07",
+    "order_name": "70854",
+    "sales_channel": "Online Store",
+    "net_sales": 1568.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-08",
+    "order_name": "70871",
+    "sales_channel": "Online Store",
+    "net_sales": 540.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-08",
+    "order_name": "70886",
+    "sales_channel": "Online Store",
+    "net_sales": 1570.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-08",
+    "order_name": "70900",
+    "sales_channel": "Online Store",
+    "net_sales": 950.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-11",
+    "order_name": "71073",
+    "sales_channel": "Online Store",
+    "net_sales": 0.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-11",
+    "order_name": "71096",
+    "sales_channel": "Online Store",
+    "net_sales": 1215.18,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-11",
+    "order_name": "71152",
+    "sales_channel": "Online Store",
+    "net_sales": 780.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-12",
+    "order_name": "71153",
+    "sales_channel": "Online Store",
+    "net_sales": 1580.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-12",
+    "order_name": "71179",
+    "sales_channel": "Online Store",
+    "net_sales": 500.0,
+    "staff_id": "101232115995",
+    "staff_name": "Sharon Li",
+    "user_id": 8
+  },
+  {
+    "order_date": "2025-12-13",
+    "order_name": "71212",
+    "sales_channel": "Online Store",
+    "net_sales": 640.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-13",
+    "order_name": "71249",
+    "sales_channel": "Online Store",
+    "net_sales": 1432.0,
+    "staff_id": "78319190063",
+    "staff_name": "Maggie Liang",
+    "user_id": 3
+  },
+  {
+    "order_date": "2025-12-13",
+    "order_name": "71252",
+    "sales_channel": "Online Store",
+    "net_sales": 540.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-14",
+    "order_name": "71295",
+    "sales_channel": "Online Store",
+    "net_sales": 1110.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-15",
+    "order_name": "71368",
+    "sales_channel": "Online Store",
+    "net_sales": 1456.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-15",
+    "order_name": "71364",
+    "sales_channel": "Online Store",
+    "net_sales": 1230.0,
+    "staff_id": "78319190063",
+    "staff_name": "Maggie Liang",
+    "user_id": 3
+  },
+  {
+    "order_date": "2025-12-15",
+    "order_name": "71365",
+    "sales_channel": "Online Store",
+    "net_sales": 2550.0,
+    "staff_id": "78319190063",
+    "staff_name": "Maggie Liang",
+    "user_id": 3
+  },
+  {
+    "order_date": "2025-12-17",
+    "order_name": "71536",
+    "sales_channel": "Online Store",
+    "net_sales": 1540.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-19",
+    "order_name": "71696",
+    "sales_channel": "Online Store",
+    "net_sales": 710.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-21",
+    "order_name": "71802",
+    "sales_channel": "Online Store",
+    "net_sales": 400.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-21",
+    "order_name": "71846",
+    "sales_channel": "Online Store",
+    "net_sales": 540.0,
+    "staff_id": "79208775727",
+    "staff_name": "Maggie Wong",
+    "user_id": 4
+  },
+  {
+    "order_date": "2025-12-21",
+    "order_name": "71847",
+    "sales_channel": "Online Store",
+    "net_sales": 540.0,
+    "staff_id": "78319550511",
+    "staff_name": "Win Lee",
+    "user_id": 6
+  },
+  {
+    "order_date": "2025-12-22",
+    "order_name": "71902",
+    "sales_channel": "Online Store",
+    "net_sales": 760.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-23",
+    "order_name": "71905",
+    "sales_channel": "Online Store",
+    "net_sales": 0.0,
+    "staff_id": "78319190063",
+    "staff_name": "Maggie Liang",
+    "user_id": 3
+  },
+  {
+    "order_date": "2025-12-23",
+    "order_name": "71975",
+    "sales_channel": "Online Store",
+    "net_sales": 1000.0,
+    "staff_id": "78319091759",
+    "staff_name": "Wing Ho",
+    "user_id": 7
+  },
+  {
+    "order_date": "2025-12-26",
+    "order_name": "72084",
+    "sales_channel": "Online Store",
+    "net_sales": 510.0,
+    "staff_id": "78319550511",
+    "staff_name": "Win Lee",
+    "user_id": 6
+  },
+  {
+    "order_date": "2025-12-26",
+    "order_name": "72102",
+    "sales_channel": "Online Store",
+    "net_sales": 820.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-28",
+    "order_name": "72220",
+    "sales_channel": "Online Store",
+    "net_sales": 2904.68,
+    "staff_id": "78319255599",
+    "staff_name": "Eva Lee",
+    "user_id": 2
+  },
+  {
+    "order_date": "2025-12-29",
+    "order_name": "72288",
+    "sales_channel": "Online Store",
+    "net_sales": 1741.68,
+    "staff_id": "78319550511",
+    "staff_name": "Win Lee",
+    "user_id": 6
+  },
+  {
+    "order_date": "2025-12-29",
+    "order_name": "72303",
+    "sales_channel": "Online Store",
+    "net_sales": 800.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-29",
+    "order_name": "72304",
+    "sales_channel": "Online Store",
+    "net_sales": 0.0,
+    "staff_id": "78319190063",
+    "staff_name": "Maggie Liang",
+    "user_id": 3
+  },
+  {
+    "order_date": "2025-12-30",
+    "order_name": "72360",
+    "sales_channel": "Online Store",
+    "net_sales": 780.0,
+    "staff_id": "78319321135",
+    "staff_name": "Egenie Tang",
+    "user_id": 1
+  },
+  {
+    "order_date": "2025-12-30",
+    "order_name": "72374",
+    "sales_channel": "Online Store",
+    "net_sales": 0.0,
+    "staff_id": "78319386671",
+    "staff_name": "Ting Siew",
+    "user_id": 5
+  },
+  {
+    "order_date": "2025-12-31",
+    "order_name": "72408",
+    "sales_channel": "Online Store",
+    "net_sales": 1190.0,
+    "staff_id": "79208775727",
+    "staff_name": "Maggie Wong",
+    "user_id": 4
+  }
+]

@@ -105,6 +105,24 @@ export const appRouter = router({
       }),
   }),
 
+  // User profile endpoints
+  user: router({
+    // Get current user's staff ID
+    getStaffId: protectedProcedure.query(async ({ ctx }) => {
+      return { staffId: ctx.user.staffId || null };
+    }),
+
+    // Update current user's own staff ID
+    updateMyStaffId: protectedProcedure
+      .input(z.object({
+        staffId: z.string().nullable(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateUserStaffId(ctx.user.id, input.staffId);
+        return { success: true };
+      }),
+  }),
+
   // Admin endpoints
   admin: router({
     // Get all users (admin only)

@@ -75,3 +75,8 @@
 
 ## UI Update - Sales Display
 - [x] Update Sales screen to show: Order Date, Order Name, Sales Channel, Net Sales (HK$)
+
+
+## User Staff ID Entry
+- [x] Add Staff ID input field in Profile screen for all users (not just admins)
+- [x] Allow users to link their own account to their sales data via Staff ID
