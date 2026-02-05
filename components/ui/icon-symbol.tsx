@@ -19,6 +19,8 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
   "chart.bar.fill": "bar-chart",
+  "storefront.fill": "storefront",
+  "cart.badge.plus": "point-of-sale",
   "person.fill": "person",
   "person.crop.circle": "account-circle",
   "arrow.up.right": "trending-up",

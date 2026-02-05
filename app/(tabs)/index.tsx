@@ -169,7 +169,7 @@ export default function DashboardScreen() {
         <View className="px-5 py-3">
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-lg font-semibold text-foreground">Recent Sales</Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/sales")}>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/online-sales")}>
               <Text className="text-primary font-medium">View All</Text>
             </TouchableOpacity>
           </View>

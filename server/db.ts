@@ -5,6 +5,14 @@ import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+// Raw SQL execute function for standalone server
+export async function execute(query: string, params?: any[]): Promise<[any[], any]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.execute(query);
+  return result as unknown as [any[], any];
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -254,6 +262,63 @@ export async function getRecentSales(userId: number, limit: number = 5) {
     .where(eq(sales.userId, userId))
     .orderBy(desc(sales.saleDate))
     .limit(limit);
+}
+
+// ============ POS SALES FUNCTIONS ============
+
+export async function getUserPOSSales(userId: number, startDate?: Date, endDate?: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [eq(sales.userId, userId), eq(sales.saleType, "pos")];
+  
+  if (startDate && endDate) {
+    conditions.push(between(sales.saleDate, startDate, endDate));
+  }
+  
+  return db.select()
+    .from(sales)
+    .where(and(...conditions))
+    .orderBy(desc(sales.saleDate));
+}
+
+export async function getUserPOSSalesSummary(userId: number, startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return { totalSales: 0, orderCount: 0, avgOrderValue: 0 };
+  
+  const result = await db.select({
+    totalSales: sum(sales.totalAmount),
+    orderCount: sql<number>`COUNT(*)`,
+  })
+    .from(sales)
+    .where(and(
+      eq(sales.userId, userId),
+      eq(sales.saleType, "pos"),
+      between(sales.saleDate, startDate, endDate)
+    ));
+  
+  const totalSales = parseFloat(result[0]?.totalSales || "0");
+  const orderCount = result[0]?.orderCount || 0;
+  const avgOrderValue = orderCount > 0 ? totalSales / orderCount : 0;
+  
+  return { totalSales, orderCount, avgOrderValue };
+}
+
+// Update getUserSales to filter for online sales only
+export async function getUserOnlineSales(userId: number, startDate?: Date, endDate?: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [eq(sales.userId, userId), eq(sales.saleType, "online")];
+  
+  if (startDate && endDate) {
+    conditions.push(between(sales.saleDate, startDate, endDate));
+  }
+  
+  return db.select()
+    .from(sales)
+    .where(and(...conditions))
+    .orderBy(desc(sales.saleDate));
 }
 
 // ============ ADMIN FUNCTIONS ============

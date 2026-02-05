@@ -1,0 +1,110 @@
+{
+  "query": "SELECT name, staffId, pin FROM users WHERE staffId IS NOT NULL ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT name, staffId, pin FROM users WHERE staffId IS NOT NULL ORDER BY name;",
+  "rows": [
+    {
+      "name": "Bon Lau",
+      "staffId": "111913632027",
+      "pin": "2115"
+    },
+    {
+      "name": "Bon Lau",
+      "staffId": "111913632027",
+      "pin": "2115"
+    },
+    {
+      "name": "Egenie Tang",
+      "staffId": "78319321135",
+      "pin": "4640"
+    },
+    {
+      "name": "Egenie Tang",
+      "staffId": "78319321135",
+      "pin": "4640"
+    },
+    {
+      "name": "Eva Lee",
+      "staffId": "78319255599",
+      "pin": "8577"
+    },
+    {
+      "name": "Eva Lee",
+      "staffId": "78319255599",
+      "pin": "8577"
+    },
+    {
+      "name": "Hailey Hoi Ling Wong",
+      "staffId": "109111279899",
+      "pin": "9849"
+    },
+    {
+      "name": "Hailey Hoi Ling Wong",
+      "staffId": "109111279899",
+      "pin": "9849"
+    },
+    {
+      "name": "Maggie Liang",
+      "staffId": "78319190063",
+      "pin": "4491"
+    },
+    {
+      "name": "Maggie Wong",
+      "staffId": "79208775727",
+      "pin": "9635"
+    },
+    {
+      "name": "Sharon Li",
+      "staffId": "101232115995",
+      "pin": "6762"
+    },
+    {
+      "name": "Sharon Li",
+      "staffId": "101232115995",
+      "pin": "6762"
+    },
+    {
+      "name": "Sze",
+      "staffId": "118809198875",
+      "pin": "279123"
+    },
+    {
+      "name": "Ting Siew",
+      "staffId": "78319386671",
+      "pin": "3639"
+    },
+    {
+      "name": "Ting Siew",
+      "staffId": "78319386671",
+      "pin": "3639"
+    },
+    {
+      "name": "Win Lee",
+      "staffId": "78319550511",
+      "pin": "1384"
+    },
+    {
+      "name": "Win Lee",
+      "staffId": "78319550511",
+      "pin": "1384"
+    },
+    {
+      "name": "Wing Ho",
+      "staffId": "78319091759",
+      "pin": "4019"
+    },
+    {
+      "name": "Wing Ho",
+      "staffId": "78319091759",
+      "pin": "4019"
+    },
+    {
+      "name": "cindchu",
+      "staffId": "cindychu@mschusoapandbeaut.com",
+      "pin": "9999"
+    }
+  ],
+  "messages": [],
+  "stdout": "name\tstaffId\tpin\nBon Lau\t111913632027\t2115\nBon Lau\t111913632027\t2115\nEgenie Tang\t78319321135\t4640\nEgenie Tang\t78319321135\t4640\nEva Lee\t78319255599\t8577\nEva Lee\t78319255599\t8577\nHailey Hoi Ling Wong\t109111279899\t9849\nHailey Hoi Ling Wong\t109111279899\t9849\nMaggie Liang\t78319190063\t4491\nMaggie Wong\t79208775727\t9635\nSharon Li\t101232115995\t6762\nSharon Li\t101232115995\t6762\nSze\t118809198875\t279123\nTing Siew\t78319386671\t3639\nTing Siew\t78319386671\t3639\nWin Lee\t78319550511\t1384\nWin Lee\t78319550511\t1384\nWing Ho\t78319091759\t4019\nWing Ho\t78319091759\t4019\ncindchu\tcindychu@mschusoapandbeaut.com\t9999\n",
+  "stderr": "",
+  "execution_time_ms": 1500
+}

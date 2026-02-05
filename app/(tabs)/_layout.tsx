@@ -37,10 +37,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="sales"
+        name="online-sales"
         options={{
-          title: "Sales",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+          title: "Online Sales",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="storefront.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pos-sales"
+        options={{
+          title: "POS Sales",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cart.badge.plus" color={color} />,
         }}
       />
       <Tabs.Screen

@@ -103,6 +103,31 @@ export const appRouter = router({
         const { startDate, endDate } = getDateRange(input.period);
         return db.getDailySalesTrend(ctx.user.id, startDate, endDate);
       }),
+
+    // POS Sales endpoints
+    posList: protectedProcedure
+      .input(z.object({
+        period: z.enum(["week", "month", "year"]).default("month"),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { startDate, endDate } = getDateRange(input.period);
+        return db.getUserPOSSales(ctx.user.id, startDate, endDate);
+      }),
+
+    posSummary: protectedProcedure
+      .input(z.object({
+        period: z.enum(["week", "month", "year"]).default("month"),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { startDate, endDate } = getDateRange(input.period);
+        const summary = await db.getUserPOSSalesSummary(ctx.user.id, startDate, endDate);
+        
+        return {
+          ...summary,
+          targetProgress: 0,
+          monthlyTarget: 0,
+        };
+      }),
   }),
 
   // User profile endpoints

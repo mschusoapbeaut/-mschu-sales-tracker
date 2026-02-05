@@ -124,3 +124,26 @@
 - [x] Use environment variables for credentials (EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_ENABLED)
 - [ ] Add Railway environment variables (user action required)
 - [ ] Test email auto-fetch on Railway (user action required)
+
+
+## Staff Management Update
+- [x] Add 11 new staff members with Staff IDs and PINs
+
+
+## Interface Restoration
+- [ ] Restore original admin interface (dist-web based) while keeping email sync
+- [ ] Add manual Excel/CSV upload feature to admin panel
+
+
+## Email Subject Filter
+- [ ] Filter emails by subject "New report - Online Orders by customer"
+
+
+## Tab Rename and POS Sales Addition
+- [x] Rename "Sales" tab to "Online Sales"
+- [x] Create new "POS Sales" tab with same data fields as Online Sales
+- [x] Add Payment Gateway column to POS Sales tab
+- [x] Update tab navigation and icons
+- [x] Add saleType and paymentGateway fields to database schema
+- [x] Add POS sales API endpoints (posList, posSummary)
+- [x] Run database migration

@@ -1,0 +1,24 @@
+{
+  "query": "SELECT * FROM users LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT * FROM users LIMIT 1;",
+  "rows": [
+    {
+      "id": "1",
+      "openId": "staff_egenie_tang",
+      "name": "Egenie Tang",
+      "email": "egenie.tang@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "createdAt": "2026-02-05 01:56:41",
+      "updatedAt": "2026-02-05 03:36:41",
+      "lastSignedIn": "2026-02-05 01:56:41",
+      "monthlyTarget": "0.00",
+      "staffId": "78319321135",
+      "pin": "4640"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\tloginMethod\trole\tcreatedAt\tupdatedAt\tlastSignedIn\tmonthlyTarget\tstaffId\tpin\n1\tstaff_egenie_tang\tEgenie Tang\tegenie.tang@mschu.local\tNULL\tuser\t2026-02-05 01:56:41\t2026-02-05 03:36:41\t2026-02-05 01:56:41\t0.00\t78319321135\t4640\n",
+  "stderr": "",
+  "execution_time_ms": 1521
+}

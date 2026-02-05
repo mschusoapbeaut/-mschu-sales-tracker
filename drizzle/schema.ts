@@ -36,6 +36,8 @@ export const sales = mysqlTable("sales", {
   saleDate: timestamp("saleDate").notNull(),
   customerName: varchar("customerName", { length: 255 }),
   orderReference: varchar("orderReference", { length: 100 }),
+  saleType: mysqlEnum("saleType", ["online", "pos"]).default("online").notNull(), // online or POS
+  paymentGateway: varchar("paymentGateway", { length: 100 }), // Payment gateway for POS sales
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

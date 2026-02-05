@@ -8,7 +8,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 type Period = "week" | "month" | "year";
 
-export default function SalesScreen() {
+export default function OnlineSalesScreen() {
   const colors = useColors();
   const { isAuthenticated } = useAuth();
   const [period, setPeriod] = useState<Period>("month");
@@ -65,8 +65,8 @@ export default function SalesScreen() {
       >
         {/* Header */}
         <View className="px-5 pt-4 pb-2">
-          <Text className="text-2xl font-bold text-foreground">My Sales</Text>
-          <Text className="text-sm text-muted">Your sales transactions</Text>
+          <Text className="text-2xl font-bold text-foreground">Online Sales</Text>
+          <Text className="text-sm text-muted">Your online store transactions</Text>
         </View>
 
         {/* Period Selector */}
