@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install"]
+
+[phases.build]
+cmds = ["npx expo export --platform web --output-dir dist-web"]
+
+[start]
+cmd = "npx tsx server/standalone-server.ts"
