@@ -1,0 +1,60 @@
+{
+  "query": "SELECT u.name, COUNT(s.id) as orders, SUM(s.totalAmount) as net_sales\nFROM sales s\nJOIN users u ON s.userId = u.id\nGROUP BY u.id, u.name\nORDER BY net_sales DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT u.name, COUNT(s.id) as orders, SUM(s.totalAmount) as net_sales\nFROM sales s\nJOIN users u ON s.userId = u.id\nGROUP BY u.id, u.name\nORDER BY net_sales DESC;",
+  "rows": [
+    {
+      "name": "Wing Ho",
+      "orders": "16",
+      "net_sales": "14281.01"
+    },
+    {
+      "name": "Ting Siew",
+      "orders": "13",
+      "net_sales": "10982.00"
+    },
+    {
+      "name": "Maggie Liang",
+      "orders": "9",
+      "net_sales": "8989.72"
+    },
+    {
+      "name": "Win Lee",
+      "orders": "7",
+      "net_sales": "7632.00"
+    },
+    {
+      "name": "Egenie Tang",
+      "orders": "5",
+      "net_sales": "7550.00"
+    },
+    {
+      "name": "Maggie Wong",
+      "orders": "5",
+      "net_sales": "5462.00"
+    },
+    {
+      "name": "Eva Lee",
+      "orders": "4",
+      "net_sales": "5085.64"
+    },
+    {
+      "name": "Sharon Li",
+      "orders": "6",
+      "net_sales": "3873.50"
+    },
+    {
+      "name": "Bon Lau",
+      "orders": "1",
+      "net_sales": "670.00"
+    },
+    {
+      "name": "Sze",
+      "orders": "1",
+      "net_sales": "540.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "name\torders\tnet_sales\nWing Ho\t16\t14281.01\nTing Siew\t13\t10982.00\nMaggie Liang\t9\t8989.72\nWin Lee\t7\t7632.00\nEgenie Tang\t5\t7550.00\nMaggie Wong\t5\t5462.00\nEva Lee\t4\t5085.64\nSharon Li\t6\t3873.50\nBon Lau\t1\t670.00\nSze\t1\t540.00\n",
+  "stderr": "",
+  "execution_time_ms": 1511
+}

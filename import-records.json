@@ -1,0 +1,712 @@
+[
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46024,
+    "orderName": "72551",
+    "salesChannel": "Online Store",
+    "netSales": 387,
+    "totalSales": 387,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46025,
+    "orderName": "72608",
+    "salesChannel": "Online Store",
+    "netSales": 837.36,
+    "totalSales": 837.36,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46025,
+    "orderName": "72673",
+    "salesChannel": "Online Store",
+    "netSales": 1310,
+    "totalSales": 1310,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46026,
+    "orderName": "72689",
+    "salesChannel": "Online Store",
+    "netSales": 760,
+    "totalSales": 760,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46027,
+    "orderName": "72786",
+    "salesChannel": "Online Store",
+    "netSales": 790,
+    "totalSales": 790,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46028,
+    "orderName": "72837",
+    "salesChannel": "Online Store",
+    "netSales": 820,
+    "totalSales": 820,
+    "refundAdj": 0
+  },
+  {
+    "userId": 11,
+    "staffName": "Sze",
+    "orderDate": 46029,
+    "orderName": "72861",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 2,
+    "staffName": "Eva Lee",
+    "orderDate": 46029,
+    "orderName": "72892",
+    "salesChannel": "Online Store",
+    "netSales": 570,
+    "totalSales": 570,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46029,
+    "orderName": "72895",
+    "salesChannel": "Online Store",
+    "netSales": 1080,
+    "totalSales": 1080,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46030,
+    "orderName": "72945",
+    "salesChannel": "Online Store",
+    "netSales": 1180,
+    "totalSales": 1180,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46031,
+    "orderName": "72963",
+    "salesChannel": "Online Store",
+    "netSales": 800,
+    "totalSales": 800,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46032,
+    "orderName": "73030",
+    "salesChannel": "Online Store",
+    "netSales": 560,
+    "totalSales": 560,
+    "refundAdj": 0
+  },
+  {
+    "userId": 4,
+    "staffName": "Maggie Wong",
+    "orderDate": 46032,
+    "orderName": "73017",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 1,
+    "staffName": "Egenie Tang",
+    "orderDate": 46032,
+    "orderName": "73018",
+    "salesChannel": "Online Store",
+    "netSales": 500,
+    "totalSales": 500,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46032,
+    "orderName": "73028",
+    "salesChannel": "Online Store",
+    "netSales": 1260,
+    "totalSales": 1260,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46032,
+    "orderName": "73049",
+    "salesChannel": "Online Store",
+    "netSales": 500,
+    "totalSales": 500,
+    "refundAdj": 0
+  },
+  {
+    "userId": 1,
+    "staffName": "Egenie Tang",
+    "orderDate": 46032,
+    "orderName": "73093",
+    "salesChannel": "Online Store",
+    "netSales": 1290,
+    "totalSales": 1290,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46033,
+    "orderName": "73163",
+    "salesChannel": "Online Store",
+    "netSales": 513,
+    "totalSales": 513,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46033,
+    "orderName": "73165",
+    "salesChannel": "Online Store",
+    "netSales": 2259,
+    "totalSales": 2259,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46034,
+    "orderName": "73204",
+    "salesChannel": "Online Store",
+    "netSales": 780,
+    "totalSales": 780,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46034,
+    "orderName": "73229",
+    "salesChannel": "Online Store",
+    "netSales": 800,
+    "totalSales": 800,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46034,
+    "orderName": "73233",
+    "salesChannel": "Online Store",
+    "netSales": 720,
+    "totalSales": 720,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46034,
+    "orderName": "73231",
+    "salesChannel": "Online Store",
+    "netSales": 1170,
+    "totalSales": 1170,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46034,
+    "orderName": "73234",
+    "salesChannel": "Online Store",
+    "netSales": 780,
+    "totalSales": 780,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46034,
+    "orderName": "73167",
+    "salesChannel": "Online Store",
+    "netSales": 650,
+    "totalSales": 650,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46034,
+    "orderName": "73176",
+    "salesChannel": "Online Store",
+    "netSales": 490,
+    "totalSales": 490,
+    "refundAdj": 0
+  },
+  {
+    "userId": 4,
+    "staffName": "Maggie Wong",
+    "orderDate": 46034,
+    "orderName": "73177",
+    "salesChannel": "Online Store",
+    "netSales": 700,
+    "totalSales": 700,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46034,
+    "orderName": "73230",
+    "salesChannel": "Online Store",
+    "netSales": 674.75,
+    "totalSales": 674.75,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46035,
+    "orderName": "73255",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 4,
+    "staffName": "Maggie Wong",
+    "orderDate": 46035,
+    "orderName": "73262",
+    "salesChannel": "Online Store",
+    "netSales": 2652,
+    "totalSales": 2652,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46035,
+    "orderName": "73263",
+    "salesChannel": "Online Store",
+    "netSales": 702,
+    "totalSales": 702,
+    "refundAdj": 0
+  },
+  {
+    "userId": 10,
+    "staffName": "Bon Lau",
+    "orderDate": 46036,
+    "orderName": "73304",
+    "salesChannel": "Online Store",
+    "netSales": 670,
+    "totalSales": 670,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46036,
+    "orderName": "73305",
+    "salesChannel": "Online Store",
+    "netSales": 980,
+    "totalSales": 980,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46036,
+    "orderName": "73353",
+    "salesChannel": "Online Store",
+    "netSales": 850,
+    "totalSales": 850,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46037,
+    "orderName": "73367",
+    "salesChannel": "Online Store",
+    "netSales": 1030,
+    "totalSales": 1030,
+    "refundAdj": 0
+  },
+  {
+    "userId": 1,
+    "staffName": "Egenie Tang",
+    "orderDate": 46037,
+    "orderName": "73426",
+    "salesChannel": "Online Store",
+    "netSales": 2620,
+    "totalSales": 2620,
+    "refundAdj": 0
+  },
+  {
+    "userId": 1,
+    "staffName": "Egenie Tang",
+    "orderDate": 46037,
+    "orderName": "73427",
+    "salesChannel": "Online Store",
+    "netSales": 2550,
+    "totalSales": 2550,
+    "refundAdj": 0
+  },
+  {
+    "userId": 2,
+    "staffName": "Eva Lee",
+    "orderDate": 46038,
+    "orderName": "73428",
+    "salesChannel": "Online Store",
+    "netSales": 720,
+    "totalSales": 720,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46038,
+    "orderName": "73464",
+    "salesChannel": "Online Store",
+    "netSales": 360,
+    "totalSales": 360,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46038,
+    "orderName": "73497",
+    "salesChannel": "Online Store",
+    "netSales": 729,
+    "totalSales": 729,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46039,
+    "orderName": "73505",
+    "salesChannel": "Online Store",
+    "netSales": 720,
+    "totalSales": 720,
+    "refundAdj": 0
+  },
+  {
+    "userId": 4,
+    "staffName": "Maggie Wong",
+    "orderDate": 46039,
+    "orderName": "73553",
+    "salesChannel": "Online Store",
+    "netSales": 790,
+    "totalSales": 790,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46040,
+    "orderName": "73596",
+    "salesChannel": "Online Store",
+    "netSales": 1575.97,
+    "totalSales": 1772.97,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46040,
+    "orderName": "73601",
+    "salesChannel": "Online Store",
+    "netSales": 550,
+    "totalSales": 550,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46040,
+    "orderName": "73608",
+    "salesChannel": "Online Store",
+    "netSales": 1020,
+    "totalSales": 1020,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46040,
+    "orderName": "73609",
+    "salesChannel": "Online Store",
+    "netSales": 800,
+    "totalSales": 800,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46041,
+    "orderName": "73664",
+    "salesChannel": "Online Store",
+    "netSales": 1210,
+    "totalSales": 1210,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46041,
+    "orderName": "73666",
+    "salesChannel": "Online Store",
+    "netSales": 880,
+    "totalSales": 880,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46042,
+    "orderName": "73687",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46042,
+    "orderName": "73690",
+    "salesChannel": "Online Store",
+    "netSales": 135,
+    "totalSales": 135,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46042,
+    "orderName": "73728",
+    "salesChannel": "Online Store",
+    "netSales": 2600,
+    "totalSales": 2600,
+    "refundAdj": 0
+  },
+  {
+    "userId": 4,
+    "staffName": "Maggie Wong",
+    "orderDate": 46042,
+    "orderName": "73754",
+    "salesChannel": "Online Store",
+    "netSales": 780,
+    "totalSales": 780,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46043,
+    "orderName": "73759",
+    "salesChannel": "Online Store",
+    "netSales": 690,
+    "totalSales": 690,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46045,
+    "orderName": "73873",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 1,
+    "staffName": "Egenie Tang",
+    "orderDate": 46046,
+    "orderName": "73920",
+    "salesChannel": "Online Store",
+    "netSales": 590,
+    "totalSales": 590,
+    "refundAdj": 0
+  },
+  {
+    "userId": 2,
+    "staffName": "Eva Lee",
+    "orderDate": 46046,
+    "orderName": "73960",
+    "salesChannel": "Online Store",
+    "netSales": 3265.64,
+    "totalSales": 3265.64,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46046,
+    "orderName": "73988",
+    "salesChannel": "Online Store",
+    "netSales": 620,
+    "totalSales": 620,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46048,
+    "orderName": "74103",
+    "salesChannel": "Online Store",
+    "netSales": 1108.65,
+    "totalSales": 1108.65,
+    "refundAdj": 0
+  },
+  {
+    "userId": 6,
+    "staffName": "Win Lee",
+    "orderDate": 46048,
+    "orderName": "74125",
+    "salesChannel": "Online Store",
+    "netSales": 2025,
+    "totalSales": 2025,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46048,
+    "orderName": "74126",
+    "salesChannel": "Online Store",
+    "netSales": 1360,
+    "totalSales": 1360,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46048,
+    "orderName": "74056",
+    "salesChannel": "Online Store",
+    "netSales": 1050,
+    "totalSales": 1050,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46048,
+    "orderName": "74128",
+    "salesChannel": "Online Store",
+    "netSales": 720,
+    "totalSales": 720,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46049,
+    "orderName": "74131",
+    "salesChannel": "Online Store",
+    "netSales": 910,
+    "totalSales": 910,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46049,
+    "orderName": "74154",
+    "salesChannel": "Online Store",
+    "netSales": 1040,
+    "totalSales": 1040,
+    "refundAdj": 0
+  },
+  {
+    "userId": 8,
+    "staffName": "Sharon Li",
+    "orderDate": 46049,
+    "orderName": "74164",
+    "salesChannel": "Online Store",
+    "netSales": 586.5,
+    "totalSales": 586.5,
+    "refundAdj": 0
+  },
+  {
+    "userId": 3,
+    "staffName": "Maggie Liang",
+    "orderDate": 46049,
+    "orderName": "74190",
+    "salesChannel": "Online Store",
+    "netSales": 540,
+    "totalSales": 540,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46050,
+    "orderName": "74247",
+    "salesChannel": "Online Store",
+    "netSales": 1320,
+    "totalSales": 1320,
+    "refundAdj": 0
+  },
+  {
+    "userId": 7,
+    "staffName": "Wing Ho",
+    "orderDate": 46051,
+    "orderName": "74268",
+    "salesChannel": "Online Store",
+    "netSales": 1035,
+    "totalSales": 1035,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46052,
+    "orderName": "74309",
+    "salesChannel": "Online Store",
+    "netSales": 730,
+    "totalSales": 730,
+    "refundAdj": 0
+  },
+  {
+    "userId": 5,
+    "staffName": "Ting Siew",
+    "orderDate": 46052,
+    "orderName": "74369",
+    "salesChannel": "Online Store",
+    "netSales": 1610,
+    "totalSales": 1610,
+    "refundAdj": 0
+  },
+  {
+    "userId": 2,
+    "staffName": "Eva Lee",
+    "orderDate": 46053,
+    "orderName": "74438",
+    "salesChannel": "Online Store",
+    "netSales": 530,
+    "totalSales": 530,
+    "refundAdj": 0
+  }
+]

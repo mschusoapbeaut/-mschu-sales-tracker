@@ -61,3 +61,13 @@
 - [x] Extract order_date (Column A), order_name (Column B), sales_channel (Column C)
 - [x] Extract net_sales (Column H), total_sales (Column I), refund_adj (Column J)
 - [x] Auto-match staff IDs to registered users via Staff ID Mapping UI
+
+
+## Staff Account Setup
+- [x] Create user accounts for 11 team members
+- [x] Set staff ID mappings for each user
+
+
+## Net Sales Update
+- [x] Update report parser to use Net Sales instead of Total Sales
+- [x] Update existing sales data in database

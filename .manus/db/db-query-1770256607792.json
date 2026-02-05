@@ -1,0 +1,87 @@
+{
+  "query": "SELECT id, name, email, staffId, role FROM users ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, name, email, staffId, role FROM users ORDER BY name;",
+  "rows": [
+    {
+      "id": "10",
+      "name": "Bon Lau",
+      "email": "bon.lau@mschu.local",
+      "staffId": "111913632027",
+      "role": "user"
+    },
+    {
+      "id": "1",
+      "name": "Egenie Tang",
+      "email": "egenie.tang@mschu.local",
+      "staffId": "78319321135",
+      "role": "user"
+    },
+    {
+      "id": "2",
+      "name": "Eva Lee",
+      "email": "eva.lee@mschu.local",
+      "staffId": "78319255599",
+      "role": "user"
+    },
+    {
+      "id": "9",
+      "name": "Hailey Hoi Ling Wong",
+      "email": "hailey.wong@mschu.local",
+      "staffId": "109111279899",
+      "role": "user"
+    },
+    {
+      "id": "3",
+      "name": "Maggie Liang",
+      "email": "maggie.liang@mschu.local",
+      "staffId": "78319190063",
+      "role": "user"
+    },
+    {
+      "id": "4",
+      "name": "Maggie Wong",
+      "email": "maggie.wong@mschu.local",
+      "staffId": "79208775727",
+      "role": "user"
+    },
+    {
+      "id": "8",
+      "name": "Sharon Li",
+      "email": "sharon.li@mschu.local",
+      "staffId": "101232115995",
+      "role": "user"
+    },
+    {
+      "id": "11",
+      "name": "Sze",
+      "email": "sze@mschu.local",
+      "staffId": "118809198875",
+      "role": "user"
+    },
+    {
+      "id": "5",
+      "name": "Ting Siew",
+      "email": "ting.siew@mschu.local",
+      "staffId": "78319386671",
+      "role": "user"
+    },
+    {
+      "id": "6",
+      "name": "Win Lee",
+      "email": "win.lee@mschu.local",
+      "staffId": "78319550511",
+      "role": "user"
+    },
+    {
+      "id": "7",
+      "name": "Wing Ho",
+      "email": "wing.ho@mschu.local",
+      "staffId": "78319091759",
+      "role": "user"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tstaffId\trole\n10\tBon Lau\tbon.lau@mschu.local\t111913632027\tuser\n1\tEgenie Tang\tegenie.tang@mschu.local\t78319321135\tuser\n2\tEva Lee\teva.lee@mschu.local\t78319255599\tuser\n9\tHailey Hoi Ling Wong\thailey.wong@mschu.local\t109111279899\tuser\n3\tMaggie Liang\tmaggie.liang@mschu.local\t78319190063\tuser\n4\tMaggie Wong\tmaggie.wong@mschu.local\t79208775727\tuser\n8\tSharon Li\tsharon.li@mschu.local\t101232115995\tuser\n11\tSze\tsze@mschu.local\t118809198875\tuser\n5\tTing Siew\tting.siew@mschu.local\t78319386671\tuser\n6\tWin Lee\twin.lee@mschu.local\t78319550511\tuser\n7\tWing Ho\twing.ho@mschu.local\t78319091759\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 1497
+}

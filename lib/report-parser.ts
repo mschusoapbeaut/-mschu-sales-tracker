@@ -154,8 +154,8 @@ export function parseExcel(
           userId,
           productName: "Online Order", // Generic product name for order-level data
           quantity: 1,
-          unitPrice: totalSales,
-          totalAmount: totalSales,
+          unitPrice: netSales, // Use Net Sales as the primary amount
+          totalAmount: netSales, // Use Net Sales as the primary amount
           saleDate: orderDate,
           orderReference: String(row[columnMap.orderName] || "").replace(/\.0$/, ""),
           salesChannel: columnMap.salesChannel !== -1 ? String(row[columnMap.salesChannel] || "") : undefined,
