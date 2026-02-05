@@ -192,23 +192,12 @@ export default function PinLoginScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dividerText, { color: colors.muted }]}>or</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        </View>
-
-        {/* Manus Login */}
-        <TouchableOpacity
-          style={[styles.manusButton, { borderColor: colors.border }]}
-          onPress={handleManusLogin}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.manusButtonText, { color: colors.foreground }]}>
-            Sign In with Manus
+        {/* Help text */}
+        <View style={styles.helpContainer}>
+          <Text style={[styles.helpText, { color: colors.muted }]}>
+            Enter your 4-digit staff PIN to access your sales dashboard
           </Text>
-        </TouchableOpacity>
+        </View>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -301,17 +290,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: 14,
   },
-  manusButton: {
+  helpContainer: {
     width: "100%",
     maxWidth: 280,
-    paddingVertical: 16,
-    borderRadius: 30,
-    borderWidth: 1,
+    marginTop: 24,
     alignItems: "center",
   },
-  manusButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
+  helpText: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
   },
   footer: {
     position: "absolute",

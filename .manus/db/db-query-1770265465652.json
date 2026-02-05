@@ -1,0 +1,164 @@
+{
+  "query": "SELECT id, openId, name, email, loginMethod, role, staffId, pin, monthlyTarget FROM users ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, openId, name, email, loginMethod, role, staffId, pin, monthlyTarget FROM users ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "openId": "staff_egenie_tang",
+      "name": "Egenie Tang",
+      "email": "egenie.tang@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319321135",
+      "pin": "4640",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "2",
+      "openId": "staff_eva_lee",
+      "name": "Eva Lee",
+      "email": "eva.lee@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319255599",
+      "pin": "8577",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "3",
+      "openId": "staff_maggie_liang",
+      "name": "Maggie Liang",
+      "email": "maggie.liang@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319190063",
+      "pin": "4491",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "4",
+      "openId": "staff_maggie_wong",
+      "name": "Maggie Wong",
+      "email": "maggie.wong@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "79208775727",
+      "pin": "9635",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "5",
+      "openId": "staff_ting_siew",
+      "name": "Ting Siew",
+      "email": "ting.siew@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319386671",
+      "pin": "3639",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "6",
+      "openId": "staff_win_lee",
+      "name": "Win Lee",
+      "email": "win.lee@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319550511",
+      "pin": "1384",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "7",
+      "openId": "staff_wing_ho",
+      "name": "Wing Ho",
+      "email": "wing.ho@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "78319091759",
+      "pin": "4019",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "8",
+      "openId": "staff_sharon_li",
+      "name": "Sharon Li",
+      "email": "sharon.li@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "101232115995",
+      "pin": "6762",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "9",
+      "openId": "staff_hailey_wong",
+      "name": "Hailey Hoi Ling Wong",
+      "email": "hailey.wong@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "109111279899",
+      "pin": "9849",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "10",
+      "openId": "staff_bon_lau",
+      "name": "Bon Lau",
+      "email": "bon.lau@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "111913632027",
+      "pin": "2115",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "11",
+      "openId": "staff_sze",
+      "name": "Sze",
+      "email": "sze@mschu.local",
+      "loginMethod": "NULL",
+      "role": "user",
+      "staffId": "118809198875",
+      "pin": "2791",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "30001",
+      "openId": "RxGMFhdixDunzx65FtHTdL",
+      "name": "info+maggielang",
+      "email": "info+maggielang@mschusoapandbeaut.com",
+      "loginMethod": "email",
+      "role": "user",
+      "staffId": "NULL",
+      "pin": "NULL",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "60002",
+      "openId": "4eG9BS27WYGAuRi9fSoaeE",
+      "name": "cindchu",
+      "email": "cindchu@hotmail.com",
+      "loginMethod": "email",
+      "role": "admin",
+      "staffId": "cindychu@mschusoapandbeaut.com",
+      "pin": "9999",
+      "monthlyTarget": "0.00"
+    },
+    {
+      "id": "60027",
+      "openId": "admin-cindy",
+      "name": "Cindy Chu",
+      "email": "cindychu@mschusoapandbeaut.com",
+      "loginMethod": "NULL",
+      "role": "admin",
+      "staffId": "NULL",
+      "pin": "9999",
+      "monthlyTarget": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\tloginMethod\trole\tstaffId\tpin\tmonthlyTarget\n1\tstaff_egenie_tang\tEgenie Tang\tegenie.tang@mschu.local\tNULL\tuser\t78319321135\t4640\t0.00\n2\tstaff_eva_lee\tEva Lee\teva.lee@mschu.local\tNULL\tuser\t78319255599\t8577\t0.00\n3\tstaff_maggie_liang\tMaggie Liang\tmaggie.liang@mschu.local\tNULL\tuser\t78319190063\t4491\t0.00\n4\tstaff_maggie_wong\tMaggie Wong\tmaggie.wong@mschu.local\tNULL\tuser\t79208775727\t9635\t0.00\n5\tstaff_ting_siew\tTing Siew\tting.siew@mschu.local\tNULL\tuser\t78319386671\t3639\t0.00\n6\tstaff_win_lee\tWin Lee\twin.lee@mschu.local\tNULL\tuser\t78319550511\t1384\t0.00\n7\tstaff_wing_ho\tWing Ho\twing.ho@mschu.local\tNULL\tuser\t78319091759\t4019\t0.00\n8\tstaff_sharon_li\tSharon Li\tsharon.li@mschu.local\tNULL\tuser\t101232115995\t6762\t0.00\n9\tstaff_hailey_wong\tHailey Hoi Ling Wong\thailey.wong@mschu.local\tNULL\tuser\t109111279899\t9849\t0.00\n10\tstaff_bon_lau\tBon Lau\tbon.lau@mschu.local\tNULL\tuser\t111913632027\t2115\t0.00\n11\tstaff_sze\tSze\tsze@mschu.local\tNULL\tuser\t118809198875\t2791\t0.00\n30001\tRxGMFhdixDunzx65FtHTdL\tinfo+maggielang\tinfo+maggielang@mschusoapandbeaut.com\temail\tuser\tNULL\tNULL\t0.00\n60002\t4eG9BS27WYGAuRi9fSoaeE\tcindchu\tcindchu@hotmail.com\temail\tadmin\tcindychu@mschusoapandbeaut.com\t9999\t0.00\n60027\tadmin-cindy\tCindy Chu\tcindychu@mschusoapandbeaut.com\tNULL\tadmin\tNULL\t9999\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 1517
+}

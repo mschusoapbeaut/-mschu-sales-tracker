@@ -101,9 +101,14 @@
 - [ ] Allow admins to upload reports without Google Drive
 
 
-## Manus Web Publish
-- [ ] Verify app is production-ready
-- [ ] Save checkpoint for publishing
-- [ ] Publish via Manus UI
-- [ ] Test published app URL
-- [ ] Update Google OAuth redirect URI for production
+## Railway Deployment (PIN-only Auth)
+- [x] Modify app to use PIN-only authentication
+- [x] Remove Manus OAuth dependency
+- [x] Create Dockerfile for production build
+- [x] Create railway.json configuration
+- [x] Export database schema and data
+- [x] Create database seed script with all users and sales
+- [x] Create deployment guide (RAILWAY_DEPLOYMENT.md)
+- [ ] Deploy to Railway (user action required)
+- [ ] Configure environment variables (user action required)
+- [ ] Test deployed app (user action required)
