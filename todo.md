@@ -112,3 +112,15 @@
 - [ ] Deploy to Railway (user action required)
 - [ ] Configure environment variables (user action required)
 - [ ] Test deployed app (user action required)
+
+
+## Email IMAP Auto-Fetch
+- [x] Create email-sync.ts module for IMAP connection
+- [x] Support Outlook/Hotmail IMAP (outlook.office365.com)
+- [x] Auto-fetch CSV/Excel attachments from unread emails
+- [x] Parse and import sales data from attachments
+- [x] Schedule auto-fetch every 6 hours
+- [x] Add API endpoints: /api/email/status, /api/email/test, /api/email/fetch
+- [x] Use environment variables for credentials (EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_ENABLED)
+- [ ] Add Railway environment variables (user action required)
+- [ ] Test email auto-fetch on Railway (user action required)
