@@ -1,0 +1,412 @@
+{
+  "query": "SELECT \n  DATE_FORMAT(s.saleDate, '%Y-%m-%d') as order_date,\n  s.orderReference as order_name,\n  u.name as staff_name,\n  s.totalAmount as net_sales\nFROM sales s\nJOIN users u ON s.userId = u.id\nORDER BY s.saleDate ASC, s.orderReference ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT \n  DATE_FORMAT(s.saleDate, '%Y-%m-%d') as order_date,\n  s.orderReference as order_name,\n  u.name as staff_name,\n  s.totalAmount as net_sales\nFROM sales s\nJOIN users u ON s.userId = u.id\nORDER BY s.saleDate ASC, s.orderReference ASC;",
+  "rows": [
+    {
+      "order_date": "2026-01-02",
+      "order_name": "72551",
+      "staff_name": "Win Lee",
+      "net_sales": "387.00"
+    },
+    {
+      "order_date": "2026-01-03",
+      "order_name": "72608",
+      "staff_name": "Wing Ho",
+      "net_sales": "837.36"
+    },
+    {
+      "order_date": "2026-01-03",
+      "order_name": "72673",
+      "staff_name": "Wing Ho",
+      "net_sales": "1310.00"
+    },
+    {
+      "order_date": "2026-01-04",
+      "order_name": "72689",
+      "staff_name": "Wing Ho",
+      "net_sales": "760.00"
+    },
+    {
+      "order_date": "2026-01-05",
+      "order_name": "72786",
+      "staff_name": "Wing Ho",
+      "net_sales": "790.00"
+    },
+    {
+      "order_date": "2026-01-06",
+      "order_name": "72837",
+      "staff_name": "Ting Siew",
+      "net_sales": "820.00"
+    },
+    {
+      "order_date": "2026-01-07",
+      "order_name": "72861",
+      "staff_name": "Sze",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-07",
+      "order_name": "72892",
+      "staff_name": "Eva Lee",
+      "net_sales": "570.00"
+    },
+    {
+      "order_date": "2026-01-07",
+      "order_name": "72895",
+      "staff_name": "Wing Ho",
+      "net_sales": "1080.00"
+    },
+    {
+      "order_date": "2026-01-08",
+      "order_name": "72945",
+      "staff_name": "Wing Ho",
+      "net_sales": "1180.00"
+    },
+    {
+      "order_date": "2026-01-08",
+      "order_name": "72963",
+      "staff_name": "Wing Ho",
+      "net_sales": "800.00"
+    },
+    {
+      "order_date": "2026-01-09",
+      "order_name": "73017",
+      "staff_name": "Maggie Wong",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-09",
+      "order_name": "73018",
+      "staff_name": "Egenie Tang",
+      "net_sales": "500.00"
+    },
+    {
+      "order_date": "2026-01-09",
+      "order_name": "73028",
+      "staff_name": "Maggie Liang",
+      "net_sales": "1260.00"
+    },
+    {
+      "order_date": "2026-01-09",
+      "order_name": "73030",
+      "staff_name": "Win Lee",
+      "net_sales": "560.00"
+    },
+    {
+      "order_date": "2026-01-09",
+      "order_name": "73049",
+      "staff_name": "Ting Siew",
+      "net_sales": "500.00"
+    },
+    {
+      "order_date": "2026-01-10",
+      "order_name": "73093",
+      "staff_name": "Egenie Tang",
+      "net_sales": "1290.00"
+    },
+    {
+      "order_date": "2026-01-10",
+      "order_name": "73163",
+      "staff_name": "Sharon Li",
+      "net_sales": "513.00"
+    },
+    {
+      "order_date": "2026-01-11",
+      "order_name": "73231",
+      "staff_name": "Maggie Liang",
+      "net_sales": "1259.00"
+    },
+    {
+      "order_date": "2026-01-12",
+      "order_name": "73167",
+      "staff_name": "Wing Ho",
+      "net_sales": "650.00"
+    },
+    {
+      "order_date": "2026-01-12",
+      "order_name": "73176",
+      "staff_name": "Win Lee",
+      "net_sales": "490.00"
+    },
+    {
+      "order_date": "2026-01-12",
+      "order_name": "73177",
+      "staff_name": "Maggie Wong",
+      "net_sales": "700.00"
+    },
+    {
+      "order_date": "2026-01-12",
+      "order_name": "73230",
+      "staff_name": "Maggie Liang",
+      "net_sales": "674.75"
+    },
+    {
+      "order_date": "2026-01-12",
+      "order_name": "73234",
+      "staff_name": "Maggie Liang",
+      "net_sales": "780.00"
+    },
+    {
+      "order_date": "2026-01-13",
+      "order_name": "73255",
+      "staff_name": "Win Lee",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-13",
+      "order_name": "73262",
+      "staff_name": "Maggie Wong",
+      "net_sales": "2652.00"
+    },
+    {
+      "order_date": "2026-01-13",
+      "order_name": "73263",
+      "staff_name": "Ting Siew",
+      "net_sales": "702.00"
+    },
+    {
+      "order_date": "2026-01-14",
+      "order_name": "73304",
+      "staff_name": "Bon Lau",
+      "net_sales": "670.00"
+    },
+    {
+      "order_date": "2026-01-14",
+      "order_name": "73305",
+      "staff_name": "Maggie Liang",
+      "net_sales": "980.00"
+    },
+    {
+      "order_date": "2026-01-14",
+      "order_name": "73353",
+      "staff_name": "Ting Siew",
+      "net_sales": "850.00"
+    },
+    {
+      "order_date": "2026-01-15",
+      "order_name": "73367",
+      "staff_name": "Win Lee",
+      "net_sales": "1030.00"
+    },
+    {
+      "order_date": "2026-01-15",
+      "order_name": "73426",
+      "staff_name": "Egenie Tang",
+      "net_sales": "2620.00"
+    },
+    {
+      "order_date": "2026-01-15",
+      "order_name": "73427",
+      "staff_name": "Egenie Tang",
+      "net_sales": "2550.00"
+    },
+    {
+      "order_date": "2026-01-16",
+      "order_name": "73428",
+      "staff_name": "Eva Lee",
+      "net_sales": "720.00"
+    },
+    {
+      "order_date": "2026-01-16",
+      "order_name": "73464",
+      "staff_name": "Ting Siew",
+      "net_sales": "360.00"
+    },
+    {
+      "order_date": "2026-01-16",
+      "order_name": "73497",
+      "staff_name": "Sharon Li",
+      "net_sales": "729.00"
+    },
+    {
+      "order_date": "2026-01-17",
+      "order_name": "73505",
+      "staff_name": "Ting Siew",
+      "net_sales": "720.00"
+    },
+    {
+      "order_date": "2026-01-17",
+      "order_name": "73553",
+      "staff_name": "Maggie Wong",
+      "net_sales": "790.00"
+    },
+    {
+      "order_date": "2026-01-18",
+      "order_name": "73596",
+      "staff_name": "Maggie Liang",
+      "net_sales": "1575.97"
+    },
+    {
+      "order_date": "2026-01-18",
+      "order_name": "73601",
+      "staff_name": "Sharon Li",
+      "net_sales": "550.00"
+    },
+    {
+      "order_date": "2026-01-18",
+      "order_name": "73608",
+      "staff_name": "Wing Ho",
+      "net_sales": "1020.00"
+    },
+    {
+      "order_date": "2026-01-18",
+      "order_name": "73609",
+      "staff_name": "Ting Siew",
+      "net_sales": "800.00"
+    },
+    {
+      "order_date": "2026-01-19",
+      "order_name": "73664",
+      "staff_name": "Ting Siew",
+      "net_sales": "1210.00"
+    },
+    {
+      "order_date": "2026-01-19",
+      "order_name": "73666",
+      "staff_name": "Maggie Liang",
+      "net_sales": "880.00"
+    },
+    {
+      "order_date": "2026-01-20",
+      "order_name": "73687",
+      "staff_name": "Wing Ho",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-20",
+      "order_name": "73690",
+      "staff_name": "Sharon Li",
+      "net_sales": "135.00"
+    },
+    {
+      "order_date": "2026-01-20",
+      "order_name": "73728",
+      "staff_name": "Win Lee",
+      "net_sales": "2600.00"
+    },
+    {
+      "order_date": "2026-01-20",
+      "order_name": "73754",
+      "staff_name": "Maggie Wong",
+      "net_sales": "780.00"
+    },
+    {
+      "order_date": "2026-01-21",
+      "order_name": "73759",
+      "staff_name": "Wing Ho",
+      "net_sales": "690.00"
+    },
+    {
+      "order_date": "2026-01-23",
+      "order_name": "73873",
+      "staff_name": "Wing Ho",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-24",
+      "order_name": "73920",
+      "staff_name": "Egenie Tang",
+      "net_sales": "590.00"
+    },
+    {
+      "order_date": "2026-01-24",
+      "order_name": "73960",
+      "staff_name": "Eva Lee",
+      "net_sales": "3265.64"
+    },
+    {
+      "order_date": "2026-01-24",
+      "order_name": "73988",
+      "staff_name": "Wing Ho",
+      "net_sales": "620.00"
+    },
+    {
+      "order_date": "2026-01-26",
+      "order_name": "74056",
+      "staff_name": "Ting Siew",
+      "net_sales": "1050.00"
+    },
+    {
+      "order_date": "2026-01-26",
+      "order_name": "74103",
+      "staff_name": "Wing Ho",
+      "net_sales": "1108.65"
+    },
+    {
+      "order_date": "2026-01-26",
+      "order_name": "74125",
+      "staff_name": "Win Lee",
+      "net_sales": "2025.00"
+    },
+    {
+      "order_date": "2026-01-26",
+      "order_name": "74126",
+      "staff_name": "Sharon Li",
+      "net_sales": "1360.00"
+    },
+    {
+      "order_date": "2026-01-26",
+      "order_name": "74128",
+      "staff_name": "Ting Siew",
+      "net_sales": "720.00"
+    },
+    {
+      "order_date": "2026-01-27",
+      "order_name": "74131",
+      "staff_name": "Ting Siew",
+      "net_sales": "910.00"
+    },
+    {
+      "order_date": "2026-01-27",
+      "order_name": "74154",
+      "staff_name": "Maggie Liang",
+      "net_sales": "1040.00"
+    },
+    {
+      "order_date": "2026-01-27",
+      "order_name": "74164",
+      "staff_name": "Sharon Li",
+      "net_sales": "586.50"
+    },
+    {
+      "order_date": "2026-01-27",
+      "order_name": "74190",
+      "staff_name": "Maggie Liang",
+      "net_sales": "540.00"
+    },
+    {
+      "order_date": "2026-01-28",
+      "order_name": "74247",
+      "staff_name": "Wing Ho",
+      "net_sales": "1320.00"
+    },
+    {
+      "order_date": "2026-01-29",
+      "order_name": "74268",
+      "staff_name": "Wing Ho",
+      "net_sales": "1035.00"
+    },
+    {
+      "order_date": "2026-01-30",
+      "order_name": "74309",
+      "staff_name": "Ting Siew",
+      "net_sales": "730.00"
+    },
+    {
+      "order_date": "2026-01-30",
+      "order_name": "74369",
+      "staff_name": "Ting Siew",
+      "net_sales": "1610.00"
+    },
+    {
+      "order_date": "2026-01-31",
+      "order_name": "74438",
+      "staff_name": "Eva Lee",
+      "net_sales": "530.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "order_date\torder_name\tstaff_name\tnet_sales\n2026-01-02\t72551\tWin Lee\t387.00\n2026-01-03\t72608\tWing Ho\t837.36\n2026-01-03\t72673\tWing Ho\t1310.00\n2026-01-04\t72689\tWing Ho\t760.00\n2026-01-05\t72786\tWing Ho\t790.00\n2026-01-06\t72837\tTing Siew\t820.00\n2026-01-07\t72861\tSze\t540.00\n2026-01-07\t72892\tEva Lee\t570.00\n2026-01-07\t72895\tWing Ho\t1080.00\n2026-01-08\t72945\tWing Ho\t1180.00\n2026-01-08\t72963\tWing Ho\t800.00\n2026-01-09\t73017\tMaggie Wong\t540.00\n2026-01-09\t73018\tEgenie Tang\t500.00\n2026-01-09\t73028\tMaggie Liang\t1260.00\n2026-01-09\t73030\tWin Lee\t560.00\n2026-01-09\t73049\tTing Siew\t500.00\n2026-01-10\t73093\tEgenie Tang\t1290.00\n2026-01-10\t73163\tSharon Li\t513.00\n2026-01-11\t73231\tMaggie Liang\t1259.00\n2026-01-12\t73167\tWing Ho\t650.00\n2026-01-12\t73176\tWin Lee\t490.00\n2026-01-12\t73177\tMaggie Wong\t700.00\n2026-01-12\t73230\tMaggie Liang\t674.75\n2026-01-12\t73234\tMaggie Liang\t780.00\n2026-01-13\t73255\tWin Lee\t540.00\n2026-01-13\t73262\tMaggie Wong\t2652.00\n2026-01-13\t73263\tTing Siew\t702.00\n2026-01-14\t73304\tBon Lau\t670.00\n2026-01-14\t73305\tMaggie Liang\t980.00\n2026-01-14\t73353\tTing Siew\t850.00\n2026-01-15\t73367\tWin Lee\t1030.00\n2026-01-15\t73426\tEgenie Tang\t2620.00\n2026-01-15\t73427\tEgenie Tang\t2550.00\n2026-01-16\t73428\tEva Lee\t720.00\n2026-01-16\t73464\tTing Siew\t360.00\n2026-01-16\t73497\tSharon Li\t729.00\n2026-01-17\t73505\tTing Siew\t720.00\n2026-01-17\t73553\tMaggie Wong\t790.00\n2026-01-18\t73596\tMaggie Liang\t1575.97\n2026-01-18\t73601\tSharon Li\t550.00\n2026-01-18\t73608\tWing Ho\t1020.00\n2026-01-18\t73609\tTing Siew\t800.00\n2026-01-19\t73664\tTing Siew\t1210.00\n2026-01-19\t73666\tMaggie Liang\t880.00\n2026-01-20\t73687\tWing Ho\t540.00\n2026-01-20\t73690\tSharon Li\t135.00\n2026-01-20\t73728\tWin Lee\t2600.00\n2026-01-20\t73754\tMaggie Wong\t780.00\n2026-01-21\t73759\tWing Ho\t690.00\n2026-01-23\t73873\tWing Ho\t540.00\n2026-01-24\t73920\tEgenie Tang\t590.00\n2026-01-24\t73960\tEva Lee\t3265.64\n2026-01-24\t73988\tWing Ho\t620.00\n2026-01-26\t74056\tTing Siew\t1050.00\n2026-01-26\t74103\tWing Ho\t1108.65\n2026-01-26\t74125\tWin Lee\t2025.00\n2026-01-26\t74126\tSharon Li\t1360.00\n2026-01-26\t74128\tTing Siew\t720.00\n2026-01-27\t74131\tTing Siew\t910.00\n2026-01-27\t74154\tMaggie Liang\t1040.00\n2026-01-27\t74164\tSharon Li\t586.50\n2026-01-27\t74190\tMaggie Liang\t540.00\n2026-01-28\t74247\tWing Ho\t1320.00\n2026-01-29\t74268\tWing Ho\t1035.00\n2026-01-30\t74309\tTing Siew\t730.00\n2026-01-30\t74369\tTing Siew\t1610.00\n2026-01-31\t74438\tEva Lee\t530.00\n",
+  "stderr": "",
+  "execution_time_ms": 1673
+}

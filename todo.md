@@ -71,3 +71,7 @@
 ## Net Sales Update
 - [x] Update report parser to use Net Sales instead of Total Sales
 - [x] Update existing sales data in database
+
+
+## UI Update - Sales Display
+- [x] Update Sales screen to show: Order Date, Order Name, Sales Channel, Net Sales (HK$)
