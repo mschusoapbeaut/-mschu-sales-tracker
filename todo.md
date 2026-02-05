@@ -80,3 +80,12 @@
 ## User Staff ID Entry
 - [x] Add Staff ID input field in Profile screen for all users (not just admins)
 - [x] Allow users to link their own account to their sales data via Staff ID
+
+
+## Shopify POS App Extension
+- [x] Add PIN field to user database schema
+- [x] Create PIN login screen for quick staff authentication
+- [x] Create PIN authentication API endpoint
+- [x] Add PIN setup/management in Profile screen
+- [x] Create Shopify POS tile linking to app (via App URL configuration)
+- [x] Provide deployment and installation instructions

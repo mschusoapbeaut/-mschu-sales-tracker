@@ -25,6 +25,10 @@ export default function LoginScreen() {
     }
   };
 
+  const handlePinLogin = () => {
+    router.push("/pin-login");
+  };
+
   if (loading) {
     return (
       <ScreenContainer className="items-center justify-center">
@@ -49,12 +53,29 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Login Button */}
+        {/* PIN Login Button - Primary for POS staff */}
         <TouchableOpacity
-          onPress={handleLogin}
-          className="w-full max-w-sm bg-primary py-4 rounded-xl items-center active:opacity-80"
+          onPress={handlePinLogin}
+          className="w-full max-w-sm bg-primary py-4 rounded-xl items-center active:opacity-80 mb-4"
         >
           <Text className="text-background font-semibold text-lg">
+            Staff PIN Login
+          </Text>
+        </TouchableOpacity>
+
+        {/* Divider */}
+        <View className="flex-row items-center w-full max-w-sm my-4">
+          <View className="flex-1 h-px bg-border" />
+          <Text className="mx-4 text-muted text-sm">or</Text>
+          <View className="flex-1 h-px bg-border" />
+        </View>
+
+        {/* Manus Login Button - Secondary */}
+        <TouchableOpacity
+          onPress={handleLogin}
+          className="w-full max-w-sm border border-border py-4 rounded-xl items-center active:opacity-80"
+        >
+          <Text className="text-foreground font-medium text-base">
             Sign In with Manus
           </Text>
         </TouchableOpacity>

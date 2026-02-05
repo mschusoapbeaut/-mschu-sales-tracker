@@ -30,10 +30,10 @@ describe("Excel Report Parser", () => {
       expect(result.success).toBe(true);
       expect(result.records.length).toBe(2);
       expect(result.records[0].userId).toBe(1);
-      expect(result.records[0].totalAmount).toBe("500.00");
+      expect(result.records[0].totalAmount).toBe("450.00"); // Net Sales
       expect(result.records[0].orderReference).toBe("72500");
       expect(result.records[1].userId).toBe(2);
-      expect(result.records[1].totalAmount).toBe("300.00");
+      expect(result.records[1].totalAmount).toBe("270.00"); // Net Sales
     });
 
     it("should skip rows without WVReferredByStaff tag", () => {

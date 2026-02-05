@@ -136,6 +136,21 @@ export async function getStaffMapping(): Promise<Record<string, number>> {
   return mapping;
 }
 
+export async function updateUserPin(userId: number, pin: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users).set({ pin }).where(eq(users.id, userId));
+}
+
+export async function getUserByPin(pin: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(users).where(eq(users.pin, pin)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
 // ============ SALES FUNCTIONS ============
 
 export async function createSale(data: InsertSale) {

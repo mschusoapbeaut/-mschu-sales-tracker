@@ -121,6 +121,27 @@ export const appRouter = router({
         await db.updateUserStaffId(ctx.user.id, input.staffId);
         return { success: true };
       }),
+
+    // Get current user's PIN status (not the actual PIN)
+    getPinStatus: protectedProcedure.query(async ({ ctx }) => {
+      return { hasPin: !!ctx.user.pin };
+    }),
+
+    // Update current user's PIN
+    updatePin: protectedProcedure
+      .input(z.object({
+        pin: z.string().length(4).regex(/^\d{4}$/, "PIN must be 4 digits"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateUserPin(ctx.user.id, input.pin);
+        return { success: true };
+      }),
+
+    // Remove current user's PIN
+    removePin: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.updateUserPin(ctx.user.id, null);
+      return { success: true };
+    }),
   }),
 
   // Admin endpoints

@@ -1,6 +1,6 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
-import { getUserByOpenId, upsertUser } from "../db";
+import { getUserByOpenId, upsertUser, getUserByPin } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
@@ -132,6 +132,50 @@ export function registerOAuthRoutes(app: Express) {
     const cookieOptions = getSessionCookieOptions(req);
     res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
     res.json({ success: true });
+  });
+
+  // PIN-based login for POS staff
+  app.post("/api/auth/pin", async (req: Request, res: Response) => {
+    const { pin } = req.body;
+    
+    if (!pin || typeof pin !== "string") {
+      res.status(400).json({ error: "PIN is required" });
+      return;
+    }
+    
+    try {
+      const user = await getUserByPin(pin);
+      
+      if (!user) {
+        res.status(401).json({ error: "Invalid PIN" });
+        return;
+      }
+      
+      // Create session token for the user
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+      
+      // Set cookie
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      
+      // Update last signed in
+      await upsertUser({
+        openId: user.openId,
+        lastSignedIn: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        user: buildUserResponse(user),
+        sessionToken,
+      });
+    } catch (error) {
+      console.error("[Auth] PIN login failed:", error);
+      res.status(500).json({ error: "PIN login failed" });
+    }
   });
 
   // Get current authenticated user - works with both cookie (web) and Bearer token (mobile)

@@ -29,6 +29,13 @@
       "when": 1770256029269,
       "tag": "0003_illegal_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1770260656953,
+      "tag": "0004_perfect_scarecrow",
+      "breakpoints": true
     }
   ]
 }

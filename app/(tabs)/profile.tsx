@@ -115,6 +115,176 @@ function MyStaffIdSection({ colors }: { colors: ReturnType<typeof useColors> }) 
   );
 }
 
+// Component for users to set their PIN for POS login
+function MyPinSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [confirmPinInput, setConfirmPinInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Get current user's PIN status
+  const { data: pinStatus, refetch } = trpc.user.getPinStatus.useQuery();
+
+  // Mutations
+  const updatePinMutation = trpc.user.updatePin.useMutation({
+    onSuccess: () => {
+      refetch();
+      setIsEditing(false);
+      setPinInput("");
+      setConfirmPinInput("");
+      setError(null);
+      Alert.alert("Success", "Your PIN has been set. You can now use it to log in from POS.");
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+  });
+
+  const removePinMutation = trpc.user.removePin.useMutation({
+    onSuccess: () => {
+      refetch();
+      Alert.alert("Success", "Your PIN has been removed.");
+    },
+    onError: (err) => {
+      Alert.alert("Error", err.message);
+    },
+  });
+
+  const handleStartEdit = () => {
+    setPinInput("");
+    setConfirmPinInput("");
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (pinInput.length !== 4 || !/^\d{4}$/.test(pinInput)) {
+      setError("PIN must be exactly 4 digits");
+      return;
+    }
+    if (pinInput !== confirmPinInput) {
+      setError("PINs do not match");
+      return;
+    }
+    updatePinMutation.mutate({ pin: pinInput });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setPinInput("");
+    setConfirmPinInput("");
+    setError(null);
+  };
+
+  const handleRemovePin = () => {
+    Alert.alert(
+      "Remove PIN",
+      "Are you sure you want to remove your PIN? You will need to use Manus login instead.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => removePinMutation.mutate() },
+      ]
+    );
+  };
+
+  return (
+    <View className="px-5 py-3">
+      <Text className="text-lg font-semibold text-foreground mb-3">POS Login PIN</Text>
+      
+      <View className="bg-surface rounded-2xl border border-border p-4">
+        <Text className="text-sm text-muted mb-3">
+          Set a 4-digit PIN to quickly log in from Shopify POS.
+        </Text>
+        
+        {isEditing ? (
+          <View>
+            <TextInput
+              value={pinInput}
+              onChangeText={(text) => {
+                setPinInput(text.replace(/\D/g, "").slice(0, 4));
+                setError(null);
+              }}
+              placeholder="Enter 4-digit PIN"
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground mb-2"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <TextInput
+              value={confirmPinInput}
+              onChangeText={(text) => {
+                setConfirmPinInput(text.replace(/\D/g, "").slice(0, 4));
+                setError(null);
+              }}
+              placeholder="Confirm PIN"
+              keyboardType="number-pad"
+              secureTextEntry
+              maxLength={4}
+              className="px-4 py-3 bg-background border border-border rounded-lg text-foreground"
+              placeholderTextColor={colors.muted}
+            />
+            {error && (
+              <Text className="text-error text-sm mt-2">{error}</Text>
+            )}
+            <View className="flex-row mt-3 gap-2">
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={updatePinMutation.isPending}
+                className="flex-1 bg-primary py-3 rounded-lg items-center"
+              >
+                {updatePinMutation.isPending ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Text className="text-background font-semibold">Save PIN</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCancel}
+                className="flex-1 bg-surface border border-border py-3 rounded-lg items-center"
+              >
+                <Text className="text-foreground font-semibold">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View>
+            <TouchableOpacity
+              onPress={handleStartEdit}
+              className="flex-row items-center justify-between py-2"
+            >
+              <View className="flex-1">
+                {pinStatus?.hasPin ? (
+                  <View className="flex-row items-center">
+                    <MaterialIcons name="check-circle" size={18} color={colors.success} />
+                    <Text className="text-foreground font-medium ml-2">PIN is set (****)</Text>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center">
+                    <MaterialIcons name="warning" size={18} color={colors.warning} />
+                    <Text className="text-warning ml-2">No PIN set - tap to create one</Text>
+                  </View>
+                )}
+              </View>
+              <MaterialIcons name="edit" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            {pinStatus?.hasPin && (
+              <TouchableOpacity
+                onPress={handleRemovePin}
+                disabled={removePinMutation.isPending}
+                className="mt-2 py-2"
+              >
+                <Text className="text-error text-sm">Remove PIN</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -454,6 +624,9 @@ export default function ProfileScreen() {
 
         {/* My Staff ID Section - for all users */}
         <MyStaffIdSection colors={colors} />
+
+        {/* My PIN Section - for all users */}
+        <MyPinSection colors={colors} />
 
         {/* Admin Section */}
         {isAdmin && (
