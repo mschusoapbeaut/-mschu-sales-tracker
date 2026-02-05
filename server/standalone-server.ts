@@ -10,6 +10,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStandaloneAuthRoutes, authenticateRequest } from "./standalone-auth";
 import { standaloneAppRouter } from "./standalone-routers";
 import { syncAllDriveConnections } from "./drive-sync";
+import { startScheduledEmailSync, fetchAndProcessEmails, testImapConnection, getEmailConfig } from "./email-sync";
 import type { Request, Response, NextFunction } from "express";
 
 const PORT = parseInt(process.env.PORT || "3000");
@@ -47,6 +48,53 @@ async function startServer() {
   // Health check
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now(), mode: "standalone" });
+  });
+
+  // Email sync endpoints (admin only)
+  app.get("/api/email/status", async (req, res) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const config = getEmailConfig();
+      res.json({
+        configured: !!(config.email && config.password),
+        enabled: config.enabled,
+        email: config.email ? config.email.replace(/(.{3}).*(@.*)/, "$1***$2") : null
+      });
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  app.post("/api/email/test", async (req, res) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const result = await testImapConnection();
+      res.json(result);
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  app.post("/api/email/fetch", async (req, res) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const result = await fetchAndProcessEmails();
+      res.json(result);
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
   });
 
   // Create context for tRPC
@@ -89,6 +137,9 @@ async function startServer() {
     
     // Start scheduled Google Drive sync
     startScheduledSync();
+    
+    // Start scheduled Email sync
+    startScheduledEmailSync();
   });
 }
 
