@@ -8,4 +8,4 @@ cmds = ["pnpm install"]
 cmds = ["npx expo export --platform web --output-dir dist-web"]
 
 [start]
-cmd = "npx tsx server/standalone-server.ts"
+cmd = "npx tsx server/standalone-server-combined.ts"

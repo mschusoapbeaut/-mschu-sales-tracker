@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install && npx expo export --platform web --output-dir dist-web"
   },
   "deploy": {
-    "startCommand": "npx tsx server/standalone-server.ts",
+    "startCommand": "npx tsx server/standalone-server-combined.ts",
     "healthcheckPath": "/api/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10

@@ -262,3 +262,11 @@
 - [x] Backfill existing POS records with staff names (1,927 records)
 - [x] Backfill existing Online Sales records with staff names (80 records)
 - [x] Totals and order counts update dynamically based on staff filter selection
+
+## Login Fix + Sorting Feature (Feb 6, 2026)
+- [x] Fix login crash caused by JS quote-escaping bug in sorting onclick handlers
+- [x] Use HTML entities (&#39;) instead of literal single quotes in onclick attributes
+- [x] Add column sorting to Online Sales (Order Date, Order)
+- [x] Add column sorting to POS Sales (Order Date, Order, Channel, Payment Gateway)
+- [x] Update nixpacks.toml and railway.json to point to standalone-server-combined.ts
+- [x] Restore all features: month/staff filters, Staff Name column, sale type selector, security fixes
