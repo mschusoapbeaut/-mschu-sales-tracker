@@ -11,11 +11,19 @@ import { registerStandaloneAuthRoutes, authenticateRequest } from "./standalone-
 import { standaloneAppRouter } from "./standalone-routers";
 import * as db from "./db"; // Uses raw MySQL execute/query methods
 import type { Request, Response } from "express";
-import { startScheduledEmailSync, testImapConnection, fetchAndProcessEmails, getEmailConfig } from "./email-sync";
+import { startScheduledEmailSync, testImapConnection, fetchAndProcessEmails, getEmailConfig, getLastSyncInfo } from "./email-sync";
 
 const PORT = parseInt(process.env.PORT || "8080");
 
 async function startServer() {
+  // Auto-migrate DB schema (add missing columns)
+  try {
+    await db.ensureDbSchema();
+    console.log("[DB] Schema check complete");
+  } catch (e) {
+    console.error("[DB] Schema migration error:", e);
+  }
+
   const app = express();
   const server = createServer(app);
 
@@ -378,12 +386,14 @@ async function startServer() {
       }
       
       const config = getEmailConfig();
+      const syncInfo = getLastSyncInfo();
       res.json({ 
         config: {
           email: config.email,
           enabled: config.enabled,
           hasPassword: !!config.password
-        }
+        },
+        lastSyncTime: syncInfo.lastSyncTime
       });
     } catch (error) {
       console.error("[API] Get email config error:", error);
@@ -668,6 +678,7 @@ function getAdminHTML(): string {
                         Automatically fetch sales reports from email attachments (CSV/Excel files).
                         The system checks for new emails every hour.
                     </p>
+                    <p id="lastSyncTime" style="font-size:13px;color:#888;margin-bottom:10px">Last synced: checking...</p>
                     <div class="form-row" style="margin-top:15px">
                         <button class="btn btn-primary" onclick="testEmailConnection()">Test Connection</button>
                         <button class="btn btn-success" onclick="fetchEmailsNow()">Fetch Emails Now</button>
@@ -980,8 +991,14 @@ function getAdminHTML(): string {
                 } else {
                     updateEmailStatus(null, false, false);
                 }
+                if (d.lastSyncTime) {
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date(d.lastSyncTime).toLocaleString();
+                } else {
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: Never';
+                }
             } catch (e) {
                 updateEmailStatus(null, false, false);
+                document.getElementById('lastSyncTime').textContent = 'Last synced: Unknown';
             }
         }
         
@@ -1029,6 +1046,7 @@ function getAdminHTML(): string {
                 
                 if (d.success) {
                     showMessage('emailMessage', 'Fetch complete! Processed ' + d.emailsProcessed + ' emails, imported ' + d.imported + ' sales records.', 'success');
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date().toLocaleString();
                     loadOnlineSales();
                 } else {
                     showMessage('emailMessage', 'Fetch failed: ' + (d.error || 'Unknown error'), 'error');

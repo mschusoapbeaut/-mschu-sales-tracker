@@ -174,6 +174,30 @@ export function registerStandaloneAuthRoutes(app: Express) {
     }
   });
 
+  // Pin-login alias (returns {success, user} format for combined HTML)
+  app.post("/api/auth/pin-login", async (req: Request, res: Response) => {
+    const { pin } = req.body;
+    if (!pin || typeof pin !== "string") {
+      res.status(400).json({ error: "PIN is required" });
+      return;
+    }
+    try {
+      const user = await getUserByPin(pin);
+      if (!user) {
+        res.status(401).json({ error: "Invalid PIN" });
+        return;
+      }
+      const sessionToken = await createSessionToken(user);
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+      res.json({ success: true, user: buildUserResponse(user), sessionToken });
+    } catch (error) {
+      console.error("[Auth] PIN login failed:", error);
+      res.status(500).json({ error: "PIN login failed" });
+    }
+  });
+
   // Login alias (returns token format for standalone HTML)
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { pin } = req.body;

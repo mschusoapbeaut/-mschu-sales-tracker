@@ -5,4 +5,4 @@ cmds = ["pnpm install"]
 [phases.build]
 cmds = ["echo 'Skipping expo export - standalone server generates HTML'"]
 [start]
-cmd = "npx tsx server/standalone-server.ts"
+cmd = "npx tsx server/standalone-server-combined.ts"
