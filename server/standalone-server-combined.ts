@@ -75,17 +75,32 @@ async function startServer() {
         whereConditions.push("saleType = 'pos'");
       }
       
-      // If not admin, only show user's own sales
+      // Filter by month (for admin)
+      const monthParam = req.query.month as string;
+      if (monthParam && monthParam !== 'all') {
+        const [year, month] = monthParam.split('-').map(Number);
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 1);
+        whereConditions.push("orderDate >= ? AND orderDate < ?");
+        params.push(startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10));
+      }
+      
+      // If not admin, only show user's own sales (month-to-date only)
       if (user.role !== "admin" && user.staffId) {
         whereConditions.push("staffId = ?");
         params.push(user.staffId);
+        // Staff only sees current month
+        const now = new Date();
+        const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        whereConditions.push("orderDate >= ?");
+        params.push(mtdStart.toISOString().slice(0, 10));
       }
       
       if (whereConditions.length > 0) {
         query += " WHERE " + whereConditions.join(" AND ");
       }
       
-      query += " ORDER BY orderDate DESC LIMIT 100";
+      query += " ORDER BY orderDate DESC LIMIT 500";
       
       const [rows] = await db.execute(query, params);
       const sales = rows as any[];
@@ -308,8 +323,17 @@ async function startServer() {
         return;
       }
       
-      const [rows] = await db.execute("SELECT id, openId, name, role, staffId, pin FROM users ORDER BY name");
-      res.json({ staff: rows });
+      const [rows] = await db.execute("SELECT id, openId, name, role, staffId, pin FROM users WHERE name IS NOT NULL AND role IS NOT NULL ORDER BY name");
+      // Deduplicate by staffId (keep the one with the highest id)
+      const staffMap = new Map<string, any>();
+      for (const row of rows as any[]) {
+        const key = row.staffId || row.openId;
+        const existing = staffMap.get(key);
+        if (!existing || row.id > existing.id) {
+          staffMap.set(key, row);
+        }
+      }
+      res.json({ staff: Array.from(staffMap.values()).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')) });
     } catch (error) {
       console.error("[API] Get staff error:", error);
       res.status(500).json({ error: "Failed to get staff" });
@@ -598,7 +622,10 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <h2>Online Sales History</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                        <h2 style="margin:0">Online Sales History</h2>
+                        <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                    </div>
                     <div id="onlineSalesTableContainer">
                         <p class="loading">Loading sales data...</p>
                     </div>
@@ -617,7 +644,10 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <h2>POS Sales History</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                        <h2 style="margin:0">POS Sales History</h2>
+                        <select id="posMonthFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                    </div>
                     <div id="posSalesTableContainer">
                         <p class="loading">Loading POS sales data...</p>
                     </div>
@@ -787,9 +817,33 @@ function getAdminHTML(): string {
             if (tab === 'email') loadEmailConfig();
         }
         
+        function populateMonthFilter(selectId) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.style.display = 'block';
+            if (sel.options.length > 0) return;
+            const now = new Date();
+            const year = now.getFullYear();
+            const currentMonth = now.getMonth();
+            sel.innerHTML = '<option value="all">All (Current Year)</option>';
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            for (let m = currentMonth; m >= 0; m--) {
+                const val = year + '-' + String(m + 1).padStart(2, '0');
+                const label = monthNames[m] + ' ' + year;
+                const selected = m === currentMonth ? ' selected' : '';
+                sel.innerHTML += '<option value="' + val + '"' + selected + '>' + label + '</option>';
+            }
+        }
+        
         async function loadOnlineSales() {
+            if (currentUser && currentUser.role === 'admin') populateMonthFilter('onlineMonthFilter');
             try {
-                const r = await fetch('/api/sales?type=online', { credentials: 'include' });
+                let url = '/api/sales?type=online';
+                if (currentUser && currentUser.role === 'admin') {
+                    const monthVal = document.getElementById('onlineMonthFilter')?.value || 'all';
+                    url += '&month=' + monthVal;
+                }
+                const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
                 
                 if (r.ok) {
@@ -814,8 +868,14 @@ function getAdminHTML(): string {
         }
         
         async function loadPosSales() {
+            if (currentUser && currentUser.role === 'admin') populateMonthFilter('posMonthFilter');
             try {
-                const r = await fetch('/api/sales?type=pos', { credentials: 'include' });
+                let url = '/api/sales?type=pos';
+                if (currentUser && currentUser.role === 'admin') {
+                    const monthVal = document.getElementById('posMonthFilter')?.value || 'all';
+                    url += '&month=' + monthVal;
+                }
+                const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
                 
                 if (r.ok) {
@@ -848,8 +908,9 @@ function getAdminHTML(): string {
                     let html = '<table class="staff-table"><thead><tr><th>Name</th><th>Staff ID</th><th>PIN</th><th>Role</th><th>Action</th></tr></thead><tbody>';
                     d.staff.forEach(s => {
                         const isCurrentUser = s.id === currentUser.id;
-                        html += '<tr><td>' + s.name + '</td><td>' + (s.staffId || '-') + '</td><td>' + (s.pin || '-') + '</td><td>' + s.role + '</td><td>' + 
-                            (isCurrentUser ? '<span style="color:#999">Current user</span>' : '<button class="delete-btn" onclick="deleteStaff(' + s.id + ', \\'' + s.name.replace(/'/g, "\\\\'") + '\\')">Delete</button>') + 
+                        const staffName = s.name || 'Unknown';
+                        html += '<tr><td>' + staffName + '</td><td>' + (s.staffId || '-') + '</td><td>' + (s.pin || '-') + '</td><td>' + (s.role || '-') + '</td><td>' + 
+                            (isCurrentUser ? '<span style="color:#999">Current user</span>' : '<button class="delete-btn" onclick="deleteStaff(' + s.id + ', \\'' + staffName.replace(/'/g, "\\\\\\\\'" ) + '\\')">Delete</button>') + 
                             '</td></tr>';
                     });
                     html += '</tbody></table>';
