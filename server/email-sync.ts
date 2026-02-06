@@ -506,6 +506,17 @@ async function importCSVData(csvData: string): Promise<number> {
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 const ONE_HOUR = 1 * 60 * 60 * 1000;
 
+// Track last sync time
+let lastSyncTime: Date | null = null;
+let lastSyncResult: string = '';
+
+export function getLastSyncInfo() {
+  return {
+    lastSyncTime: lastSyncTime ? lastSyncTime.toISOString() : null,
+    lastSyncResult
+  };
+}
+
 export function startScheduledEmailSync() {
   if (syncInterval) {
     clearInterval(syncInterval);
@@ -521,9 +532,12 @@ export function startScheduledEmailSync() {
   setTimeout(async () => {
     console.log("[EmailSync] Running initial email sync...");
     const result = await fetchAndProcessEmails();
+    lastSyncTime = new Date();
     if (result.success) {
+      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails`;
       console.log(`[EmailSync] Initial sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
     } else {
+      lastSyncResult = `Failed: ${result.error}`;
       console.error("[EmailSync] Initial sync failed:", result.error);
     }
   }, 60000);
@@ -532,9 +546,12 @@ export function startScheduledEmailSync() {
   syncInterval = setInterval(async () => {
     console.log("[EmailSync] Running scheduled email sync...");
     const result = await fetchAndProcessEmails();
+    lastSyncTime = new Date();
     if (result.success) {
+      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails`;
       console.log(`[EmailSync] Scheduled sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
     } else {
+      lastSyncResult = `Failed: ${result.error}`;
       console.error("[EmailSync] Scheduled sync failed:", result.error);
     }
   }, ONE_HOUR);

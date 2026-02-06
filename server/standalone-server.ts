@@ -11,7 +11,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStandaloneAuthRoutes, authenticateRequest } from "./standalone-auth";
 import { standaloneAppRouter } from "./standalone-routers";
 import { syncAllDriveConnections } from "./drive-sync";
-import { startScheduledEmailSync, fetchAndProcessEmails, testImapConnection, getEmailConfig } from "./email-sync";
+import { startScheduledEmailSync, fetchAndProcessEmails, testImapConnection, getEmailConfig, getLastSyncInfo } from "./email-sync";
 import type { Request, Response, NextFunction } from "express";
 
 const PORT = parseInt(process.env.PORT || "3000");
@@ -169,6 +169,7 @@ const ADMIN_HTML = `<!DOCTYPE html>
             <span id="email-status" class="status">Checking...</span>
           </div>
           <p class="text-muted mb-4">Automatically imports sales data from email attachments every hour.</p>
+          <p class="text-muted mb-4" id="last-sync-time">Last synced: checking...</p>
           <div class="flex">
             <button class="btn" onclick="testEmailConnection()">Test Connection</button>
             <button class="btn btn-success" onclick="fetchEmails()">Fetch Now</button>
@@ -343,6 +344,14 @@ const ADMIN_HTML = `<!DOCTYPE html>
             statusEl.textContent = 'Not Configured';
             statusEl.className = 'status status-error';
           }
+          // Show last sync time
+          const syncTimeEl = document.getElementById('last-sync-time');
+          if (email.lastSyncTime) {
+            const d = new Date(email.lastSyncTime);
+            syncTimeEl.textContent = 'Last synced: ' + d.toLocaleString();
+          } else {
+            syncTimeEl.textContent = 'Last synced: Not yet synced';
+          }
         }
 
         // Check drive status
@@ -394,6 +403,7 @@ const ADMIN_HTML = `<!DOCTYPE html>
         if (data.success) {
           resultEl.textContent = 'Fetch complete! Processed ' + (data.emailsProcessed || 0) + ' emails, imported ' + (data.salesImported || 0) + ' sales.';
           resultEl.className = 'alert alert-success';
+          document.getElementById('last-sync-time').textContent = 'Last synced: ' + new Date().toLocaleString();
           loadDashboardData();
         } else {
           resultEl.textContent = 'Fetch failed: ' + (data.error || 'Unknown error');
@@ -487,10 +497,13 @@ async function startServer() {
         return;
       }
       const config = getEmailConfig();
+      const syncInfo = getLastSyncInfo();
       res.json({
         configured: !!(config.email && config.password),
         enabled: config.enabled,
-        email: config.email ? config.email.replace(/(.{3}).*(@.*)/, "$1***$2") : null
+        email: config.email ? config.email.replace(/(.{3}).*(@.*)/, "$1***$2") : null,
+        lastSyncTime: syncInfo.lastSyncTime,
+        lastSyncResult: syncInfo.lastSyncResult
       });
     } catch {
       res.status(401).json({ error: "Not authenticated" });
