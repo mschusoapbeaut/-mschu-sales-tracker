@@ -38,12 +38,24 @@ function getImapConfig(email: string) {
 // Email subject filter
 const EMAIL_SUBJECT_FILTER = "Online Orders by customer";
 
+// Track last sync time
+let lastSyncTime: Date | null = null;
+let lastSyncResult: { success: boolean; imported?: number; emailsProcessed?: number; error?: string } | null = null;
+
 // Email configuration stored in environment variables
 export function getEmailConfig() {
   return {
     email: process.env.EMAIL_ADDRESS || "",
     password: process.env.EMAIL_PASSWORD || "",
     enabled: process.env.EMAIL_ENABLED === "true"
+  };
+}
+
+// Get last sync info
+export function getLastSyncInfo() {
+  return {
+    lastSyncTime: lastSyncTime ? lastSyncTime.toISOString() : null,
+    lastSyncResult
   };
 }
 
@@ -204,6 +216,11 @@ export async function fetchAndProcessEmails(): Promise<{
             clearTimeout(timeout);
             imap.end();
             console.log(`[EmailSync] Processed ${emailsProcessed} emails, imported ${totalImported} sales`);
+            
+            // Update last sync time
+            lastSyncTime = new Date();
+            lastSyncResult = { success: true, imported: totalImported, emailsProcessed };
+            
             resolve({ success: true, imported: totalImported, emailsProcessed });
           });
         });

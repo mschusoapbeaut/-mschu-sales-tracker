@@ -221,3 +221,7 @@
 ## Upload Sale Type Selector (Feb 6, 2026)
 - [x] Add dropdown selector to Upload Sales panel to choose Online Sales or POS Sales
 - [x] Update upload API to handle sale type parameter
+
+## Email Sync Timestamp (Feb 6, 2026)
+- [x] Add last sync timestamp display to Email Sync panel
+- [x] Store and retrieve last sync time

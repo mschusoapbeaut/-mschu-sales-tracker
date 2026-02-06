@@ -11,7 +11,7 @@ import { registerStandaloneAuthRoutes, authenticateRequest } from "./standalone-
 import { standaloneAppRouter } from "./standalone-routers";
 import * as db from "./db"; // Uses raw MySQL execute/query methods
 import type { Request, Response } from "express";
-import { startScheduledEmailSync, testImapConnection, fetchAndProcessEmails, getEmailConfig } from "./email-sync";
+import { startScheduledEmailSync, testImapConnection, fetchAndProcessEmails, getEmailConfig, getLastSyncInfo } from "./email-sync";
 
 const PORT = parseInt(process.env.PORT || "8080");
 
@@ -378,11 +378,14 @@ async function startServer() {
       }
       
       const config = getEmailConfig();
+      const syncInfo = getLastSyncInfo();
       res.json({ 
         config: {
           email: config.email,
           enabled: config.enabled,
-          hasPassword: !!config.password
+          hasPassword: !!config.password,
+          lastSyncTime: syncInfo.lastSyncTime,
+          lastSyncResult: syncInfo.lastSyncResult
         }
       });
     } catch (error) {
@@ -976,23 +979,39 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok && d.config) {
-                    updateEmailStatus(d.config.email, d.config.enabled, d.config.hasPassword);
+                    updateEmailStatus(d.config.email, d.config.enabled, d.config.hasPassword, d.config.lastSyncTime, d.config.lastSyncResult);
                 } else {
-                    updateEmailStatus(null, false, false);
+                    updateEmailStatus(null, false, false, null, null);
                 }
             } catch (e) {
-                updateEmailStatus(null, false, false);
+                updateEmailStatus(null, false, false, null, null);
             }
         }
         
-        function updateEmailStatus(email, enabled, hasPassword) {
+        function formatLastSyncTime(isoString) {
+            if (!isoString) return 'Never';
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+        
+        function updateEmailStatus(email, enabled, hasPassword, lastSyncTime, lastSyncResult) {
             const status = document.getElementById('emailStatus');
+            let syncInfo = '';
+            if (lastSyncTime) {
+                syncInfo = '<br><strong>Last Sync:</strong> ' + formatLastSyncTime(lastSyncTime);
+                if (lastSyncResult) {
+                    syncInfo += ' (' + (lastSyncResult.imported || 0) + ' records imported)';
+                }
+            } else {
+                syncInfo = '<br><strong>Last Sync:</strong> Never (waiting for first sync)';
+            }
+            
             if (email && hasPassword && enabled) {
                 status.className = 'email-status connected';
-                status.innerHTML = '<strong>Status:</strong> Connected and enabled<br><strong>Email:</strong> ' + email + '<br><strong>Auto-fetch:</strong> Every 1 hour';
+                status.innerHTML = '<strong>Status:</strong> Connected and enabled<br><strong>Email:</strong> ' + email + '<br><strong>Auto-fetch:</strong> Every 1 hour' + syncInfo;
             } else if (email && hasPassword) {
                 status.className = 'email-status disconnected';
-                status.innerHTML = '<strong>Status:</strong> Configured but disabled<br><strong>Email:</strong> ' + email;
+                status.innerHTML = '<strong>Status:</strong> Configured but disabled<br><strong>Email:</strong> ' + email + syncInfo;
             } else {
                 status.className = 'email-status disconnected';
                 status.innerHTML = '<strong>Status:</strong> Not configured<br>Set EMAIL_ADDRESS, EMAIL_PASSWORD, and EMAIL_ENABLED=true in environment variables';
@@ -1030,6 +1049,7 @@ function getAdminHTML(): string {
                 if (d.success) {
                     showMessage('emailMessage', 'Fetch complete! Processed ' + d.emailsProcessed + ' emails, imported ' + d.imported + ' sales records.', 'success');
                     loadOnlineSales();
+                    loadEmailConfig(); // Refresh to show updated last sync time
                 } else {
                     showMessage('emailMessage', 'Fetch failed: ' + (d.error || 'Unknown error'), 'error');
                 }
