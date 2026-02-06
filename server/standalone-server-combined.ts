@@ -823,15 +823,22 @@ function getAdminHTML(): string {
             sel.style.display = 'block';
             if (sel.options.length > 0) return;
             const now = new Date();
-            const year = now.getFullYear();
+            const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
-            sel.innerHTML = '<option value="all">All (Current Year)</option>';
+            sel.innerHTML = '<option value="all">All</option>';
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            // Current year months (newest first)
             for (let m = currentMonth; m >= 0; m--) {
-                const val = year + '-' + String(m + 1).padStart(2, '0');
-                const label = monthNames[m] + ' ' + year;
+                const val = currentYear + '-' + String(m + 1).padStart(2, '0');
+                const label = monthNames[m] + ' ' + currentYear;
                 const selected = m === currentMonth ? ' selected' : '';
                 sel.innerHTML += '<option value="' + val + '"' + selected + '>' + label + '</option>';
+            }
+            // Previous year months (Dec to Jan)
+            for (let m = 11; m >= 0; m--) {
+                const val = (currentYear - 1) + '-' + String(m + 1).padStart(2, '0');
+                const label = monthNames[m] + ' ' + (currentYear - 1);
+                sel.innerHTML += '<option value="' + val + '">' + label + '</option>';
             }
         }
         
