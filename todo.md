@@ -225,3 +225,40 @@
 ## Email Sync Timestamp (Feb 6, 2026)
 - [x] Add last sync timestamp display to Email Sync panel
 - [x] Store and retrieve last sync time
+
+## Revert and Minimal Timestamp Fix (Feb 6, 2026)
+- [ ] Revert GitHub repo to last working commit (before timestamp changes)
+- [ ] Add ONLY last sync timestamp text to Email Sync panel — no other changes
+- [ ] Verify deployment matches the original interface exactly
+
+## Post-Restore Fixes (Feb 6, 2026)
+- [ ] Add dropdown selector back to Upload Sales tab (Online Sales / POS Sales)
+- [ ] Verify staff login does NOT show Staff Management data
+
+## Batch Fix (Feb 6, 2026)
+- [x] Add dropdown selector to Upload Sales tab (Online Sales / POS Sales)
+- [x] Verify staff login does NOT show Staff Management data
+- [x] Fix email fetching not working
+- [x] Add/update 11 staff members with correct Staff IDs and PINs
+- [x] Add month filter to Online Sales and POS Sales tabs for admin
+- [x] Fix staff login default panel (show Online Sales, hide Email Sync)
+
+## POS Upload Fix (Feb 6, 2026)
+- [ ] Update upload API to handle POS file format (POS Location Name, Date, Order Name, Order ID, Staff name, Payment Gateways, Net Sales, etc.)
+- [ ] Skip duplicate records on upload
+
+## Milestone: Cookie Fix + POS Mapping + Staff Filter (Feb 6, 2026)
+- [x] Fix cookie domain issue for Railway deployment (public suffix handling)
+- [x] POS Sales Channel maps to Column A (POS Location Name)
+- [x] POS Sales Payment Gateway maps to Column G (Payment Gateways)
+- [x] POS upload parser: handle two-row-per-order format, carry forward Channel/Payment Gateway
+- [x] Year to Date filter option for admin in both Online Sales and POS Sales
+- [x] Staff Name filter dropdown (admin only) in POS Sales tab
+- [x] Staff Name filter dropdown (admin only) in Online Sales tab
+- [x] Extract staff from Customer Tags (WVReferredByStaff_STAFFID) for Online Sales
+- [x] Filter out staff names without Staff ID from dropdown
+- [x] Staff login security: no flash of admin tabs
+- [x] Staff view: no month/staff filters, current month data only
+- [x] Backfill existing POS records with staff names (1,927 records)
+- [x] Backfill existing Online Sales records with staff names (80 records)
+- [x] Totals and order counts update dynamically based on staff filter selection
