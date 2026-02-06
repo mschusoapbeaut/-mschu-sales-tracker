@@ -315,6 +315,63 @@ async function startServer() {
     }
   });
 
+  // Admin endpoint to batch-update sales records (fix channel/gateway)
+  app.post("/api/sales/batch-update", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const { updates } = req.body;
+      // updates: Array<{ orderNo: string, salesChannel?: string, paymentGateway?: string }>
+      if (!updates || !Array.isArray(updates)) {
+        res.status(400).json({ error: "Invalid updates array" });
+        return;
+      }
+      let updatedCount = 0;
+      for (const u of updates) {
+        if (!u.orderNo) continue;
+        const setClauses: string[] = [];
+        const params: any[] = [];
+        if (u.salesChannel) {
+          setClauses.push("salesChannel = ?");
+          params.push(u.salesChannel);
+        }
+        if (u.paymentGateway) {
+          setClauses.push("paymentGateway = ?");
+          params.push(u.paymentGateway);
+        }
+        if (setClauses.length > 0) {
+          params.push(u.orderNo);
+          const [result] = await db.execute(`UPDATE sales SET ${setClauses.join(", ")} WHERE orderNo = ?`, params);
+          if ((result as any).affectedRows > 0) updatedCount++;
+        }
+      }
+      res.json({ success: true, updated: updatedCount });
+    } catch (error) {
+      console.error("[API] Batch update error:", error);
+      res.status(500).json({ error: "Failed to batch update" });
+    }
+  });
+
+  // Admin endpoint to delete a sales record by orderNo
+  app.delete("/api/sales/:orderNo", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const { orderNo } = req.params;
+      await db.execute("DELETE FROM sales WHERE orderNo = ?", [orderNo]);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[API] Delete sale error:", error);
+      res.status(500).json({ error: "Failed to delete sale" });
+    }
+  });
+
   // API endpoint to get Google Drive config (admin only)
   app.get("/api/drive/config", async (req: Request, res: Response) => {
     try {
