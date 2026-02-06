@@ -109,7 +109,9 @@ export async function fetchAndProcessEmails(): Promise<{
     const imap = new Imap({
       user: config.email,
       password: config.password,
-      ...imapConfig
+      ...imapConfig,
+      authTimeout: 30000,
+      connTimeout: 30000
     });
 
     let totalImported = 0;

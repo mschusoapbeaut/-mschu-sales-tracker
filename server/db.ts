@@ -75,8 +75,41 @@ export async function ensureDbSchema() {
       }
     }
     
+    // Seed/update staff members with correct PINs and Staff IDs
+    const staffMembers = [
+      { name: "Cindy Chu", openId: "admin-cindy", role: "admin", pin: "9999", staffId: null },
+      { name: "Egenie Tang", openId: "staff-egenie", role: "staff", pin: "4640", staffId: "78319321135" },
+      { name: "Eva Lee", openId: "staff-eva", role: "staff", pin: "8577", staffId: "78319255599" },
+      { name: "Maggie Liang", openId: "staff-maggie-l", role: "staff", pin: "4491", staffId: "78319190063" },
+      { name: "Maggie Wong", openId: "staff-maggie-w", role: "staff", pin: "9635", staffId: "79208775727" },
+      { name: "Ting Siew", openId: "staff-ting", role: "staff", pin: "3639", staffId: "78319386671" },
+      { name: "Win Lee", openId: "staff-win", role: "staff", pin: "1384", staffId: "78319550511" },
+      { name: "Wing Ho", openId: "staff-wing", role: "staff", pin: "4019", staffId: "78319091759" },
+      { name: "Sharon Li", openId: "staff-sharon", role: "staff", pin: "6762", staffId: "101232115995" },
+      { name: "Hailey Hoi Ling Wong", openId: "staff-hailey", role: "staff", pin: "9849", staffId: "109111279899" },
+      { name: "Bon Lau", openId: "staff-bon", role: "staff", pin: "2115", staffId: "111913632027" },
+      { name: "Sze", openId: "staff-sze", role: "staff", pin: "279123", staffId: "118809198875" },
+    ];
+    
+    for (const staff of staffMembers) {
+      const [existing] = await connection.execute("SELECT id FROM users WHERE openId = ?", [staff.openId]) as [any[], any];
+      if ((existing as any[]).length === 0) {
+        console.log(`[DB Seed] Creating staff: ${staff.name}`);
+        await connection.execute(
+          "INSERT INTO users (name, openId, role, pin, staffId, loginMethod) VALUES (?, ?, ?, ?, ?, 'pin')",
+          [staff.name, staff.openId, staff.role, staff.pin, staff.staffId]
+        );
+      } else {
+        // Update PIN and staffId if they changed
+        await connection.execute(
+          "UPDATE users SET pin = ?, staffId = ?, name = ? WHERE openId = ?",
+          [staff.pin, staff.staffId, staff.name, staff.openId]
+        );
+      }
+    }
+    
     await connection.end();
-    console.log("[DB Migration] Schema check complete");
+    console.log("[DB Migration] Schema check and staff seeding complete");
   } catch (error) {
     console.error("[DB Migration] Error:", error);
   }

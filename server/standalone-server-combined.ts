@@ -109,11 +109,12 @@ async function startServer() {
         return;
       }
       
-      const { csvData } = req.body;
+      const { csvData, saleType } = req.body;
       if (!csvData) {
         res.status(400).json({ error: "No CSV data provided" });
         return;
       }
+      const resolvedSaleType = saleType === 'pos' ? 'pos' : 'online';
       
       // Parse CSV
       const lines = csvData.trim().split("\n");
@@ -233,8 +234,8 @@ async function startServer() {
         }
         
         await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales) VALUES (?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales]
+          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType) VALUES (?, ?, ?, ?, ?)",
+          [orderDate || null, orderNo || null, salesChannel || null, netSales, resolvedSaleType]
         );
         imported++;
       }
@@ -651,6 +652,13 @@ function getAdminHTML(): string {
                     <h3>Upload Sales Report (CSV or Excel)</h3>
                     <div id="uploadMessage" class="message"></div>
                     <p class="help-text" style="margin-bottom:15px">Upload a CSV or Excel (.xlsx) file with columns: Order Date, Order ID, Sales Channel, Net Sales</p>
+                    <div class="form-row" style="margin-bottom:15px">
+                        <label style="font-weight:600;margin-right:10px">Sale Type:</label>
+                        <select id="uploadSaleType" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px">
+                            <option value="online">Online Sales</option>
+                            <option value="pos">POS Sales</option>
+                        </select>
+                    </div>
                     <div class="form-row">
                         <div class="file-input-wrapper">
                             <span class="file-input-label">Choose File (CSV or Excel)</span>
@@ -954,6 +962,7 @@ function getAdminHTML(): string {
         
         async function uploadCSV() {
             const csvData = document.getElementById('csvPreview').value.trim();
+            const saleType = document.getElementById('uploadSaleType').value;
             if (!csvData) {
                 showMessage('uploadMessage', 'Please select a CSV file or paste CSV data', 'error');
                 return;
@@ -964,7 +973,7 @@ function getAdminHTML(): string {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ csvData })
+                    body: JSON.stringify({ csvData, saleType })
                 });
                 const d = await r.json();
                 
@@ -972,7 +981,13 @@ function getAdminHTML(): string {
                     showMessage('uploadMessage', d.message, 'success');
                     document.getElementById('csvPreview').value = '';
                     document.getElementById('fileName').textContent = 'No file selected';
-                    loadOnlineSales();
+                    if (saleType === 'pos') {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelector('.tab:nth-child(2)').classList.add('active');
+                        showTab('pos-sales');
+                    } else {
+                        loadOnlineSales();
+                    }
                 } else {
                     showMessage('uploadMessage', d.error || 'Failed to upload', 'error');
                 }
