@@ -427,7 +427,7 @@ async function importCSVData(csvData: string): Promise<number> {
   const header = parseCSVHeader(lines[0]);
   const dateIdx = header.findIndex((h) => h.includes("date") || h.includes("orderdate"));
   const orderIdx = header.findIndex((h) => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
-  const channelIdx = header.findIndex((h) => h.includes("channel") || h.includes("saleschannel"));
+  const channelIdx = header.findIndex((h) => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
   const netSalesIdx = header.findIndex((h) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
 
   if (netSalesIdx === -1) {

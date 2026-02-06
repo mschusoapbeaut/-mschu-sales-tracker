@@ -78,11 +78,19 @@ async function startServer() {
       // Filter by month (for admin)
       const monthParam = req.query.month as string;
       if (monthParam && monthParam !== 'all') {
-        const [year, month] = monthParam.split('-').map(Number);
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 1);
-        whereConditions.push("orderDate >= ? AND orderDate < ?");
-        params.push(startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10));
+        if (monthParam === 'ytd') {
+          // Year to Date: from Jan 1 of current year
+          const now = new Date();
+          const startDate = new Date(now.getFullYear(), 0, 1);
+          whereConditions.push("orderDate >= ?");
+          params.push(startDate.toISOString().slice(0, 10));
+        } else {
+          const [year, month] = monthParam.split('-').map(Number);
+          const startDate = new Date(year, month - 1, 1);
+          const endDate = new Date(year, month, 1);
+          whereConditions.push("orderDate >= ? AND orderDate < ?");
+          params.push(startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10));
+        }
       }
       
       // If not admin, only show user's own sales (month-to-date only)
@@ -164,8 +172,11 @@ async function startServer() {
       // Find column indices
       const dateIdx = header.findIndex((h: string) => h.includes("date") || h.includes("orderdate"));
       const orderIdx = header.findIndex((h: string) => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
-      const channelIdx = header.findIndex((h: string) => h.includes("channel") || h.includes("saleschannel"));
+      // For POS uploads, Column A is "POS Location Name" which maps to Channel
+      const channelIdx = header.findIndex((h: string) => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
       const netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+      // For POS uploads, find Payment Gateways column (only for POS sale type)
+      const paymentGatewayIdx = resolvedSaleType === 'pos' ? header.findIndex((h: string) => h.includes("paymentgateway") || h.includes("payment")) : -1;
       
       if (netSalesIdx === -1) {
         res.status(400).json({ error: "Could not find Net Sales column in CSV" });
@@ -232,6 +243,7 @@ async function startServer() {
         }
         const orderNo = orderIdx >= 0 ? values[orderIdx] : null;
         const salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
+        const paymentGateway = paymentGatewayIdx >= 0 ? values[paymentGatewayIdx] : null;
         const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
         
         if (isNaN(netSales)) {
@@ -249,8 +261,8 @@ async function startServer() {
         }
         
         await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType) VALUES (?, ?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales, resolvedSaleType]
+          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, paymentGateway) VALUES (?, ?, ?, ?, ?, ?)",
+          [orderDate || null, orderNo || null, salesChannel || null, netSales, resolvedSaleType, paymentGateway || null]
         );
         imported++;
       }
@@ -785,32 +797,51 @@ function getAdminHTML(): string {
         }
         
         function showDashboard() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
+            // Set user info BEFORE showing dashboard
             document.getElementById('userName').textContent = currentUser.name;
             document.getElementById('userRole').textContent = currentUser.role;
             
-            // Show admin tabs for admin users
+            // Explicitly set admin tab/panel visibility based on role
             if (currentUser.role === 'admin') {
                 document.getElementById('adminTab').style.display = 'block';
                 document.getElementById('uploadTab').style.display = 'block';
                 document.getElementById('emailTab').style.display = 'block';
+            } else {
+                // Staff: explicitly hide all admin tabs and panels
+                document.getElementById('adminTab').style.display = 'none';
+                document.getElementById('uploadTab').style.display = 'none';
+                document.getElementById('emailTab').style.display = 'none';
+                // Hide month filters for staff
+                document.getElementById('onlineMonthFilter').style.display = 'none';
+                document.getElementById('posMonthFilter').style.display = 'none';
             }
             
-            // Ensure correct default panel visibility
+            // Ensure correct default panel visibility - always start on Online Sales
             document.getElementById('onlineSalesPanel').style.display = 'block';
             document.getElementById('posSalesPanel').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('uploadPanel').style.display = 'none';
             document.getElementById('emailPanel').style.display = 'none';
             
+            // Set Online Sales tab as active
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab').classList.add('active');
+            
+            // Now show the dashboard
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
             loadOnlineSales();
         }
         
         function showTab(tab) {
+            // Security: prevent staff from accessing admin tabs
+            if (currentUser && currentUser.role !== 'admin' && (tab === 'admin' || tab === 'upload' || tab === 'email')) {
+                return;
+            }
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            if (event && event.target) { event.target.classList.add('active'); }
             
             document.getElementById('onlineSalesPanel').style.display = tab === 'online-sales' ? 'block' : 'none';
             document.getElementById('posSalesPanel').style.display = tab === 'pos-sales' ? 'block' : 'none';
@@ -833,6 +864,7 @@ function getAdminHTML(): string {
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
             sel.innerHTML = '<option value="all">All</option>';
+            sel.innerHTML += '<option value="ytd">Year to Date</option>';
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             // Current year months (newest first)
             for (let m = currentMonth; m >= 0; m--) {
@@ -1163,9 +1195,22 @@ function getAdminHTML(): string {
             document.getElementById('adminTab').style.display = 'none';
             document.getElementById('uploadTab').style.display = 'none';
             document.getElementById('emailTab').style.display = 'none';
+            // Reset all panels
+            document.getElementById('onlineSalesPanel').style.display = 'block';
+            document.getElementById('posSalesPanel').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('uploadPanel').style.display = 'none';
+            document.getElementById('emailPanel').style.display = 'none';
+            // Reset month filters
+            const onlineFilter = document.getElementById('onlineMonthFilter');
+            const posFilter = document.getElementById('posMonthFilter');
+            if (onlineFilter) { onlineFilter.style.display = 'none'; onlineFilter.innerHTML = ''; }
+            if (posFilter) { posFilter.style.display = 'none'; posFilter.innerHTML = ''; }
+            // Reset tab active state
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab').classList.add('active');
             pins.forEach(p => p.value = '');
             pins[0].focus();
-            showTab('sales');
         }
         
         (async () => {
