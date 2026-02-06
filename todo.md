@@ -147,3 +147,9 @@
 - [x] Add saleType and paymentGateway fields to database schema
 - [x] Add POS sales API endpoints (posList, posSummary)
 - [x] Run database migration
+
+
+## Bug Fixes (Feb 6, 2026)
+- [x] Fix PIN login to use 4 digits instead of 6 digits
+- [x] Ensure Online Sales and POS Sales tabs are visible on production
+- [x] Do not change any existing interface layout

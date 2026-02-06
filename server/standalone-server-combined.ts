@@ -55,13 +55,26 @@ async function startServer() {
         return;
       }
       
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales FROM sales";
+      const saleType = req.query.type as string || 'online';
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType FROM sales";
       let params: any[] = [];
+      let whereConditions: string[] = [];
+      
+      // Filter by sale type
+      if (saleType === 'online') {
+        whereConditions.push("(saleType = 'online' OR saleType IS NULL)");
+      } else if (saleType === 'pos') {
+        whereConditions.push("saleType = 'pos'");
+      }
       
       // If not admin, only show user's own sales
       if (user.role !== "admin" && user.staffId) {
-        query += " WHERE staffId = ?";
+        whereConditions.push("staffId = ?");
         params.push(user.staffId);
+      }
+      
+      if (whereConditions.length > 0) {
+        query += " WHERE " + whereConditions.join(" AND ");
       }
       
       query += " ORDER BY orderDate DESC LIMIT 100";
@@ -539,8 +552,6 @@ function getAdminHTML(): string {
                 <input type="password" maxlength="1" id="pin2" inputmode="numeric" pattern="[0-9]*">
                 <input type="password" maxlength="1" id="pin3" inputmode="numeric" pattern="[0-9]*">
                 <input type="password" maxlength="1" id="pin4" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="pin5" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="pin6" inputmode="numeric" pattern="[0-9]*">
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error" id="error"></p>
@@ -557,27 +568,47 @@ function getAdminHTML(): string {
             </div>
             
             <div class="tabs" id="tabs">
-                <button class="tab active" onclick="showTab('sales')">Sales</button>
+                <button class="tab active" onclick="showTab('online-sales')">Online Sales</button>
+                <button class="tab" onclick="showTab('pos-sales')">POS Sales</button>
                 <button class="tab" onclick="showTab('admin')" id="adminTab" style="display:none">Staff Management</button>
                 <button class="tab" onclick="showTab('upload')" id="uploadTab" style="display:none">Upload Sales</button>
                 <button class="tab" onclick="showTab('email')" id="emailTab" style="display:none">Email Sync</button>
             </div>
             
-            <div id="salesPanel">
+            <div id="onlineSalesPanel">
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-value" id="totalSales">$0</div>
-                        <div class="stat-label">Total Net Sales</div>
+                        <div class="stat-value" id="totalOnlineSales">$0</div>
+                        <div class="stat-label">Total Online Sales</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="orderCount">0</div>
+                        <div class="stat-value" id="onlineOrderCount">0</div>
                         <div class="stat-label">Total Orders</div>
                     </div>
                 </div>
                 <div class="section">
-                    <h2>Sales History</h2>
-                    <div id="salesTableContainer">
+                    <h2>Online Sales History</h2>
+                    <div id="onlineSalesTableContainer">
                         <p class="loading">Loading sales data...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="posSalesPanel" style="display:none">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalPosSales">$0</div>
+                        <div class="stat-label">Total POS Sales</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="posOrderCount">0</div>
+                        <div class="stat-label">Total Orders</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h2>POS Sales History</h2>
+                    <div id="posSalesTableContainer">
+                        <p class="loading">Loading POS sales data...</p>
                     </div>
                 </div>
             </div>
@@ -647,19 +678,17 @@ function getAdminHTML(): string {
     </div>
     <script>
         let currentUser = null;
-        let currentTab = 'sales';
+        let currentTab = 'online-sales';
         const pins = [
             document.getElementById('pin1'),
             document.getElementById('pin2'),
             document.getElementById('pin3'),
-            document.getElementById('pin4'),
-            document.getElementById('pin5'),
-            document.getElementById('pin6')
+            document.getElementById('pin4')
         ];
         
         pins.forEach((p, i) => {
             p.addEventListener('input', (e) => {
-                if (e.target.value && i < 5) pins[i + 1].focus();
+                if (e.target.value && i < 3) pins[i + 1].focus();
                 const pinValue = pins.map(x => x.value).join('');
                 if (pinValue.length >= 4) {
                     // Auto-login when 4+ digits entered
@@ -719,7 +748,7 @@ function getAdminHTML(): string {
                 document.getElementById('emailTab').style.display = 'block';
             }
             
-            loadSales();
+            loadOnlineSales();
         }
         
         function showTab(tab) {
@@ -727,38 +756,67 @@ function getAdminHTML(): string {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             
-            document.getElementById('salesPanel').style.display = tab === 'sales' ? 'block' : 'none';
+            document.getElementById('onlineSalesPanel').style.display = tab === 'online-sales' ? 'block' : 'none';
+            document.getElementById('posSalesPanel').style.display = tab === 'pos-sales' ? 'block' : 'none';
             document.getElementById('adminPanel').style.display = tab === 'admin' ? 'block' : 'none';
             document.getElementById('uploadPanel').style.display = tab === 'upload' ? 'block' : 'none';
             document.getElementById('emailPanel').style.display = tab === 'email' ? 'block' : 'none';
             
+            if (tab === 'online-sales') loadOnlineSales();
+            if (tab === 'pos-sales') loadPosSales();
             if (tab === 'admin') loadStaff();
             if (tab === 'email') loadEmailConfig();
         }
         
-        async function loadSales() {
+        async function loadOnlineSales() {
             try {
-                const r = await fetch('/api/sales', { credentials: 'include' });
+                const r = await fetch('/api/sales?type=online', { credentials: 'include' });
                 const d = await r.json();
                 
                 if (r.ok) {
-                    document.getElementById('totalSales').textContent = 'HK$' + d.total.toFixed(2);
-                    document.getElementById('orderCount').textContent = d.count;
+                    document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toFixed(2);
+                    document.getElementById('onlineOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order ID</th><th>Sales Channel</th><th>Net Sales</th></tr></thead><tbody>';
+                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                             html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toFixed(2) + '</td></tr>';
                         });
                         html += '</tbody></table>';
-                        document.getElementById('salesTableContainer').innerHTML = html;
+                        document.getElementById('onlineSalesTableContainer').innerHTML = html;
                     } else {
-                        document.getElementById('salesTableContainer').innerHTML = '<p class="no-data">No sales data yet</p>';
+                        document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">No online sales data yet</p>';
                     }
                 }
             } catch (e) {
-                document.getElementById('salesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';
+                document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';
+            }
+        }
+        
+        async function loadPosSales() {
+            try {
+                const r = await fetch('/api/sales?type=pos', { credentials: 'include' });
+                const d = await r.json();
+                
+                if (r.ok) {
+                    document.getElementById('totalPosSales').textContent = 'HK$' + d.total.toFixed(2);
+                    document.getElementById('posOrderCount').textContent = d.count;
+                    
+                    if (d.sales && d.sales.length > 0) {
+                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
+                        d.sales.forEach(s => {
+                            const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toFixed(2) + '</td></tr>';
+                        });
+                        html += '</tbody></table>';
+                        document.getElementById('posSalesTableContainer').innerHTML = html;
+                    } else {
+                        document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">No POS sales data yet</p>';
+                    }
+                }
+            } catch (e) {
+                document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">Failed to load POS sales data</p>';
             }
         }
         
@@ -903,7 +961,7 @@ function getAdminHTML(): string {
                     showMessage('uploadMessage', d.message, 'success');
                     document.getElementById('csvPreview').value = '';
                     document.getElementById('fileName').textContent = 'No file selected';
-                    loadSales();
+                    loadOnlineSales();
                 } else {
                     showMessage('uploadMessage', d.error || 'Failed to upload', 'error');
                 }
@@ -971,7 +1029,7 @@ function getAdminHTML(): string {
                 
                 if (d.success) {
                     showMessage('emailMessage', 'Fetch complete! Processed ' + d.emailsProcessed + ' emails, imported ' + d.imported + ' sales records.', 'success');
-                    loadSales();
+                    loadOnlineSales();
                 } else {
                     showMessage('emailMessage', 'Fetch failed: ' + (d.error || 'Unknown error'), 'error');
                 }
