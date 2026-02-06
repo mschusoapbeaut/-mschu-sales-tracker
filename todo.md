@@ -279,3 +279,14 @@
 - [x] Fix frontend calling /api/auth/pin-login instead of /api/auth/pin (endpoint mismatch)
 - [x] Fix Railway build failing due to expo export step (removed unnecessary expo export from build command)
 - [x] Successfully deployed fix to Railway via Railway CLI
+
+## Staff Data Restoration (Feb 6, 2026)
+- [x] Re-add all 11 staff members with correct Staff IDs and PINs to Railway database (via seed function)
+- [x] Verify staff can log in with their PINs
+
+## Railway Data Restoration (Feb 6, 2026)
+- [x] Re-add all 11 staff members via startup seed function
+- [x] Fix upload failing - caused by authFetch infinite recursion (fetch→authFetch→authFetch...)
+- [x] Fix authFetch to use _originalFetch (window.fetch.bind(window)) to avoid recursion
+- [x] Fix cookie domain for Railway (public suffix handling)
+- [x] Email sync already configured (mschusoapfinance@gmail.com) - Status: Connected and enabled

@@ -15,6 +15,83 @@ import { startScheduledEmailSync, testImapConnection, fetchAndProcessEmails, get
 
 const PORT = parseInt(process.env.PORT || "8080");
 
+/**
+ * Seed staff data on startup - ensures admin and all 11 staff members exist
+ */
+async function seedStaffData() {
+  const staffMembers = [
+    { name: "Cindy Chu", pin: "9999", staffId: "", role: "admin" },
+    { name: "Egenie Tang", pin: "4640", staffId: "78319321135", role: "staff" },
+    { name: "Eva Lee", pin: "8577", staffId: "78319255599", role: "staff" },
+    { name: "Maggie Liang", pin: "4491", staffId: "78319190063", role: "staff" },
+    { name: "Maggie Wong", pin: "9635", staffId: "79208775727", role: "staff" },
+    { name: "Ting Siew", pin: "3639", staffId: "78319386671", role: "staff" },
+    { name: "Win Lee", pin: "1384", staffId: "78319550511", role: "staff" },
+    { name: "Wing Ho", pin: "4019", staffId: "78319091759", role: "staff" },
+    { name: "Sharon Li", pin: "6762", staffId: "101232115995", role: "staff" },
+    { name: "Hailey Hoi Ling Wong", pin: "9849", staffId: "109111279899", role: "staff" },
+    { name: "Bon Lau", pin: "2115", staffId: "111913632027", role: "staff" },
+    { name: "Sze", pin: "2791", staffId: "118809198875", role: "staff" },
+  ];
+
+  for (const staff of staffMembers) {
+    try {
+      // Check if user already exists by PIN
+      const [existing] = await db.execute("SELECT id, name, staffId FROM users WHERE pin = ?", [staff.pin]);
+      if ((existing as any[]).length > 0) {
+        // Update staff ID and name if needed
+        const row = (existing as any[])[0];
+        if (row.staffId !== staff.staffId || row.name !== staff.name) {
+          await db.execute("UPDATE users SET staffId = ?, name = ? WHERE id = ?", [staff.staffId, staff.name, row.id]);
+          console.log(`[Seed] Updated ${staff.name} (staffId: ${staff.staffId})`);
+        }
+        continue;
+      }
+      // Also check by name
+      const [byName] = await db.execute("SELECT id FROM users WHERE name = ?", [staff.name]);
+      if ((byName as any[]).length > 0) {
+        await db.execute("UPDATE users SET pin = ?, staffId = ?, role = ? WHERE name = ?", [staff.pin, staff.staffId, staff.role, staff.name]);
+        console.log(`[Seed] Updated existing ${staff.name}`);
+        continue;
+      }
+      // Insert new user
+      const openId = "staff-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+      await db.execute(
+        "INSERT INTO users (openId, name, pin, staffId, role, loginMethod) VALUES (?, ?, ?, ?, ?, ?)",
+        [openId, staff.name, staff.pin, staff.staffId, staff.role, "pin"]
+      );
+      console.log(`[Seed] Added ${staff.name} (staffId: ${staff.staffId})`);
+    } catch (err) {
+      console.error(`[Seed] Error seeding ${staff.name}:`, err);
+    }
+  }
+  // Clean up duplicate users - keep only the one with the correct role
+  try {
+    // Remove duplicate Cindy Chu entries (keep id=1 which has role=admin)
+    await db.execute("DELETE FROM users WHERE name = 'Cindy Chu' AND id != 1");
+    
+    // For each staff member, keep only the entry with role='staff' and lowest id
+    const staffNames = ['Egenie Tang', 'Eva Lee', 'Maggie Liang', 'Maggie Wong', 'Ting Siew', 'Win Lee', 'Wing Ho', 'Sharon Li', 'Hailey Hoi Ling Wong', 'Bon Lau', 'Sze'];
+    for (const name of staffNames) {
+      const [rows] = await db.execute("SELECT id FROM users WHERE name = ? AND role = 'staff' ORDER BY id ASC", [name]);
+      const ids = (rows as any[]).map(r => r.id);
+      if (ids.length > 1) {
+        // Keep the first one, delete the rest
+        const keepId = ids[0];
+        await db.execute("DELETE FROM users WHERE name = ? AND id != ?", [name, keepId]);
+        console.log(`[Seed] Cleaned up ${ids.length - 1} duplicate(s) for ${name}`);
+      }
+    }
+    // Also remove any users with null role (leftover from broken seeds)
+    await db.execute("DELETE FROM users WHERE role IS NULL");
+    console.log("[Seed] Duplicate cleanup complete");
+  } catch (err) {
+    console.error("[Seed] Error cleaning duplicates:", err);
+  }
+  
+  console.log("[Seed] Staff data seeding complete");
+}
+
 async function startServer() {
   const app = express();
   const server = createServer(app);
@@ -504,6 +581,9 @@ async function startServer() {
     res.send(getAdminHTML());
   });
 
+  // Seed staff data on startup
+  await seedStaffData();
+
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`[Server] Standalone server listening on port ${PORT}`);
     console.log(`[Server] Mode: ${process.env.NODE_ENV || "development"}`);
@@ -759,6 +839,18 @@ function getAdminHTML(): string {
     </div>
     <script>
         let currentUser = null;
+        let sessionToken = null;
+        
+        // Save reference to original fetch before any overrides
+        const _originalFetch = window.fetch.bind(window);
+        // Helper function for authenticated fetch calls
+        function authFetch(url, options = {}) {
+            const headers = options.headers || {};
+            if (sessionToken) {
+                headers['Authorization'] = 'Bearer ' + sessionToken;
+            }
+            return _originalFetch(url, { ...options, headers, credentials: 'include' });
+        }
         let currentTab = 'online-sales';
         
         // Sort state for Online and POS tables
@@ -901,6 +993,7 @@ function getAdminHTML(): string {
                 
                 if (r.ok && d.success) {
                     currentUser = d.user;
+                    sessionToken = d.sessionToken;
                     showDashboard();
                 } else {
                     document.getElementById('error').textContent = d.error || 'Invalid PIN';
@@ -981,7 +1074,7 @@ function getAdminHTML(): string {
             sel.style.display = 'block';
             if (sel.options.length > 1) return;
             try {
-                const r = await fetch('/api/sales/staff-names?type=' + saleType, { credentials: 'include' });
+                const r = await authFetch('/api/sales/staff-names?type=' + saleType);
                 const d = await r.json();
                 if (r.ok && d.staffNames) {
                     sel.innerHTML = '<option value="all">All Staff</option>';
@@ -1032,7 +1125,7 @@ function getAdminHTML(): string {
                     const staffVal = document.getElementById('onlineStaffFilter')?.value || 'all';
                     if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
                 }
-                const r = await fetch(url, { credentials: 'include' });
+                const r = await authFetch(url);
                 const d = await r.json();
                 
                 if (r.ok) {
@@ -1062,7 +1155,7 @@ function getAdminHTML(): string {
                     const staffVal = document.getElementById('posStaffFilter')?.value || 'all';
                     if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
                 }
-                const r = await fetch(url, { credentials: 'include' });
+                const r = await authFetch(url);
                 const d = await r.json();
                 
                 if (r.ok) {
@@ -1080,7 +1173,7 @@ function getAdminHTML(): string {
         
         async function loadStaff() {
             try {
-                const r = await fetch('/api/staff', { credentials: 'include' });
+                const r = await authFetch('/api/staff');
                 const d = await r.json();
                 
                 if (r.ok && d.staff) {
@@ -1112,7 +1205,7 @@ function getAdminHTML(): string {
             }
             
             try {
-                const r = await fetch('/api/staff', {
+                const r = await authFetch('/api/staff', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -1139,7 +1232,7 @@ function getAdminHTML(): string {
             if (!confirm('Are you sure you want to delete ' + name + '?')) return;
             
             try {
-                const r = await fetch('/api/staff/' + id, {
+                const r = await authFetch('/api/staff/' + id, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -1209,7 +1302,7 @@ function getAdminHTML(): string {
             }
             
             try {
-                const r = await fetch('/api/sales/upload', {
+                const r = await authFetch('/api/sales/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -1238,7 +1331,7 @@ function getAdminHTML(): string {
         
         async function loadEmailConfig() {
             try {
-                const r = await fetch('/api/email/config', { credentials: 'include' });
+                const r = await authFetch('/api/email/config');
                 const d = await r.json();
                 
                 if (r.ok && d.config) {
@@ -1273,7 +1366,7 @@ function getAdminHTML(): string {
         async function testEmailConnection() {
             showMessage('emailMessage', 'Testing connection...', 'success');
             try {
-                const r = await fetch('/api/email/test', {
+                const r = await authFetch('/api/email/test', {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -1292,7 +1385,7 @@ function getAdminHTML(): string {
         async function fetchEmailsNow() {
             showMessage('emailMessage', 'Fetching emails... This may take a minute.', 'success');
             try {
-                const r = await fetch('/api/email/fetch', {
+                const r = await authFetch('/api/email/fetch', {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -1319,9 +1412,10 @@ function getAdminHTML(): string {
         
         async function logout() {
             try {
-                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                await authFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
             } catch (e) {}
             currentUser = null;
+            sessionToken = null;
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('adminTab').style.display = 'none';
@@ -1351,7 +1445,7 @@ function getAdminHTML(): string {
         
         (async () => {
             try {
-                const r = await fetch('/api/auth/me', { credentials: 'include' });
+                const r = await authFetch('/api/auth/me');
                 if (r.ok) {
                     const d = await r.json();
                     if (d.user) {
