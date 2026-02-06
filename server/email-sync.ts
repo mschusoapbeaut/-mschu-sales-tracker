@@ -1,6 +1,9 @@
 /**
  * Email IMAP sync module for automatic sales report fetching
- * Connects to Outlook/Hotmail to fetch CSV/Excel attachments
+ * Connects to Gmail to fetch CSV/Excel attachments for both Online and POS reports
+ * 
+ * Online Sales: emails with subject "Online Orders by customer"
+ * POS Sales: emails with subject "POS_Sales_Attribution"
  */
 import Imap from "imap";
 import { simpleParser } from "mailparser";
@@ -25,7 +28,6 @@ function getImapConfig(email: string) {
       tlsOptions: { rejectUnauthorized: false }
     };
   } else {
-    // Default to Gmail
     return {
       host: "imap.gmail.com",
       port: 993,
@@ -35,8 +37,25 @@ function getImapConfig(email: string) {
   }
 }
 
-// Email subject filter
-const EMAIL_SUBJECT_FILTER = "Online Orders by customer";
+// Email subject filters for both report types
+const ONLINE_SUBJECT_FILTER = "Online Orders by customer";
+const POS_SUBJECT_FILTER = "POS_Sales_Attribution";
+
+// Staff name mapping for WVReferredByStaff IDs
+const STAFF_NAME_MAP: Record<string, string> = {
+  '78319321135': 'Egenie Tang',
+  '78319255599': 'Eva Lee',
+  '78319190063': 'Maggie Liang',
+  '79208775727': 'Maggie Wong',
+  '78319386671': 'Ting Siew',
+  '78319550511': 'Win Lee',
+  '78319091759': 'Wing Ho',
+  '101232115995': 'Sharon Li',
+  '109111279899': 'Hailey Hoi Ling Wong',
+  '111913632027': 'Bon Lau',
+  '118809198875': 'Sze',
+  '78303264815': 'Cindy Chu',
+};
 
 // Email configuration stored in environment variables
 export function getEmailConfig() {
@@ -91,7 +110,89 @@ export async function testImapConnection(): Promise<{ success: boolean; messageC
   });
 }
 
-// Fetch and process emails with attachments
+// Fetch and process emails for a specific report type
+async function fetchReportEmails(
+  imap: any,
+  subjectFilter: string,
+  saleType: "online" | "pos"
+): Promise<{ imported: number; emailsProcessed: number }> {
+  return new Promise((resolve) => {
+    imap.search([["SUBJECT", subjectFilter]], async (err: any, results: number[]) => {
+      if (err) {
+        console.error(`[EmailSync] Search failed for "${subjectFilter}":`, err);
+        resolve({ imported: 0, emailsProcessed: 0 });
+        return;
+      }
+
+      if (!results || results.length === 0) {
+        console.log(`[EmailSync] No emails found for "${subjectFilter}"`);
+        resolve({ imported: 0, emailsProcessed: 0 });
+        return;
+      }
+
+      console.log(`[EmailSync] Found ${results.length} emails for "${subjectFilter}"`);
+      
+      // Only process the latest email
+      const latestEmailId = results[results.length - 1];
+      console.log(`[EmailSync] Processing latest email (ID: ${latestEmailId}) for ${saleType}`);
+      
+      let totalImported = 0;
+      let emailsProcessed = 0;
+      const processPromises: Promise<number>[] = [];
+
+      const f = imap.fetch([latestEmailId], { bodies: "", markSeen: true });
+
+      f.on("message", (msg: any) => {
+        const processPromise = new Promise<number>((resolveMsg) => {
+          let buffer = "";
+          msg.on("body", (stream: any) => {
+            stream.on("data", (chunk: any) => {
+              buffer += chunk.toString("utf8");
+            });
+            stream.once("end", async () => {
+              try {
+                const parsed = await simpleParser(buffer);
+                let imported = 0;
+
+                if (parsed.attachments && parsed.attachments.length > 0) {
+                  console.log(`[EmailSync] Processing ${saleType} email with ${parsed.attachments.length} attachments`);
+                  
+                  for (const attachment of parsed.attachments) {
+                    const filename = attachment.filename || "";
+                    if (filename.endsWith(".csv") || filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
+                      console.log(`[EmailSync] Processing ${saleType} attachment: ${filename}`);
+                      const content = attachment.content;
+                      imported += await processAttachment(filename, content, saleType);
+                    }
+                  }
+                }
+                resolveMsg(imported);
+              } catch (e) {
+                console.error(`[EmailSync] Parse error for ${saleType}:`, e);
+                resolveMsg(0);
+              }
+            });
+          });
+        });
+        processPromises.push(processPromise);
+        emailsProcessed++;
+      });
+
+      f.once("error", (err: any) => {
+        console.error(`[EmailSync] Fetch error for ${saleType}:`, err);
+      });
+
+      f.once("end", async () => {
+        const results = await Promise.all(processPromises);
+        totalImported = results.reduce((a, b) => a + b, 0);
+        console.log(`[EmailSync] ${saleType}: processed ${emailsProcessed} emails, imported ${totalImported} sales`);
+        resolve({ imported: totalImported, emailsProcessed });
+      });
+    });
+  });
+}
+
+// Fetch and process emails with attachments (both Online and POS)
 export async function fetchAndProcessEmails(): Promise<{ 
   success: boolean; 
   imported?: number; 
@@ -114,13 +215,10 @@ export async function fetchAndProcessEmails(): Promise<{
       connTimeout: 30000
     });
 
-    let totalImported = 0;
-    let emailsProcessed = 0;
-
     const timeout = setTimeout(() => {
       try { imap.end(); } catch {}
       resolve({ success: false, error: "Connection timeout" });
-    }, 120000); // 2 minute timeout for processing
+    }, 180000); // 3 minute timeout for processing both report types
 
     imap.once("ready", () => {
       imap.openBox("INBOX", false, async (err, box) => {
@@ -131,84 +229,26 @@ export async function fetchAndProcessEmails(): Promise<{
           return;
         }
 
-        // Search for all emails with matching subject (including read ones)
-        // Using ALL instead of UNSEEN to catch emails that may have been read
-        imap.search([["SUBJECT", EMAIL_SUBJECT_FILTER]], async (err, results) => {
-          if (err) {
-            clearTimeout(timeout);
-            imap.end();
-            resolve({ success: false, error: "Search failed: " + err.message });
-            return;
-          }
-
-          if (!results || results.length === 0) {
-            clearTimeout(timeout);
-            imap.end();
-            console.log("[EmailSync] No new emails to process");
-            resolve({ success: true, imported: 0, emailsProcessed: 0 });
-            return;
-          }
-
-          console.log(`[EmailSync] Found ${results.length} emails matching subject filter`);
+        try {
+          // Process Online Sales emails
+          const onlineResult = await fetchReportEmails(imap, ONLINE_SUBJECT_FILTER, "online");
           
-          // Only process the latest email (last one in results)
-          const latestEmailId = results[results.length - 1];
-          console.log(`[EmailSync] Processing only the latest email (ID: ${latestEmailId})`);
-          
-          const processPromises: Promise<number>[] = [];
+          // Process POS Sales emails
+          const posResult = await fetchReportEmails(imap, POS_SUBJECT_FILTER, "pos");
 
-          const f = imap.fetch([latestEmailId], { bodies: "", markSeen: true });
+          clearTimeout(timeout);
+          imap.end();
 
-          f.on("message", (msg) => {
-            const processPromise = new Promise<number>((resolveMsg) => {
-              let buffer = "";
-              msg.on("body", (stream) => {
-                stream.on("data", (chunk) => {
-                  buffer += chunk.toString("utf8");
-                });
-                stream.once("end", async () => {
-                  try {
-                    const parsed = await simpleParser(buffer);
-                    let imported = 0;
+          const totalImported = onlineResult.imported + posResult.imported;
+          const totalEmails = onlineResult.emailsProcessed + posResult.emailsProcessed;
 
-                    if (parsed.attachments && parsed.attachments.length > 0) {
-                      console.log(`[EmailSync] Processing email with ${parsed.attachments.length} attachments`);
-                      
-                      for (const attachment of parsed.attachments) {
-                        const filename = attachment.filename || "";
-                        if (filename.endsWith(".csv") || filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
-                          console.log(`[EmailSync] Processing attachment: ${filename}`);
-                          const content = attachment.content;
-                          imported += await processAttachment(filename, content);
-                        }
-                      }
-                    }
-                    resolveMsg(imported);
-                  } catch (e) {
-                    console.error("[EmailSync] Parse error:", e);
-                    resolveMsg(0);
-                  }
-                });
-              });
-            });
-            processPromises.push(processPromise);
-            emailsProcessed++;
-          });
-
-          f.once("error", (err) => {
-            console.error("[EmailSync] Fetch error:", err);
-          });
-
-          f.once("end", async () => {
-            const results = await Promise.all(processPromises);
-            totalImported = results.reduce((a, b) => a + b, 0);
-            
-            clearTimeout(timeout);
-            imap.end();
-            console.log(`[EmailSync] Processed ${emailsProcessed} emails, imported ${totalImported} sales`);
-            resolve({ success: true, imported: totalImported, emailsProcessed });
-          });
-        });
+          console.log(`[EmailSync] Total: processed ${totalEmails} emails, imported ${totalImported} sales (online: ${onlineResult.imported}, pos: ${posResult.imported})`);
+          resolve({ success: true, imported: totalImported, emailsProcessed: totalEmails });
+        } catch (e: any) {
+          clearTimeout(timeout);
+          imap.end();
+          resolve({ success: false, error: "Processing error: " + e.message });
+        }
       });
     });
 
@@ -221,191 +261,237 @@ export async function fetchAndProcessEmails(): Promise<{
   });
 }
 
-// Process attachment (CSV or Excel)
-async function processAttachment(filename: string, content: Buffer): Promise<number> {
+// Process attachment (CSV or Excel) with saleType context
+async function processAttachment(filename: string, content: Buffer, saleType: "online" | "pos"): Promise<number> {
   try {
     if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
-      // For Excel files, use direct column mapping
-      return await importExcelData(content);
+      return await importExcelData(content, saleType);
     } else {
-      // For CSV files, convert to string and parse
       const csvData = content.toString("utf8");
-      return await importCSVData(csvData);
+      return await importCSVData(csvData, saleType);
     }
   } catch (error) {
-    console.error("[EmailSync] Process attachment error:", error);
+    console.error(`[EmailSync] Process attachment error (${saleType}):`, error);
     return 0;
   }
 }
 
-// Import Excel data using direct column mapping
-// Column A = Order Date, Column B = Order Name, Column C = Sales Channel
-// Column E = WVReferredByStaff (Customer Tags), Column H = Net Sales
-async function importExcelData(content: Buffer): Promise<number> {
+// Parse date from various formats
+function parseDate(raw: any): Date | null {
+  if (!raw) return null;
+  if (typeof raw === "number") {
+    const excelEpoch = new Date(1899, 11, 30);
+    return new Date(excelEpoch.getTime() + raw * 24 * 60 * 60 * 1000);
+  }
+  const rawDate = String(raw).trim();
+  if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+    const [mm, dd, yyyy] = rawDate.split("-");
+    return new Date(`${yyyy}-${mm}-${dd}`);
+  } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+    return new Date(rawDate.split("T")[0]);
+  } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+    const parts = rawDate.split("/");
+    return new Date(`${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`);
+  } else {
+    const parsed = new Date(rawDate);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+}
+
+// Parse numeric value
+function parseNumber(raw: any): number {
+  if (typeof raw === "number") return raw;
+  if (!raw) return 0;
+  return parseFloat(String(raw).replace(/[^0-9.-]/g, "") || "0");
+}
+
+// Import Excel data with saleType-aware column mapping
+async function importExcelData(content: Buffer, saleType: "online" | "pos"): Promise<number> {
   const workbook = XLSX.read(content, { type: "buffer" });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  
-  // Convert to JSON with header row
   const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
   
   if (rows.length < 2) {
-    console.log("[EmailSync] Excel file has no data rows");
+    console.log(`[EmailSync] Excel file has no data rows`);
     return 0;
   }
-  
-  // Get staff mapping for user assignment
-  const staffMapping = await db.getStaffMapping();
-  
-  let imported = 0;
-  
-  // Log the header row to verify column positions
-  if (rows.length > 0) {
-    console.log(`[EmailSync] Header row: ${JSON.stringify(rows[0])}`);
+
+  // Normalize headers
+  const rawHeaders = (rows[0] || []).map((h: any) => String(h || "").trim());
+  const headers = rawHeaders.map((h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+  console.log(`[EmailSync] ${saleType} Excel headers: ${JSON.stringify(rawHeaders)}`);
+
+  // Find column indices by header name
+  const dateIdx = headers.findIndex(h => h.includes("date") || h.includes("orderdate"));
+  const orderIdx = headers.findIndex(h => h.includes("ordername") || h.includes("orderno") || h.includes("orderid") || h === "order");
+  const channelIdx = headers.findIndex(h => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
+
+  // Net Sales: for POS prefer "Net Sales excl Gift Card", for Online use "Net Sales"
+  let netSalesIdx: number;
+  if (saleType === "pos") {
+    netSalesIdx = headers.findIndex(h => h.includes("netsalesexcl") || h.includes("excl") || h.includes("exclud"));
+    if (netSalesIdx === -1) {
+      netSalesIdx = headers.findIndex(h => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+    }
+  } else {
+    netSalesIdx = headers.findIndex(h => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
   }
+
+  // POS-specific columns
+  const paymentGatewayIdx = saleType === "pos" ? headers.findIndex(h => h.includes("paymentgateway") || h.includes("payment")) : -1;
+  const staffNameIdx = saleType === "pos" ? headers.findIndex(h => h.includes("staffname") || h === "staff") : -1;
   
-  // Skip header row (row 0), start from row 1
+  // Online-specific: Customer Tags for WVReferredByStaff
+  const customerTagsIdx = saleType === "online" ? headers.findIndex(h => h.includes("customertag") || h.includes("customer_tag")) : -1;
+
+  if (netSalesIdx === -1) {
+    console.log(`[EmailSync] Could not find Net Sales column for ${saleType}`);
+    return 0;
+  }
+
+  console.log(`[EmailSync] ${saleType} column indices: date=${dateIdx}, order=${orderIdx}, channel=${channelIdx}, netSales=${netSalesIdx}, paymentGateway=${paymentGatewayIdx}, staffName=${staffNameIdx}, customerTags=${customerTagsIdx}`);
+
+  const staffMapping = await db.getStaffMapping();
+  let imported = 0;
+  let lastChannel = "";
+  let lastPaymentGateway = "";
+  let lastStaffName = "";
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
-    
-    // Log first data row for debugging
-    if (i === 1) {
-      console.log(`[EmailSync] First data row: ${JSON.stringify(row)}`);
-      console.log(`[EmailSync] Row length: ${row.length}`);
-    }
-    
-    // Column mapping (0-indexed) based on actual Excel format:
-    // A=0: Order Date, B=1: Order Name, C=2: Sales Channel, D=3: Customer Created At
-    // E=4: Customer Tags (WVReferredByStaff), F=5: Payment Method
-    // G=6: Email Marketing, H=7: SMS Marketing
-    // I=8: Gross Sales, J=9: Net Sales, K=10: Total Sales, L=11: Refund Adjustment
-    const orderDateRaw = row[0];
-    const orderName = row[1] ? String(row[1]).trim() : null;
-    const salesChannel = row[2] ? String(row[2]).trim() : null;
-    const customerTags = row[4] ? String(row[4]).trim() : "";
-    const netSalesRaw = row[9]; // Column J = Net Sales (index 9)
-    
-    // Log parsed values for first few rows
-    if (i <= 3) {
-      console.log(`[EmailSync] Row ${i}: date=${orderDateRaw}, order=${orderName}, channel=${salesChannel}, tags=${customerTags}, netSales=${netSalesRaw}`);
-    }
-    
-    // Parse order date
-    let orderDate: Date | null = null;
-    if (orderDateRaw) {
-      if (typeof orderDateRaw === "number") {
-        // Excel serial date number - convert to JS Date
-        // Excel dates are days since 1900-01-01 (with a bug for 1900 leap year)
-        const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
-        orderDate = new Date(excelEpoch.getTime() + orderDateRaw * 24 * 60 * 60 * 1000);
-      } else {
-        const rawDate = String(orderDateRaw).trim();
-        if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
-          const [mm, dd, yyyy] = rawDate.split("-");
-          orderDate = new Date(`${yyyy}-${mm}-${dd}`);
-        } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          orderDate = new Date(rawDate);
-        } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-          const parts = rawDate.split("/");
-          orderDate = new Date(`${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`);
-        } else {
-          const parsed = new Date(rawDate);
-          if (!isNaN(parsed.getTime())) {
-            orderDate = parsed;
-          }
-        }
-      }
-    }
-    
-    // Parse net sales
-    let netSales = 0;
-    if (typeof netSalesRaw === "number") {
-      netSales = netSalesRaw;
-    } else if (netSalesRaw) {
-      netSales = parseFloat(String(netSalesRaw).replace(/[^0-9.-]/g, "") || "0");
-    }
-    
-    if (isNaN(netSales) || netSales === 0) continue;
-    
-    // Skip invalid rows (Grand Total, empty order names, etc.)
-    if (!orderName || orderName.toLowerCase().includes("grand total") || orderName.toLowerCase().includes("total")) {
-      console.log(`[EmailSync] Skipping invalid row: ${orderName}`);
+
+    const orderDate = dateIdx >= 0 ? parseDate(row[dateIdx]) : null;
+    const orderName = orderIdx >= 0 && row[orderIdx] ? String(row[orderIdx]).trim() : null;
+    const netSales = netSalesIdx >= 0 ? parseNumber(row[netSalesIdx]) : 0;
+
+    // Skip invalid rows
+    if (!orderName || orderName === "None" || orderName.toLowerCase().includes("grand total") || orderName.toLowerCase().includes("total")) {
       continue;
     }
-    
-    // Try to find user ID from staff mapping using WVReferredByStaff
-    let userId = 1; // Default to admin user
-    let staffName: string | null = null;
-    if (customerTags) {
-      const staffIdMatch = customerTags.match(/WVReferredByStaff_(\d+)/);
-      if (staffIdMatch) {
-        const sid = staffIdMatch[1];
-        if (staffMapping[sid]) {
-          userId = staffMapping[sid];
+
+    if (isNaN(netSales) || netSales === 0) continue;
+
+    // Channel
+    let salesChannel = channelIdx >= 0 && row[channelIdx] ? String(row[channelIdx]).trim() : null;
+    if (salesChannel === "None") salesChannel = null;
+
+    // POS: carry forward channel/gateway/staff from previous row with same order
+    if (saleType === "pos") {
+      if (salesChannel && salesChannel !== "None") {
+        lastChannel = salesChannel;
+      } else if (!salesChannel) {
+        salesChannel = lastChannel || null;
+      }
+
+      let paymentGateway = paymentGatewayIdx >= 0 && row[paymentGatewayIdx] ? String(row[paymentGatewayIdx]).trim() : null;
+      if (paymentGateway === "None") paymentGateway = null;
+      if (paymentGateway) {
+        lastPaymentGateway = paymentGateway;
+      } else {
+        paymentGateway = lastPaymentGateway || null;
+      }
+
+      let staffName = staffNameIdx >= 0 && row[staffNameIdx] ? String(row[staffNameIdx]).trim() : null;
+      if (staffName === "None") staffName = null;
+      if (staffName) {
+        lastStaffName = staffName;
+      } else {
+        staffName = lastStaffName || null;
+      }
+
+      // Check for duplicate
+      try {
+        const existingOrder = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' LIMIT 1", [orderName]);
+        const rows2 = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+        const hasExisting = rows2 && (Array.isArray(rows2) ? rows2.length > 0 : Object.keys(rows2).length > 0);
+        if (hasExisting) {
+          // Update existing record if it has missing data
+          const updates: string[] = [];
+          const params: any[] = [];
+          if (salesChannel) { updates.push("salesChannel = ?"); params.push(salesChannel); }
+          if (paymentGateway) { updates.push("paymentGateway = ?"); params.push(paymentGateway); }
+          if (staffName) { updates.push("staffName = ?"); params.push(staffName); }
+          updates.push("netSales = ?"); params.push(netSales);
+          if (updates.length > 0) {
+            params.push(orderName);
+            await db.execute(`UPDATE sales SET ${updates.join(", ")} WHERE orderNo = ? AND saleType = 'pos'`, params);
+          }
+          continue;
         }
-        // Map staff ID to "Name StaffID" format for staffName column
-        const staffNameMap: Record<string, string> = {
-          '78319321135': 'Egenie Tang',
-          '78319255599': 'Eva Lee',
-          '78319190063': 'Maggie Liang',
-          '79208775727': 'Maggie Wong',
-          '78319386671': 'Ting Siew',
-          '78319550511': 'Win Lee',
-          '78319091759': 'Wing Ho',
-          '101232115995': 'Sharon Li',
-          '109111279899': 'Hailey Hoi Ling Wong',
-          '111913632027': 'Bon Lau',
-          '118809198875': 'Sze',
-        };
-        const name = staffNameMap[sid];
-        staffName = name ? `${name} ${sid}` : sid;
+      } catch (e: any) {
+        console.log(`[EmailSync] POS duplicate check error for ${orderName}: ${e.message}`);
       }
-    }
-    
-    // Check if order already exists to avoid duplicates (from manual upload or previous email sync)
-    try {
-      const existingOrder = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? LIMIT 1",
-        [orderName]
-      );
-      // Check if any rows were returned - handle both array and object formats
-      const rows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
-      const hasExisting = rows && (Array.isArray(rows) ? rows.length > 0 : Object.keys(rows).length > 0);
-      if (hasExisting) {
-        console.log(`[EmailSync] Skipping duplicate order: ${orderName} (already exists in database)`);
-        continue;
+
+      // Insert new POS record
+      try {
+        const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        await db.execute(
+          `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, paymentGateway, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [saleDate, orderName, salesChannel || "-", netSales, "pos", paymentGateway || null, staffName || null]
+        );
+        imported++;
+      } catch (error: any) {
+        console.error(`[EmailSync] POS insert error for ${orderName}:`, error.message || error);
       }
-    } catch (dupCheckError: any) {
-      console.log(`[EmailSync] Duplicate check error for ${orderName}: ${dupCheckError.message}`);
-      // Continue anyway - better to potentially have a duplicate than miss data
-    }
-    
-    try {
-      console.log(`[EmailSync] Inserting: order=${orderName}, channel=${salesChannel}, amount=${netSales}, date=${orderDate}`);
-      // Use raw SQL to match production database schema (orderNo, not orderReference)
-      const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, "online", staffName]
-      );
-      imported++;
-      console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
-    } catch (error: any) {
-      // Log the actual error for debugging
-      console.error(`[EmailSync] Error inserting ${orderName}:`, error.message || error);
+
+    } else {
+      // Online Sales processing
+      let userId = 1;
+      let staffName: string | null = null;
+      
+      if (customerTagsIdx >= 0 && row[customerTagsIdx]) {
+        const customerTags = String(row[customerTagsIdx]).trim();
+        const staffIdMatch = customerTags.match(/WVReferredByStaff_(\d+)/);
+        if (staffIdMatch) {
+          const sid = staffIdMatch[1];
+          if (staffMapping[sid]) {
+            userId = staffMapping[sid];
+          }
+          const name = STAFF_NAME_MAP[sid];
+          staffName = name ? `${name} ${sid}` : sid;
+        }
+      }
+
+      // Check for duplicate
+      try {
+        const existingOrder = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' LIMIT 1", [orderName]);
+        const rows2 = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+        const hasExisting = rows2 && (Array.isArray(rows2) ? rows2.length > 0 : Object.keys(rows2).length > 0);
+        if (hasExisting) {
+          // Update staffName if missing
+          if (staffName) {
+            await db.execute(`UPDATE sales SET staffName = ? WHERE orderNo = ? AND saleType = 'online' AND (staffName IS NULL OR staffName = '')`, [staffName, orderName]);
+          }
+          continue;
+        }
+      } catch (e: any) {
+        console.log(`[EmailSync] Online duplicate check error for ${orderName}: ${e.message}`);
+      }
+
+      // Insert new online record
+      try {
+        const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        await db.execute(
+          `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [saleDate, orderName, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, "online", staffName]
+        );
+        imported++;
+      } catch (error: any) {
+        console.error(`[EmailSync] Online insert error for ${orderName}:`, error.message || error);
+      }
     }
   }
-  
-  console.log(`[EmailSync] Excel import complete: ${imported} records`);
+
+  console.log(`[EmailSync] ${saleType} Excel import complete: ${imported} records`);
   return imported;
 }
 
-// Import CSV data to database
-async function importCSVData(csvData: string): Promise<number> {
+// Import CSV data with saleType-aware column mapping
+async function importCSVData(csvData: string, saleType: "online" | "pos"): Promise<number> {
   const lines = csvData.trim().split("\n");
   if (lines.length < 2) return 0;
 
-  // Parse header
   function parseCSVHeader(line: string): string[] {
     const result: string[] = [];
     let current = "";
@@ -445,21 +531,38 @@ async function importCSVData(csvData: string): Promise<number> {
   }
 
   const header = parseCSVHeader(lines[0]);
-  const dateIdx = header.findIndex((h) => h.includes("date") || h.includes("orderdate"));
-  const orderIdx = header.findIndex((h) => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
-  const channelIdx = header.findIndex((h) => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
-  const netSalesIdx = header.findIndex((h) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+  console.log(`[EmailSync] ${saleType} CSV headers: ${JSON.stringify(header)}`);
+
+  const dateIdx = header.findIndex(h => h.includes("date") || h.includes("orderdate"));
+  const orderIdx = header.findIndex(h => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
+  const channelIdx = header.findIndex(h => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
+
+  // Net Sales: for POS prefer "Net Sales excl Gift Card"
+  let netSalesIdx: number;
+  if (saleType === "pos") {
+    netSalesIdx = header.findIndex(h => h.includes("netsalesexcl") || h.includes("excl") || h.includes("exclud"));
+    if (netSalesIdx === -1) {
+      netSalesIdx = header.findIndex(h => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+    }
+  } else {
+    netSalesIdx = header.findIndex(h => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+  }
+
+  // POS-specific columns
+  const paymentGatewayIdx = saleType === "pos" ? header.findIndex(h => h.includes("paymentgateway") || h.includes("payment")) : -1;
+  const staffNameIdx = saleType === "pos" ? header.findIndex(h => h.includes("staffname") || h === "staff") : -1;
+  const customerTagsIdx = saleType === "online" ? header.findIndex(h => h.includes("customertag") || h.includes("customer_tag")) : -1;
 
   if (netSalesIdx === -1) {
-    console.log("[EmailSync] Could not find Net Sales column");
+    console.log(`[EmailSync] Could not find Net Sales column for ${saleType}`);
     return 0;
   }
 
-  // Get staff mapping for user assignment
   const staffMapping = await db.getStaffMapping();
-  const staffIdIdx = header.findIndex((h) => h.includes("staffid") || h.includes("wvreferredbystaff") || h.includes("customertags"));
-  
   let imported = 0;
+  let lastChannel = "";
+  let lastPaymentGateway = "";
+  let lastStaffName = "";
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -467,60 +570,103 @@ async function importCSVData(csvData: string): Promise<number> {
 
     const values = parseCSVLine(line);
 
-    // Parse date
-    let orderDate: Date | null = null;
-    if (dateIdx >= 0 && values[dateIdx]) {
-      const rawDate = values[dateIdx].trim();
-      if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
-        const [mm, dd, yyyy] = rawDate.split("-");
-        orderDate = new Date(`${yyyy}-${mm}-${dd}`);
-      } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        orderDate = new Date(rawDate);
-      } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-        const parts = rawDate.split("/");
-        orderDate = new Date(`${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`);
-      } else {
-        const parsed = new Date(rawDate);
-        if (!isNaN(parsed.getTime())) {
-          orderDate = parsed;
-        }
-      }
-    }
+    const orderDate = dateIdx >= 0 ? parseDate(values[dateIdx]) : null;
+    const orderNo = orderIdx >= 0 ? values[orderIdx]?.trim() : null;
+    const netSales = netSalesIdx >= 0 ? parseNumber(values[netSalesIdx]) : 0;
 
-    const orderNo = orderIdx >= 0 ? values[orderIdx] : null;
-    const salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
-    const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
-
+    if (!orderNo || orderNo === "None" || orderNo.toLowerCase().includes("total")) continue;
     if (isNaN(netSales) || netSales === 0) continue;
 
-    // Try to find user ID from staff mapping
-    let userId = 1; // Default to admin user
-    if (staffIdIdx >= 0 && values[staffIdIdx]) {
-      const staffIdMatch = values[staffIdIdx].match(/WVReferredByStaff:(\d+)/);
-      if (staffIdMatch && staffMapping[staffIdMatch[1]]) {
-        userId = staffMapping[staffIdMatch[1]];
-      }
-    }
+    let salesChannel = channelIdx >= 0 ? values[channelIdx]?.trim() : null;
+    if (salesChannel === "None" || !salesChannel) salesChannel = null;
 
-    try {
-      await db.createSale({
-        userId,
-        productName: salesChannel || "Sale",
-        productCategory: "Shopify",
-        quantity: 1,
-        unitPrice: netSales.toString(),
-        totalAmount: netSales.toString(),
-        saleDate: orderDate || new Date(),
-        orderReference: orderNo || undefined,
-        saleType: "online", // Email imports are always online sales
-      });
-      imported++;
-    } catch (error) {
-      // Skip duplicates or other errors
-      console.log(`[EmailSync] Skipped record: ${orderNo}`);
+    if (saleType === "pos") {
+      // Carry forward for POS
+      if (salesChannel) { lastChannel = salesChannel; } else { salesChannel = lastChannel || null; }
+
+      let paymentGateway = paymentGatewayIdx >= 0 ? values[paymentGatewayIdx]?.trim() : null;
+      if (!paymentGateway || paymentGateway === "None") paymentGateway = null;
+      if (paymentGateway) { lastPaymentGateway = paymentGateway; } else { paymentGateway = lastPaymentGateway || null; }
+
+      let staffNameVal = staffNameIdx >= 0 ? values[staffNameIdx]?.trim() : null;
+      if (!staffNameVal || staffNameVal === "None") staffNameVal = null;
+      if (staffNameVal) { lastStaffName = staffNameVal; } else { staffNameVal = lastStaffName || null; }
+
+      try {
+        const existingOrder = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' LIMIT 1", [orderNo]);
+        const rows2 = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+        const hasExisting = rows2 && (Array.isArray(rows2) ? rows2.length > 0 : Object.keys(rows2).length > 0);
+        if (hasExisting) {
+          const updates: string[] = [];
+          const params: any[] = [];
+          if (salesChannel) { updates.push("salesChannel = ?"); params.push(salesChannel); }
+          if (paymentGateway) { updates.push("paymentGateway = ?"); params.push(paymentGateway); }
+          if (staffNameVal) { updates.push("staffName = ?"); params.push(staffNameVal); }
+          updates.push("netSales = ?"); params.push(netSales);
+          if (updates.length > 0) {
+            params.push(orderNo);
+            await db.execute(`UPDATE sales SET ${updates.join(", ")} WHERE orderNo = ? AND saleType = 'pos'`, params);
+          }
+          continue;
+        }
+      } catch (e: any) {
+        console.log(`[EmailSync] POS CSV duplicate check error: ${e.message}`);
+      }
+
+      try {
+        const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        await db.execute(
+          `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, paymentGateway, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [saleDate, orderNo, salesChannel || "-", netSales, "pos", paymentGateway || null, staffNameVal || null]
+        );
+        imported++;
+      } catch (error: any) {
+        console.error(`[EmailSync] POS CSV insert error: ${error.message}`);
+      }
+
+    } else {
+      // Online Sales
+      let userId = 1;
+      let staffName: string | null = null;
+      if (customerTagsIdx >= 0 && values[customerTagsIdx]) {
+        const tags = values[customerTagsIdx].trim();
+        const staffIdMatch = tags.match(/WVReferredByStaff_(\d+)/);
+        if (staffIdMatch) {
+          const sid = staffIdMatch[1];
+          if (staffMapping[sid]) userId = staffMapping[sid];
+          const name = STAFF_NAME_MAP[sid];
+          staffName = name ? `${name} ${sid}` : sid;
+        }
+      }
+
+      try {
+        const existingOrder = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' LIMIT 1", [orderNo]);
+        const rows2 = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+        const hasExisting = rows2 && (Array.isArray(rows2) ? rows2.length > 0 : Object.keys(rows2).length > 0);
+        if (hasExisting) {
+          if (staffName) {
+            await db.execute(`UPDATE sales SET staffName = ? WHERE orderNo = ? AND saleType = 'online' AND (staffName IS NULL OR staffName = '')`, [staffName, orderNo]);
+          }
+          continue;
+        }
+      } catch (e: any) {
+        console.log(`[EmailSync] Online CSV duplicate check error: ${e.message}`);
+      }
+
+      try {
+        const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        await db.execute(
+          `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [saleDate, orderNo, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, "online", staffName]
+        );
+        imported++;
+      } catch (error: any) {
+        console.error(`[EmailSync] Online CSV insert error: ${error.message}`);
+      }
     }
   }
 
+  console.log(`[EmailSync] ${saleType} CSV import complete: ${imported} records`);
   return imported;
 }
 
@@ -552,12 +698,12 @@ export function startScheduledEmailSync() {
 
   // Run initial sync after 1 minute delay
   setTimeout(async () => {
-    console.log("[EmailSync] Running initial email sync...");
+    console.log("[EmailSync] Running initial email sync (Online + POS)...");
     const result = await fetchAndProcessEmails();
     lastSyncTime = new Date();
     if (result.success) {
-      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails`;
-      console.log(`[EmailSync] Initial sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
+      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails (Online + POS)`;
+      console.log(`[EmailSync] Initial sync complete: ${lastSyncResult}`);
     } else {
       lastSyncResult = `Failed: ${result.error}`;
       console.error("[EmailSync] Initial sync failed:", result.error);
@@ -566,19 +712,19 @@ export function startScheduledEmailSync() {
 
   // Schedule recurring sync every 1 hour
   syncInterval = setInterval(async () => {
-    console.log("[EmailSync] Running scheduled email sync...");
+    console.log("[EmailSync] Running scheduled email sync (Online + POS)...");
     const result = await fetchAndProcessEmails();
     lastSyncTime = new Date();
     if (result.success) {
-      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails`;
-      console.log(`[EmailSync] Scheduled sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
+      lastSyncResult = `Imported ${result.imported} sales from ${result.emailsProcessed} emails (Online + POS)`;
+      console.log(`[EmailSync] Scheduled sync complete: ${lastSyncResult}`);
     } else {
       lastSyncResult = `Failed: ${result.error}`;
       console.error("[EmailSync] Scheduled sync failed:", result.error);
     }
   }, ONE_HOUR);
 
-  console.log("[EmailSync] Scheduled auto-fetch every 1 hour");
+  console.log("[EmailSync] Scheduled auto-fetch every 1 hour (Online + POS reports)");
 }
 
 export function stopScheduledEmailSync() {
