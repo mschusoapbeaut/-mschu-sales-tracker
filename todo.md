@@ -169,3 +169,19 @@
 
 - [ ] Remove Column J (Refund Adjustment) from Excel parsing
 - [ ] Ensure email data goes to Online Sales tab only (saleType = 'online')
+
+
+## Staff ID Mapping Setup (Feb 6, 2026)
+- [ ] Add staff ID (WVReferredByStaff) to all 11 staff members in database
+- [ ] Update PINs for all staff members
+- [ ] Verify staff mapping works with email sync
+
+
+## Admin Login Issue (Feb 6, 2026)
+- [ ] Fix admin login - PIN 9999 not working for Cindy Chu
+
+
+## Email Subject Filter Update (Feb 6, 2026)
+- [x] Update email subject filter to match "New report - Online Orders by customer"
+- [ ] Test email sync to fetch the correct emails
+- [ ] Update email sync to only fetch the latest email instead of all matching emails
