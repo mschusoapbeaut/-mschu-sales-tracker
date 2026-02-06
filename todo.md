@@ -184,4 +184,5 @@
 ## Email Subject Filter Update (Feb 6, 2026)
 - [x] Update email subject filter to match "New report - Online Orders by customer"
 - [ ] Test email sync to fetch the correct emails
-- [ ] Update email sync to only fetch the latest email instead of all matching emails
+- [x] Update email sync to only fetch the latest email instead of all matching emails
+- [x] Fix email sync to properly import new sales data (use orderNo column)

@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total, MAX(orderReference) as latest_order FROM sales;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT COUNT(*) as total, MAX(orderReference) as latest_order FROM sales;",
+  "rows": [
+    {
+      "total": "67",
+      "latest_order": "74438"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\tlatest_order\n67\t74438\n",
+  "stderr": "",
+  "execution_time_ms": 1537
+}

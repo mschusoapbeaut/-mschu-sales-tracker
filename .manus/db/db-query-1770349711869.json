@@ -1,0 +1,45 @@
+{
+  "query": "SELECT id, orderReference, productName, totalAmount, saleDate FROM sales ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, orderReference, productName, totalAmount, saleDate FROM sales ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "134",
+      "orderReference": "74438",
+      "productName": "Online Sale",
+      "totalAmount": "530.00",
+      "saleDate": "2026-01-31 05:00:00"
+    },
+    {
+      "id": "133",
+      "orderReference": "74369",
+      "productName": "Online Sale",
+      "totalAmount": "1610.00",
+      "saleDate": "2026-01-30 05:00:00"
+    },
+    {
+      "id": "132",
+      "orderReference": "74309",
+      "productName": "Online Sale",
+      "totalAmount": "730.00",
+      "saleDate": "2026-01-30 05:00:00"
+    },
+    {
+      "id": "131",
+      "orderReference": "74268",
+      "productName": "Online Sale",
+      "totalAmount": "1035.00",
+      "saleDate": "2026-01-29 05:00:00"
+    },
+    {
+      "id": "130",
+      "orderReference": "74247",
+      "productName": "Online Sale",
+      "totalAmount": "1320.00",
+      "saleDate": "2026-01-28 05:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\torderReference\tproductName\ttotalAmount\tsaleDate\n134\t74438\tOnline Sale\t530.00\t2026-01-31 05:00:00\n133\t74369\tOnline Sale\t1610.00\t2026-01-30 05:00:00\n132\t74309\tOnline Sale\t730.00\t2026-01-30 05:00:00\n131\t74268\tOnline Sale\t1035.00\t2026-01-29 05:00:00\n130\t74247\tOnline Sale\t1320.00\t2026-01-28 05:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 1492
+}

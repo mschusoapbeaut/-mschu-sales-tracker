@@ -1,0 +1,90 @@
+{
+  "query": "SELECT orderReference, COUNT(*) as cnt FROM sales GROUP BY orderReference ORDER BY cnt DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT orderReference, COUNT(*) as cnt FROM sales GROUP BY orderReference ORDER BY cnt DESC LIMIT 20;",
+  "rows": [
+    {
+      "orderReference": "73988",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74438",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73028",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73234",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74247",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74103",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73428",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73609",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73176",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73017",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74128",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73754",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74125",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73167",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "72945",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73262",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73304",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "74154",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "72786",
+      "cnt": "1"
+    },
+    {
+      "orderReference": "73666",
+      "cnt": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "orderReference\tcnt\n73988\t1\n74438\t1\n73028\t1\n73234\t1\n74247\t1\n74103\t1\n73428\t1\n73609\t1\n73176\t1\n73017\t1\n74128\t1\n73754\t1\n74125\t1\n73167\t1\n72945\t1\n73262\t1\n73304\t1\n74154\t1\n72786\t1\n73666\t1\n",
+  "stderr": "",
+  "execution_time_ms": 1513
+}
