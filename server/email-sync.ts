@@ -8,13 +8,35 @@ import * as XLSX from "xlsx";
 import * as db from "./db";
 import { parseExcel } from "../lib/report-parser";
 
-// IMAP configuration for Outlook
-const IMAP_CONFIG = {
-  host: "outlook.office365.com",
-  port: 993,
-  tls: true,
-  tlsOptions: { rejectUnauthorized: false }
-};
+// IMAP configuration - auto-detect based on email domain
+function getImapConfig(email: string) {
+  if (email.includes("@gmail.com")) {
+    return {
+      host: "imap.gmail.com",
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    };
+  } else if (email.includes("@outlook") || email.includes("@hotmail") || email.includes("@live")) {
+    return {
+      host: "outlook.office365.com",
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    };
+  } else {
+    // Default to Gmail
+    return {
+      host: "imap.gmail.com",
+      port: 993,
+      tls: true,
+      tlsOptions: { rejectUnauthorized: false }
+    };
+  }
+}
+
+// Email subject filter
+const EMAIL_SUBJECT_FILTER = "Online Orders by customer";
 
 // Email configuration stored in environment variables
 export function getEmailConfig() {
@@ -34,10 +56,11 @@ export async function testImapConnection(): Promise<{ success: boolean; messageC
   }
 
   return new Promise((resolve) => {
+    const imapConfig = getImapConfig(config.email);
     const imap = new Imap({
       user: config.email,
       password: config.password,
-      ...IMAP_CONFIG
+      ...imapConfig
     });
 
     const timeout = setTimeout(() => {
@@ -82,10 +105,11 @@ export async function fetchAndProcessEmails(): Promise<{
   }
 
   return new Promise((resolve) => {
+    const imapConfig = getImapConfig(config.email);
     const imap = new Imap({
       user: config.email,
       password: config.password,
-      ...IMAP_CONFIG
+      ...imapConfig
     });
 
     let totalImported = 0;
@@ -105,8 +129,9 @@ export async function fetchAndProcessEmails(): Promise<{
           return;
         }
 
-        // Search for unseen emails
-        imap.search(["UNSEEN"], async (err, results) => {
+        // Search for all emails with matching subject (including read ones)
+        // Using ALL instead of UNSEEN to catch emails that may have been read
+        imap.search([["SUBJECT", EMAIL_SUBJECT_FILTER]], async (err, results) => {
           if (err) {
             clearTimeout(timeout);
             imap.end();
@@ -122,7 +147,7 @@ export async function fetchAndProcessEmails(): Promise<{
             return;
           }
 
-          console.log(`[EmailSync] Found ${results.length} unread emails`);
+          console.log(`[EmailSync] Found ${results.length} emails matching subject filter`);
           const processPromises: Promise<number>[] = [];
 
           const f = imap.fetch(results, { bodies: "", markSeen: true });
@@ -192,22 +217,122 @@ export async function fetchAndProcessEmails(): Promise<{
 // Process attachment (CSV or Excel)
 async function processAttachment(filename: string, content: Buffer): Promise<number> {
   try {
-    let csvData: string;
-
     if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
-      // For Excel files, convert to CSV
-      const workbook = XLSX.read(content, { type: "buffer" });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      csvData = XLSX.utils.sheet_to_csv(firstSheet);
+      // For Excel files, use direct column mapping
+      return await importExcelData(content);
     } else {
-      csvData = content.toString("utf8");
+      // For CSV files, convert to string and parse
+      const csvData = content.toString("utf8");
+      return await importCSVData(csvData);
     }
-
-    return await importCSVData(csvData);
   } catch (error) {
     console.error("[EmailSync] Process attachment error:", error);
     return 0;
   }
+}
+
+// Import Excel data using direct column mapping
+// Column A = Order Date, Column B = Order Name, Column C = Sales Channel
+// Column E = WVReferredByStaff (Customer Tags), Column H = Net Sales
+async function importExcelData(content: Buffer): Promise<number> {
+  const workbook = XLSX.read(content, { type: "buffer" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  
+  // Convert to JSON with header row
+  const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+  
+  if (rows.length < 2) {
+    console.log("[EmailSync] Excel file has no data rows");
+    return 0;
+  }
+  
+  // Get staff mapping for user assignment
+  const staffMapping = await db.getStaffMapping();
+  
+  let imported = 0;
+  
+  // Skip header row (row 0), start from row 1
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+    
+    // Column mapping (0-indexed):
+    // A=0: Order Date, B=1: Order Name, C=2: Sales Channel
+    // E=4: Customer Tags (WVReferredByStaff), H=7: Net Sales
+    const orderDateRaw = row[0];
+    const orderName = row[1] ? String(row[1]).trim() : null;
+    const salesChannel = row[2] ? String(row[2]).trim() : null;
+    const customerTags = row[4] ? String(row[4]).trim() : "";
+    const netSalesRaw = row[7];
+    
+    // Parse order date
+    let orderDate: Date | null = null;
+    if (orderDateRaw) {
+      if (typeof orderDateRaw === "number") {
+        // Excel serial date number - convert to JS Date
+        // Excel dates are days since 1900-01-01 (with a bug for 1900 leap year)
+        const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+        orderDate = new Date(excelEpoch.getTime() + orderDateRaw * 24 * 60 * 60 * 1000);
+      } else {
+        const rawDate = String(orderDateRaw).trim();
+        if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+          const [mm, dd, yyyy] = rawDate.split("-");
+          orderDate = new Date(`${yyyy}-${mm}-${dd}`);
+        } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          orderDate = new Date(rawDate);
+        } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+          const parts = rawDate.split("/");
+          orderDate = new Date(`${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`);
+        } else {
+          const parsed = new Date(rawDate);
+          if (!isNaN(parsed.getTime())) {
+            orderDate = parsed;
+          }
+        }
+      }
+    }
+    
+    // Parse net sales
+    let netSales = 0;
+    if (typeof netSalesRaw === "number") {
+      netSales = netSalesRaw;
+    } else if (netSalesRaw) {
+      netSales = parseFloat(String(netSalesRaw).replace(/[^0-9.-]/g, "") || "0");
+    }
+    
+    if (isNaN(netSales) || netSales === 0) continue;
+    
+    // Try to find user ID from staff mapping using WVReferredByStaff
+    let userId = 1; // Default to admin user
+    if (customerTags) {
+      const staffIdMatch = customerTags.match(/WVReferredByStaff:(\d+)/);
+      if (staffIdMatch && staffMapping[staffIdMatch[1]]) {
+        userId = staffMapping[staffIdMatch[1]];
+      }
+    }
+    
+    try {
+      await db.createSale({
+        userId,
+        productName: salesChannel || "Sale",
+        productCategory: "Shopify",
+        quantity: 1,
+        unitPrice: netSales.toString(),
+        totalAmount: netSales.toString(),
+        saleDate: orderDate || new Date(),
+        orderReference: orderName || undefined,
+        saleType: "online", // Email imports are always online sales
+      });
+      imported++;
+      console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
+    } catch (error) {
+      // Skip duplicates or other errors
+      console.log(`[EmailSync] Skipped record: ${orderName}`);
+    }
+  }
+  
+  console.log(`[EmailSync] Excel import complete: ${imported} records`);
+  return imported;
 }
 
 // Import CSV data to database
@@ -322,6 +447,7 @@ async function importCSVData(csvData: string): Promise<number> {
         totalAmount: netSales.toString(),
         saleDate: orderDate || new Date(),
         orderReference: orderNo || undefined,
+        saleType: "online", // Email imports are always online sales
       });
       imported++;
     } catch (error) {

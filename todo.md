@@ -153,3 +153,19 @@
 - [x] Fix PIN login to use 4 digits instead of 6 digits
 - [x] Ensure Online Sales and POS Sales tabs are visible on production
 - [x] Do not change any existing interface layout
+
+
+## Email Subject Filter Fix (Feb 6, 2026)
+- [ ] Update email subject filter to match "Online Orders by customer tag_Correct"
+- [ ] Trigger email sync to fetch sales data
+- [ ] Verify data is showing in Online Sales tab
+
+
+## Email Sync Excel Parsing Fix (Feb 6, 2026)
+- [ ] Filter emails by subject "Online Orders by customer"
+- [ ] Extract Excel attachment from matching emails
+- [ ] Map Excel data according to saved skills field mapping
+- [ ] Display imported data in Online Sales tab
+
+- [ ] Remove Column J (Refund Adjustment) from Excel parsing
+- [ ] Ensure email data goes to Online Sales tab only (saleType = 'online')

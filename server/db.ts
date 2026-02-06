@@ -7,10 +7,15 @@ let _db: ReturnType<typeof drizzle> | null = null;
 
 // Raw SQL execute function for standalone server
 export async function execute(query: string, params?: any[]): Promise<[any[], any]> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const result = await db.execute(query);
-  return result as unknown as [any[], any];
+  // Use mysql2 directly for parameterized queries
+  const mysql = await import("mysql2/promise");
+  const connection = await mysql.createConnection(process.env.DATABASE_URL!);
+  try {
+    const [rows, fields] = await connection.execute(query, params || []);
+    return [rows as any[], fields];
+  } finally {
+    await connection.end();
+  }
 }
 
 export async function getDb() {
