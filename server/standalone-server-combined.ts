@@ -186,6 +186,8 @@ async function startServer() {
       const paymentGatewayIdx = resolvedSaleType === 'pos' ? header.findIndex((h: string) => h.includes("paymentgateway") || h.includes("payment")) : -1;
       // Staff name column (POS reports have "Staff name" column)
       const staffNameIdx = header.findIndex((h: string) => h.includes("staffname") || h === "staff");
+      // Customer Tags column (Online Sales reports - contains WVReferredByStaff_STAFFID)
+      const customerTagsIdx = header.findIndex((h: string) => h.includes("customertag") || h.includes("customer_tag"));
       
       if (netSalesIdx === -1) {
         res.status(400).json({ error: "Could not find Net Sales column in CSV" });
@@ -264,6 +266,31 @@ async function startServer() {
         // Clean up staffName - trim whitespace
         if (staffName) staffName = staffName.trim();
         if (!staffName || staffName === 'None') staffName = null;
+        
+        // For Online Sales: extract staff from Customer Tags (WVReferredByStaff_STAFFID)
+        if (!staffName && customerTagsIdx >= 0 && values[customerTagsIdx]) {
+          const tags = values[customerTagsIdx];
+          const staffMatch = tags.match(/WVReferredByStaff_(\d+)/);
+          if (staffMatch) {
+            const staffId = staffMatch[1];
+            // Look up staff name from known mapping
+            const staffMap: Record<string, string> = {
+              '78319321135': 'Egenie Tang',
+              '78319255599': 'Eva Lee',
+              '78319190063': 'Maggie Liang',
+              '79208775727': 'Maggie Wong',
+              '78319386671': 'Ting Siew',
+              '78319550511': 'Win Lee',
+              '78319091759': 'Wing Ho',
+              '101232115995': 'Sharon Li',
+              '109111279899': 'Hailey Hoi Ling Wong',
+              '111913632027': 'Bon Lau',
+              '118809198875': 'Sze',
+            };
+            const name = staffMap[staffId];
+            staffName = name ? `${name} ${staffId}` : staffId;
+          }
+        }
         const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
         
         if (isNaN(netSales)) {
@@ -786,7 +813,7 @@ function getAdminHTML(): string {
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
                         <h2 style="margin:0">Online Sales History</h2>
                         <div style="display:flex;gap:8px;align-items:center">
-
+                            <select id="onlineStaffFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
                             <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
                         </div>
                     </div>
@@ -969,7 +996,7 @@ function getAdminHTML(): string {
                 // Hide month and staff filters for staff
                 document.getElementById('onlineMonthFilter').style.display = 'none';
                 document.getElementById('posMonthFilter').style.display = 'none';
-
+                document.getElementById('onlineStaffFilter').style.display = 'none';
                 document.getElementById('posStaffFilter').style.display = 'none';
             }
             
@@ -1061,14 +1088,15 @@ function getAdminHTML(): string {
             const isAdmin = currentUser && currentUser.role === 'admin';
             if (isAdmin) {
                 populateMonthFilter('onlineMonthFilter');
-
+                populateStaffFilter('onlineStaffFilter', 'online');
             }
             try {
                 let url = '/api/sales?type=online';
                 if (isAdmin) {
                     const monthVal = document.getElementById('onlineMonthFilter')?.value || 'all';
                     url += '&month=' + monthVal;
-
+                    const staffVal = document.getElementById('onlineStaffFilter')?.value || 'all';
+                    if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
                 }
                 const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
@@ -1078,10 +1106,16 @@ function getAdminHTML(): string {
                     document.getElementById('onlineOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
+                        let html = isAdmin
+                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Staff Name</th><th>Net Sales</th></tr></thead><tbody>'
+                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            if (isAdmin) {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.staffName || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            } else {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            }
                         });
                         html += '</tbody></table>';
                         document.getElementById('onlineSalesTableContainer').innerHTML = html;
@@ -1397,11 +1431,11 @@ function getAdminHTML(): string {
             // Reset month and staff filters
             const onlineFilter = document.getElementById('onlineMonthFilter');
             const posFilter = document.getElementById('posMonthFilter');
-
+            const onlineStaffFilter = document.getElementById('onlineStaffFilter');
             const posStaffFilter = document.getElementById('posStaffFilter');
             if (onlineFilter) { onlineFilter.style.display = 'none'; onlineFilter.innerHTML = ''; }
             if (posFilter) { posFilter.style.display = 'none'; posFilter.innerHTML = ''; }
-
+            if (onlineStaffFilter) { onlineStaffFilter.style.display = 'none'; onlineStaffFilter.innerHTML = ''; }
             if (posStaffFilter) { posStaffFilter.style.display = 'none'; posStaffFilter.innerHTML = ''; }
             // Reset tab active state
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
