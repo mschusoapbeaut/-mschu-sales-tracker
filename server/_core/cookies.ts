@@ -2,6 +2,9 @@ import type { CookieOptions, Request } from "express";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
+// Known public suffixes where setting domain cookie would be rejected by browsers
+const PUBLIC_SUFFIXES = new Set(["railway.app", "herokuapp.com", "vercel.app", "netlify.app", "onrender.com"]);
+
 function isIpAddress(host: string) {
   // Basic IPv4 check and IPv6 presence detection.
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
@@ -39,9 +42,15 @@ function getParentDomain(hostname: string): string | undefined {
     return undefined;
   }
 
+  // Don't set domain for public suffixes (browsers silently reject these)
+  const parentDomain = parts.slice(-2).join(".");
+  if (PUBLIC_SUFFIXES.has(parentDomain)) {
+    return undefined;
+  }
+
   // Return parent domain with leading dot (e.g., ".manuspre.computer")
   // This allows cookie to be shared across all subdomains
-  return "." + parts.slice(-2).join(".");
+  return "." + parentDomain;
 }
 
 export function getSessionCookieOptions(
