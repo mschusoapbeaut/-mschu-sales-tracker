@@ -727,6 +727,11 @@ function getAdminHTML(): string {
         .section h2 { color: #333; font-size: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .sales-table, .staff-table { width: 100%; border-collapse: collapse; font-size: 14px; }
         .sales-table th, .staff-table th { background: #f8f9fa; padding: 12px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
+        .sales-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 20px; }
+        .sales-table th.sortable:hover { background: #eef1f4; color: #333; }
+        .sales-table th.sortable::after { content: '⇅'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #aaa; }
+        .sales-table th.sortable.sort-asc::after { content: '▲'; color: #5b6abf; }
+        .sales-table th.sortable.sort-desc::after { content: '▼'; color: #5b6abf; }
         .sales-table td, .staff-table td { padding: 12px 10px; border-bottom: 1px solid #eee; color: #333; }
         .sales-table tr:hover, .staff-table tr:hover { background: #f8f9fa; }
         .sales-table .amount { font-weight: 600; color: #27ae60; }
@@ -933,6 +938,105 @@ function getAdminHTML(): string {
     <script>
         let currentUser = null;
         let currentTab = 'online-sales';
+        
+        // Sort state for Online and POS tables
+        let onlineSalesData = [];
+        let posSalesData = [];
+        let onlineSortCol = null;
+        let onlineSortDir = null; // 'asc' or 'desc'
+        let posSortCol = null;
+        let posSortDir = null;
+        
+        function sortData(data, col, dir) {
+            return [...data].sort((a, b) => {
+                let va = a[col] || '';
+                let vb = b[col] || '';
+                // Date sorting
+                if (col === 'orderDate') {
+                    va = va ? new Date(va).getTime() : 0;
+                    vb = vb ? new Date(vb).getTime() : 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                // String sorting (case-insensitive)
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        function handleOnlineSort(col) {
+            if (onlineSortCol === col) {
+                onlineSortDir = onlineSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                onlineSortCol = col;
+                onlineSortDir = 'asc';
+            }
+            renderOnlineTable();
+        }
+        
+        function handlePosSort(col) {
+            if (posSortCol === col) {
+                posSortDir = posSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                posSortCol = col;
+                posSortDir = 'asc';
+            }
+            renderPosTable();
+        }
+        
+        function sortClass(currentCol, activeCol, activeDir) {
+            if (currentCol !== activeCol) return 'sortable';
+            return 'sortable sort-' + activeDir;
+        }
+        
+        function renderOnlineTable() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            const data = onlineSortCol ? sortData(onlineSalesData, onlineSortCol, onlineSortDir) : onlineSalesData;
+            if (!data || data.length === 0) {
+                document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">No online sales data yet</p>';
+                return;
+            }
+            let html = '<table class="sales-table"><thead><tr>';
+            html += '<th class="' + sortClass('orderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(\'orderDate\')">Order Date</th>';
+            html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(\'orderNo\')">Order</th>';
+            html += '<th>Channel</th>';
+            if (isAdmin) html += '<th>Staff Name</th>';
+            html += '<th>Net Sales</th></tr></thead><tbody>';
+            data.forEach(s => {
+                const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('onlineSalesTableContainer').innerHTML = html;
+        }
+        
+        function renderPosTable() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            const data = posSortCol ? sortData(posSalesData, posSortCol, posSortDir) : posSalesData;
+            if (!data || data.length === 0) {
+                document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">No POS sales data yet</p>';
+                return;
+            }
+            let html = '<table class="sales-table"><thead><tr>';
+            html += '<th class="' + sortClass('orderDate', posSortCol, posSortDir) + '" onclick="handlePosSort(\'orderDate\')">Order Date</th>';
+            html += '<th class="' + sortClass('orderNo', posSortCol, posSortDir) + '" onclick="handlePosSort(\'orderNo\')">Order</th>';
+            html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(\'salesChannel\')">Channel</th>';
+            html += '<th class="' + sortClass('paymentGateway', posSortCol, posSortDir) + '" onclick="handlePosSort(\'paymentGateway\')">Payment Gateway</th>';
+            if (isAdmin) html += '<th>Staff Name</th>';
+            html += '<th>Net Sales excl Gift Card</th></tr></thead><tbody>';
+            data.forEach(s => {
+                const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('posSalesTableContainer').innerHTML = html;
+        }
         const pins = [
             document.getElementById('pin1'),
             document.getElementById('pin2'),
@@ -1115,24 +1219,10 @@ function getAdminHTML(): string {
                 if (r.ok) {
                     document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('onlineOrderCount').textContent = d.count;
-                    
-                    if (d.sales && d.sales.length > 0) {
-                        let html = isAdmin
-                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Staff Name</th><th>Net Sales</th></tr></thead><tbody>'
-                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
-                        d.sales.forEach(s => {
-                            const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            if (isAdmin) {
-                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.staffName || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                            } else {
-                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                            }
-                        });
-                        html += '</tbody></table>';
-                        document.getElementById('onlineSalesTableContainer').innerHTML = html;
-                    } else {
-                        document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">No online sales data yet</p>';
-                    }
+                    onlineSalesData = d.sales || [];
+                    onlineSortCol = null;
+                    onlineSortDir = null;
+                    renderOnlineTable();
                 }
             } catch (e) {
                 document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';
@@ -1159,24 +1249,10 @@ function getAdminHTML(): string {
                 if (r.ok) {
                     document.getElementById('totalPosSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('posOrderCount').textContent = d.count;
-                    
-                    if (d.sales && d.sales.length > 0) {
-                        let html = isAdmin
-                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Staff Name</th><th>Net Sales excl Gift Card</th></tr></thead><tbody>'
-                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales excl Gift Card</th></tr></thead><tbody>';
-                        d.sales.forEach(s => {
-                            const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            if (isAdmin) {
-                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td>' + (s.staffName || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                            } else {
-                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                            }
-                        });
-                        html += '</tbody></table>';
-                        document.getElementById('posSalesTableContainer').innerHTML = html;
-                    } else {
-                        document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">No POS sales data yet</p>';
-                    }
+                    posSalesData = d.sales || [];
+                    posSortCol = null;
+                    posSortDir = null;
+                    renderPosTable();
                 }
             } catch (e) {
                 document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">Failed to load POS sales data</p>';
