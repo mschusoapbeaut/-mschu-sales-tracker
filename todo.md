@@ -270,3 +270,12 @@
 - [x] Add column sorting to POS Sales (Order Date, Order, Channel, Payment Gateway)
 - [x] Update nixpacks.toml and railway.json to point to standalone-server-combined.ts
 - [x] Restore all features: month/staff filters, Staff Name column, sale type selector, security fixes
+
+## Bug Reports (Feb 6, 2026 - Post Fix)
+- [x] Login still not working on Railway deployment (fix ready, needs Publish)
+- [x] PIN input fields don't auto-jump to next field (same root cause as login - JS parse error)
+
+## Endpoint Fix (Feb 6, 2026)
+- [x] Fix frontend calling /api/auth/pin-login instead of /api/auth/pin (endpoint mismatch)
+- [x] Fix Railway build failing due to expo export step (removed unnecessary expo export from build command)
+- [x] Successfully deployed fix to Railway via Railway CLI

@@ -5,7 +5,7 @@ nixPkgs = ["nodejs_20", "pnpm"]
 cmds = ["pnpm install"]
 
 [phases.build]
-cmds = ["npx expo export --platform web --output-dir dist-web"]
+cmds = ["echo 'Standalone server - no build needed'"]
 
 [start]
 cmd = "npx tsx server/standalone-server-combined.ts"

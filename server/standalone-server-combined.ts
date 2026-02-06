@@ -891,7 +891,7 @@ function getAdminHTML(): string {
             document.getElementById('error').style.display = 'none';
             
             try {
-                const r = await fetch('/api/auth/pin-login', {
+                const r = await fetch('/api/auth/pin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
