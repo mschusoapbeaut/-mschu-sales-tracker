@@ -56,7 +56,9 @@ async function startServer() {
       }
       
       const saleType = req.query.type as string || 'online';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType FROM sales";
+      const month = req.query.month as string || 'all';
+      const staffName = req.query.staffName as string || '';
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -67,17 +69,43 @@ async function startServer() {
         whereConditions.push("saleType = 'pos'");
       }
       
-      // If not admin, only show user's own sales
-      if (user.role !== "admin" && user.staffId) {
-        whereConditions.push("staffId = ?");
-        params.push(user.staffId);
+      // If not admin, only show user's own sales (current month only)
+      if (user.role !== "admin") {
+        if (user.staffId) {
+          whereConditions.push("staffId = ?");
+          params.push(user.staffId);
+        }
+        // Staff: current month only
+        const now = new Date();
+        const monthStart = `$` + `{now.getFullYear()}-$` + `{String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        whereConditions.push("orderDate >= ?");
+        params.push(monthStart);
+      } else {
+        // Admin: apply month filter
+        if (month && month !== 'all') {
+          if (month === 'ytd') {
+            const now = new Date();
+            const yearStart = `$` + `{now.getFullYear()}-01-01`;
+            whereConditions.push("orderDate >= ?");
+            params.push(yearStart);
+          } else {
+            // month is YYYY-MM
+            whereConditions.push("orderDate >= ? AND orderDate < DATE_ADD(?, INTERVAL 1 MONTH)");
+            params.push(month + '-01', month + '-01');
+          }
+        }
+        // Admin: apply staff name filter
+        if (staffName) {
+          whereConditions.push("staffName = ?");
+          params.push(staffName);
+        }
       }
       
       if (whereConditions.length > 0) {
         query += " WHERE " + whereConditions.join(" AND ");
       }
       
-      query += " ORDER BY orderDate DESC LIMIT 100";
+      query += " ORDER BY orderDate DESC LIMIT 500";
       
       const [rows] = await db.execute(query, params);
       const sales = rows as any[];
@@ -92,6 +120,31 @@ async function startServer() {
     }
   });
 
+  // API endpoint to get distinct staff names for filter
+  app.get("/api/sales/staff-names", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const saleType = req.query.type as string || 'online';
+      let query = "SELECT DISTINCT staffName FROM sales WHERE staffName IS NOT NULL AND staffName != ''";
+      if (saleType === 'online') {
+        query += " AND (saleType = 'online' OR saleType IS NULL)";
+      } else if (saleType === 'pos') {
+        query += " AND saleType = 'pos'";
+      }
+      query += " ORDER BY staffName";
+      const [rows] = await db.execute(query);
+      const staffNames = (rows as any[]).map(r => r.staffName);
+      res.json({ staffNames });
+    } catch (error) {
+      console.error("[API] Get staff names error:", error);
+      res.status(500).json({ error: "Failed to get staff names" });
+    }
+  });
+
   // API endpoint to upload CSV sales data (admin only)
   app.post("/api/sales/upload", async (req: Request, res: Response) => {
     try {
@@ -101,7 +154,7 @@ async function startServer() {
         return;
       }
       
-      const { csvData } = req.body;
+      const { csvData, saleType: uploadSaleType } = req.body;
       if (!csvData) {
         res.status(400).json({ error: "No CSV data provided" });
         return;
@@ -225,8 +278,8 @@ async function startServer() {
         }
         
         await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales) VALUES (?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales]
+          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType) VALUES (?, ?, ?, ?, ?)",
+          [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online']
         );
         imported++;
       }
@@ -496,6 +549,11 @@ function getAdminHTML(): string {
         .section h2 { color: #333; font-size: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .sales-table, .staff-table { width: 100%; border-collapse: collapse; font-size: 14px; }
         .sales-table th, .staff-table th { background: #f8f9fa; padding: 12px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; }
+        .sales-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 20px; }
+        .sales-table th.sortable:hover { background: #eef1f4; color: #333; }
+        .sales-table th.sortable::after { content: '\u21C5'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #aaa; }
+        .sales-table th.sortable.sort-asc::after { content: '\u25B2'; color: #5b6abf; }
+        .sales-table th.sortable.sort-desc::after { content: '\u25BC'; color: #5b6abf; }
         .sales-table td, .staff-table td { padding: 12px 10px; border-bottom: 1px solid #eee; color: #333; }
         .sales-table tr:hover, .staff-table tr:hover { background: #f8f9fa; }
         .sales-table .amount { font-weight: 600; color: #27ae60; }
@@ -590,7 +648,13 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <h2>Online Sales History</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                        <h2 style="margin:0">Online Sales History</h2>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="onlineStaffFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        </div>
+                    </div>
                     <div id="onlineSalesTableContainer">
                         <p class="loading">Loading sales data...</p>
                     </div>
@@ -609,7 +673,13 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <h2>POS Sales History</h2>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                        <h2 style="margin:0">POS Sales History</h2>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="posStaffFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <select id="posMonthFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        </div>
+                    </div>
                     <div id="posSalesTableContainer">
                         <p class="loading">Loading POS sales data...</p>
                     </div>
@@ -644,6 +714,13 @@ function getAdminHTML(): string {
                     <h3>Upload Sales Report (CSV or Excel)</h3>
                     <div id="uploadMessage" class="message"></div>
                     <p class="help-text" style="margin-bottom:15px">Upload a CSV or Excel (.xlsx) file with columns: Order Date, Order ID, Sales Channel, Net Sales</p>
+                    <div class="form-row" style="margin-bottom:15px">
+                        <label style="font-weight:600;margin-right:10px">Sale Type:</label>
+                        <select id="uploadSaleType" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px">
+                            <option value="online">Online Sales</option>
+                            <option value="pos">POS Sales</option>
+                        </select>
+                    </div>
                     <div class="form-row">
                         <div class="file-input-wrapper">
                             <span class="file-input-label">Choose File (CSV or Excel)</span>
@@ -671,6 +748,7 @@ function getAdminHTML(): string {
                         Automatically fetch sales reports from email attachments (CSV/Excel files).
                         The system checks for new emails every hour.
                     </p>
+                    <p id="lastSyncTime" style="font-size:13px;color:#888;margin-bottom:10px">Last synced: checking...</p>
                     <div class="form-row" style="margin-top:15px">
                         <button class="btn btn-primary" onclick="testEmailConnection()">Test Connection</button>
                         <button class="btn btn-success" onclick="fetchEmailsNow()">Fetch Emails Now</button>
@@ -682,6 +760,104 @@ function getAdminHTML(): string {
     <script>
         let currentUser = null;
         let currentTab = 'online-sales';
+        
+        // Sort state for Online and POS tables
+        let onlineSalesData = [];
+        let posSalesData = [];
+        let onlineSortCol = null;
+        let onlineSortDir = null;
+        let posSortCol = null;
+        let posSortDir = null;
+        
+        function sortData(data, col, dir) {
+            return [...data].sort((a, b) => {
+                let va = a[col] || '';
+                let vb = b[col] || '';
+                if (col === 'orderDate') {
+                    va = va ? new Date(va).getTime() : 0;
+                    vb = vb ? new Date(vb).getTime() : 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        function handleOnlineSort(col) {
+            if (onlineSortCol === col) {
+                onlineSortDir = onlineSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                onlineSortCol = col;
+                onlineSortDir = 'asc';
+            }
+            renderOnlineTable();
+        }
+        
+        function handlePosSort(col) {
+            if (posSortCol === col) {
+                posSortDir = posSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                posSortCol = col;
+                posSortDir = 'asc';
+            }
+            renderPosTable();
+        }
+        
+        function sortClass(currentCol, activeCol, activeDir) {
+            if (currentCol !== activeCol) return 'sortable';
+            return 'sortable sort-' + activeDir;
+        }
+        
+        function renderOnlineTable() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            const data = onlineSortCol ? sortData(onlineSalesData, onlineSortCol, onlineSortDir) : onlineSalesData;
+            if (!data || data.length === 0) {
+                document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">No online sales data yet</p>';
+                return;
+            }
+            let html = '<table class="sales-table"><thead><tr>';
+            html += '<th class="' + sortClass('orderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderDate&#39;)">Order Date</th>';
+            html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderNo&#39;)">Order</th>';
+            html += '<th>Channel</th>';
+            if (isAdmin) html += '<th>Staff Name</th>';
+            html += '<th>Net Sales</th></tr></thead><tbody>';
+            data.forEach(s => {
+                const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('onlineSalesTableContainer').innerHTML = html;
+        }
+        
+        function renderPosTable() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            const data = posSortCol ? sortData(posSalesData, posSortCol, posSortDir) : posSalesData;
+            if (!data || data.length === 0) {
+                document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">No POS sales data yet</p>';
+                return;
+            }
+            let html = '<table class="sales-table"><thead><tr>';
+            html += '<th class="' + sortClass('orderDate', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;orderDate&#39;)">Order Date</th>';
+            html += '<th class="' + sortClass('orderNo', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;orderNo&#39;)">Order</th>';
+            html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;salesChannel&#39;)">Channel</th>';
+            html += '<th class="' + sortClass('paymentGateway', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;paymentGateway&#39;)">Payment Gateway</th>';
+            if (isAdmin) html += '<th>Staff Name</th>';
+            html += '<th>Net Sales excl Gift Card</th></tr></thead><tbody>';
+            data.forEach(s => {
+                const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('posSalesTableContainer').innerHTML = html;
+        }
+        
         const pins = [
             document.getElementById('pin1'),
             document.getElementById('pin2'),
@@ -739,25 +915,53 @@ function getAdminHTML(): string {
         }
         
         function showDashboard() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
+            // Set user info BEFORE showing dashboard
             document.getElementById('userName').textContent = currentUser.name;
             document.getElementById('userRole').textContent = currentUser.role;
             
-            // Show admin tabs for admin users
+            // Explicitly set admin tab/panel visibility based on role
             if (currentUser.role === 'admin') {
                 document.getElementById('adminTab').style.display = 'block';
                 document.getElementById('uploadTab').style.display = 'block';
                 document.getElementById('emailTab').style.display = 'block';
+            } else {
+                // Staff: explicitly hide all admin tabs and panels
+                document.getElementById('adminTab').style.display = 'none';
+                document.getElementById('uploadTab').style.display = 'none';
+                document.getElementById('emailTab').style.display = 'none';
+                // Hide month and staff filters for staff
+                document.getElementById('onlineMonthFilter').style.display = 'none';
+                document.getElementById('posMonthFilter').style.display = 'none';
+                document.getElementById('onlineStaffFilter').style.display = 'none';
+                document.getElementById('posStaffFilter').style.display = 'none';
             }
+            
+            // Ensure correct default panel visibility - always start on Online Sales
+            document.getElementById('onlineSalesPanel').style.display = 'block';
+            document.getElementById('posSalesPanel').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('uploadPanel').style.display = 'none';
+            document.getElementById('emailPanel').style.display = 'none';
+            
+            // Set Online Sales tab as active
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab').classList.add('active');
+            
+            // Now show the dashboard
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
             
             loadOnlineSales();
         }
         
         function showTab(tab) {
+            // Security: prevent staff from accessing admin tabs
+            if (currentUser && currentUser.role !== 'admin' && (tab === 'admin' || tab === 'upload' || tab === 'email')) {
+                return;
+            }
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            if (event && event.target) { event.target.classList.add('active'); }
             
             document.getElementById('onlineSalesPanel').style.display = tab === 'online-sales' ? 'block' : 'none';
             document.getElementById('posSalesPanel').style.display = tab === 'pos-sales' ? 'block' : 'none';
@@ -771,26 +975,73 @@ function getAdminHTML(): string {
             if (tab === 'email') loadEmailConfig();
         }
         
-        async function loadOnlineSales() {
+        async function populateStaffFilter(selectId, saleType) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.style.display = 'block';
+            if (sel.options.length > 1) return;
             try {
-                const r = await fetch('/api/sales?type=online', { credentials: 'include' });
+                const r = await fetch('/api/sales/staff-names?type=' + saleType, { credentials: 'include' });
+                const d = await r.json();
+                if (r.ok && d.staffNames) {
+                    sel.innerHTML = '<option value="all">All Staff</option>';
+                    d.staffNames.forEach(name => {
+                        sel.innerHTML += '<option value="' + name.replace(/"/g, '&quot;') + '">' + name + '</option>';
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load staff names:', e);
+            }
+        }
+        
+        function populateMonthFilter(selectId) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.style.display = 'block';
+            if (sel.options.length > 0) return;
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            sel.innerHTML = '<option value="all">All</option>';
+            sel.innerHTML += '<option value="ytd">Year to Date</option>';
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            for (let m = currentMonth; m >= 0; m--) {
+                const val = currentYear + '-' + String(m + 1).padStart(2, '0');
+                const label = monthNames[m] + ' ' + currentYear;
+                const selected = m === currentMonth ? ' selected' : '';
+                sel.innerHTML += '<option value="' + val + '"' + selected + '>' + label + '</option>';
+            }
+            for (let m = 11; m >= 0; m--) {
+                const val = (currentYear - 1) + '-' + String(m + 1).padStart(2, '0');
+                const label = monthNames[m] + ' ' + (currentYear - 1);
+                sel.innerHTML += '<option value="' + val + '">' + label + '</option>';
+            }
+        }
+        
+        async function loadOnlineSales() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (isAdmin) {
+                populateMonthFilter('onlineMonthFilter');
+                populateStaffFilter('onlineStaffFilter', 'online');
+            }
+            try {
+                let url = '/api/sales?type=online';
+                if (isAdmin) {
+                    const monthVal = document.getElementById('onlineMonthFilter')?.value || 'all';
+                    url += '&month=' + monthVal;
+                    const staffVal = document.getElementById('onlineStaffFilter')?.value || 'all';
+                    if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
+                }
+                const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
                 
                 if (r.ok) {
                     document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('onlineOrderCount').textContent = d.count;
-                    
-                    if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
-                        d.sales.forEach(s => {
-                            const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                        });
-                        html += '</tbody></table>';
-                        document.getElementById('onlineSalesTableContainer').innerHTML = html;
-                    } else {
-                        document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">No online sales data yet</p>';
-                    }
+                    onlineSalesData = d.sales || [];
+                    onlineSortCol = null;
+                    onlineSortDir = null;
+                    renderOnlineTable();
                 }
             } catch (e) {
                 document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';
@@ -798,25 +1049,29 @@ function getAdminHTML(): string {
         }
         
         async function loadPosSales() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (isAdmin) {
+                populateMonthFilter('posMonthFilter');
+                populateStaffFilter('posStaffFilter', 'pos');
+            }
             try {
-                const r = await fetch('/api/sales?type=pos', { credentials: 'include' });
+                let url = '/api/sales?type=pos';
+                if (isAdmin) {
+                    const monthVal = document.getElementById('posMonthFilter')?.value || 'all';
+                    url += '&month=' + monthVal;
+                    const staffVal = document.getElementById('posStaffFilter')?.value || 'all';
+                    if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
+                }
+                const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
                 
                 if (r.ok) {
                     document.getElementById('totalPosSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('posOrderCount').textContent = d.count;
-                    
-                    if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
-                        d.sales.forEach(s => {
-                            const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
-                        });
-                        html += '</tbody></table>';
-                        document.getElementById('posSalesTableContainer').innerHTML = html;
-                    } else {
-                        document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">No POS sales data yet</p>';
-                    }
+                    posSalesData = d.sales || [];
+                    posSortCol = null;
+                    posSortDir = null;
+                    renderPosTable();
                 }
             } catch (e) {
                 document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">Failed to load POS sales data</p>';
@@ -832,8 +1087,9 @@ function getAdminHTML(): string {
                     let html = '<table class="staff-table"><thead><tr><th>Name</th><th>Staff ID</th><th>PIN</th><th>Role</th><th>Action</th></tr></thead><tbody>';
                     d.staff.forEach(s => {
                         const isCurrentUser = s.id === currentUser.id;
-                        html += '<tr><td>' + s.name + '</td><td>' + (s.staffId || '-') + '</td><td>' + (s.pin || '-') + '</td><td>' + s.role + '</td><td>' + 
-                            (isCurrentUser ? '<span style="color:#999">Current user</span>' : '<button class="delete-btn" onclick="deleteStaff(' + s.id + ', \\'' + s.name.replace(/'/g, "\\\\'") + '\\')">Delete</button>') + 
+                        const staffName = s.name || 'Unknown';
+                        html += '<tr><td>' + staffName + '</td><td>' + (s.staffId || '-') + '</td><td>' + (s.pin || '-') + '</td><td>' + (s.role || '-') + '</td><td>' + 
+                            (isCurrentUser ? '<span style="color:#999">Current user</span>' : '<button class="delete-btn" onclick="deleteStaff(' + s.id + ', &#39;' + staffName.replace(/'/g, "\\'") + '&#39;)">Delete</button>') + 
                             '</td></tr>';
                     });
                     html += '</tbody></table>';
@@ -946,6 +1202,7 @@ function getAdminHTML(): string {
         
         async function uploadCSV() {
             const csvData = document.getElementById('csvPreview').value.trim();
+            const saleType = document.getElementById('uploadSaleType').value;
             if (!csvData) {
                 showMessage('uploadMessage', 'Please select a CSV file or paste CSV data', 'error');
                 return;
@@ -956,7 +1213,7 @@ function getAdminHTML(): string {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ csvData })
+                    body: JSON.stringify({ csvData, saleType })
                 });
                 const d = await r.json();
                 
@@ -964,7 +1221,13 @@ function getAdminHTML(): string {
                     showMessage('uploadMessage', d.message, 'success');
                     document.getElementById('csvPreview').value = '';
                     document.getElementById('fileName').textContent = 'No file selected';
-                    loadOnlineSales();
+                    if (saleType === 'pos') {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelector('.tab:nth-child(2)').classList.add('active');
+                        showTab('pos-sales');
+                    } else {
+                        loadOnlineSales();
+                    }
                 } else {
                     showMessage('uploadMessage', d.error || 'Failed to upload', 'error');
                 }
@@ -979,39 +1242,28 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok && d.config) {
-                    updateEmailStatus(d.config.email, d.config.enabled, d.config.hasPassword, d.config.lastSyncTime, d.config.lastSyncResult);
+                    updateEmailStatus(d.config.email, d.config.enabled, d.config.hasPassword);
                 } else {
-                    updateEmailStatus(null, false, false, null, null);
+                    updateEmailStatus(null, false, false);
+                }
+                if (d.lastSyncTime) {
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date(d.lastSyncTime).toLocaleString();
+                } else {
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: Never';
                 }
             } catch (e) {
-                updateEmailStatus(null, false, false, null, null);
+                updateEmailStatus(null, false, false);
             }
         }
         
-        function formatLastSyncTime(isoString) {
-            if (!isoString) return 'Never';
-            const date = new Date(isoString);
-            return date.toLocaleString();
-        }
-        
-        function updateEmailStatus(email, enabled, hasPassword, lastSyncTime, lastSyncResult) {
+        function updateEmailStatus(email, enabled, hasPassword) {
             const status = document.getElementById('emailStatus');
-            let syncInfo = '';
-            if (lastSyncTime) {
-                syncInfo = '<br><strong>Last Sync:</strong> ' + formatLastSyncTime(lastSyncTime);
-                if (lastSyncResult) {
-                    syncInfo += ' (' + (lastSyncResult.imported || 0) + ' records imported)';
-                }
-            } else {
-                syncInfo = '<br><strong>Last Sync:</strong> Never (waiting for first sync)';
-            }
-            
             if (email && hasPassword && enabled) {
                 status.className = 'email-status connected';
-                status.innerHTML = '<strong>Status:</strong> Connected and enabled<br><strong>Email:</strong> ' + email + '<br><strong>Auto-fetch:</strong> Every 1 hour' + syncInfo;
+                status.innerHTML = '<strong>Status:</strong> Connected and enabled<br><strong>Email:</strong> ' + email + '<br><strong>Auto-fetch:</strong> Every 1 hour';
             } else if (email && hasPassword) {
                 status.className = 'email-status disconnected';
-                status.innerHTML = '<strong>Status:</strong> Configured but disabled<br><strong>Email:</strong> ' + email + syncInfo;
+                status.innerHTML = '<strong>Status:</strong> Configured but disabled<br><strong>Email:</strong> ' + email;
             } else {
                 status.className = 'email-status disconnected';
                 status.innerHTML = '<strong>Status:</strong> Not configured<br>Set EMAIL_ADDRESS, EMAIL_PASSWORD, and EMAIL_ENABLED=true in environment variables';
@@ -1048,8 +1300,8 @@ function getAdminHTML(): string {
                 
                 if (d.success) {
                     showMessage('emailMessage', 'Fetch complete! Processed ' + d.emailsProcessed + ' emails, imported ' + d.imported + ' sales records.', 'success');
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date().toLocaleString();
                     loadOnlineSales();
-                    loadEmailConfig(); // Refresh to show updated last sync time
                 } else {
                     showMessage('emailMessage', 'Fetch failed: ' + (d.error || 'Unknown error'), 'error');
                 }
@@ -1075,9 +1327,26 @@ function getAdminHTML(): string {
             document.getElementById('adminTab').style.display = 'none';
             document.getElementById('uploadTab').style.display = 'none';
             document.getElementById('emailTab').style.display = 'none';
+            // Reset all panels
+            document.getElementById('onlineSalesPanel').style.display = 'block';
+            document.getElementById('posSalesPanel').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('uploadPanel').style.display = 'none';
+            document.getElementById('emailPanel').style.display = 'none';
+            // Reset month and staff filters
+            var onlineFilter = document.getElementById('onlineMonthFilter');
+            var posFilter = document.getElementById('posMonthFilter');
+            var onlineStaffFilter = document.getElementById('onlineStaffFilter');
+            var posStaffFilter = document.getElementById('posStaffFilter');
+            if (onlineFilter) { onlineFilter.style.display = 'none'; onlineFilter.innerHTML = ''; }
+            if (posFilter) { posFilter.style.display = 'none'; posFilter.innerHTML = ''; }
+            if (onlineStaffFilter) { onlineStaffFilter.style.display = 'none'; onlineStaffFilter.innerHTML = ''; }
+            if (posStaffFilter) { posStaffFilter.style.display = 'none'; posStaffFilter.innerHTML = ''; }
+            // Reset tab active state
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.tab').classList.add('active');
             pins.forEach(p => p.value = '');
             pins[0].focus();
-            showTab('sales');
         }
         
         (async () => {
