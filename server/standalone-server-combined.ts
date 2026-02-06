@@ -370,7 +370,7 @@ async function startServer() {
         return;
       }
       const { updates } = req.body;
-      // updates: Array<{ orderNo: string, salesChannel?: string, paymentGateway?: string }>
+      // updates: Array<{ orderNo: string, salesChannel?: string, paymentGateway?: string, staffName?: string }>
       if (!updates || !Array.isArray(updates)) {
         res.status(400).json({ error: "Invalid updates array" });
         return;
@@ -387,6 +387,10 @@ async function startServer() {
         if (u.paymentGateway) {
           setClauses.push("paymentGateway = ?");
           params.push(u.paymentGateway);
+        }
+        if (u.staffName) {
+          setClauses.push("staffName = ?");
+          params.push(u.staffName);
         }
         if (setClauses.length > 0) {
           params.push(u.orderNo);
