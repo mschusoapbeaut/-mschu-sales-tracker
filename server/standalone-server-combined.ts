@@ -181,7 +181,18 @@ async function startServer() {
       const orderIdx = header.findIndex((h: string) => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
       // For POS uploads, Column A is "POS Location Name" which maps to Channel
       const channelIdx = header.findIndex((h: string) => h.includes("channel") || h.includes("saleschannel") || h.includes("poslocationname") || h.includes("location"));
-      const netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+      // For POS uploads, prefer "Net Sales excl Gift Card" (Column I) over "Net Sales" (Column J)
+      let netSalesIdx: number;
+      if (resolvedSaleType === 'pos') {
+        // First try to find "Net Sales excl Gift Card" specifically
+        netSalesIdx = header.findIndex((h: string) => h.includes("netsalesexcl") || h.includes("excl") || h.includes("exclud"));
+        if (netSalesIdx === -1) {
+          // Fallback to generic net sales
+          netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+        }
+      } else {
+        netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
+      }
       // For POS uploads, find Payment Gateways column (only for POS sale type)
       const paymentGatewayIdx = resolvedSaleType === 'pos' ? header.findIndex((h: string) => h.includes("paymentgateway") || h.includes("payment")) : -1;
       // Staff name column (POS reports have "Staff name" column)
@@ -1151,8 +1162,8 @@ function getAdminHTML(): string {
                     
                     if (d.sales && d.sales.length > 0) {
                         let html = isAdmin
-                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Staff Name</th><th>Net Sales</th></tr></thead><tbody>'
-                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
+                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Staff Name</th><th>Net Sales excl Gift Card</th></tr></thead><tbody>'
+                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales excl Gift Card</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                             if (isAdmin) {
