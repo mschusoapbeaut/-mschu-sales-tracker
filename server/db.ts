@@ -66,6 +66,7 @@ export async function ensureDbSchema() {
     const missingSalesCols: [string, string][] = [
       ["saleType", "VARCHAR(20) DEFAULT 'online'"],
       ["paymentGateway", "VARCHAR(100) DEFAULT NULL"],
+      ["staffName", "VARCHAR(200) DEFAULT NULL"],
     ];
     
     for (const [col, def] of missingSalesCols) {

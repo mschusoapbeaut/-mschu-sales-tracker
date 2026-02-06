@@ -64,7 +64,7 @@ async function startServer() {
       }
       
       const saleType = req.query.type as string || 'online';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType FROM sales";
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -91,6 +91,13 @@ async function startServer() {
           whereConditions.push("orderDate >= ? AND orderDate < ?");
           params.push(startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10));
         }
+      }
+      
+      // Admin staff name filter
+      const staffNameParam = req.query.staffName as string;
+      if (user.role === 'admin' && staffNameParam && staffNameParam !== 'all') {
+        whereConditions.push("staffName = ?");
+        params.push(staffNameParam);
       }
       
       // If not admin, only show user's own sales (month-to-date only)
@@ -177,6 +184,8 @@ async function startServer() {
       const netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
       // For POS uploads, find Payment Gateways column (only for POS sale type)
       const paymentGatewayIdx = resolvedSaleType === 'pos' ? header.findIndex((h: string) => h.includes("paymentgateway") || h.includes("payment")) : -1;
+      // Staff name column (POS reports have "Staff name" column)
+      const staffNameIdx = header.findIndex((h: string) => h.includes("staffname") || h === "staff");
       
       if (netSalesIdx === -1) {
         res.status(400).json({ error: "Could not find Net Sales column in CSV" });
@@ -208,9 +217,10 @@ async function startServer() {
         return result;
       }
       
-      // For POS uploads: track last known channel/gateway per order to carry forward
+      // For POS uploads: track last known channel/gateway/staffName per order to carry forward
       let lastChannel: string | null = null;
       let lastPaymentGateway: string | null = null;
+      let lastStaffName: string | null = null;
       let lastOrderNo: string | null = null;
       
       for (let i = 1; i < lines.length; i++) {
@@ -250,6 +260,10 @@ async function startServer() {
         const orderNo = orderIdx >= 0 ? values[orderIdx] : null;
         let salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
         let paymentGateway = paymentGatewayIdx >= 0 ? values[paymentGatewayIdx] : null;
+        let staffName = staffNameIdx >= 0 ? values[staffNameIdx] : null;
+        // Clean up staffName - trim whitespace
+        if (staffName) staffName = staffName.trim();
+        if (!staffName || staffName === 'None') staffName = null;
         const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
         
         if (isNaN(netSales)) {
@@ -263,23 +277,26 @@ async function startServer() {
             // Same order as previous row - carry forward if current is empty
             if (!salesChannel && lastChannel) salesChannel = lastChannel;
             if (!paymentGateway && lastPaymentGateway) paymentGateway = lastPaymentGateway;
+            if (!staffName && lastStaffName) staffName = lastStaffName;
           } else {
             // New order - update tracking
             if (salesChannel) lastChannel = salesChannel;
             else lastChannel = null;
             if (paymentGateway) lastPaymentGateway = paymentGateway;
             else lastPaymentGateway = null;
+            if (staffName) lastStaffName = staffName;
+            else lastStaffName = null;
             lastOrderNo = orderNo;
           }
         }
         
         // Check for duplicate
         if (orderNo) {
-          const [existing] = await db.execute("SELECT id, salesChannel, paymentGateway FROM sales WHERE orderNo = ?", [orderNo]);
+          const [existing] = await db.execute("SELECT id, salesChannel, paymentGateway, staffName FROM sales WHERE orderNo = ?", [orderNo]);
           if ((existing as any[]).length > 0) {
             // If existing record has missing channel/gateway, update it
             const existingRow = (existing as any[])[0];
-            if (resolvedSaleType === 'pos' && (salesChannel || paymentGateway)) {
+            if (salesChannel || paymentGateway || staffName) {
               const updates: string[] = [];
               const updateParams: any[] = [];
               if (salesChannel && !existingRow.salesChannel) {
@@ -289,6 +306,10 @@ async function startServer() {
               if (paymentGateway && !existingRow.paymentGateway) {
                 updates.push("paymentGateway = ?");
                 updateParams.push(paymentGateway);
+              }
+              if (staffName && !existingRow.staffName) {
+                updates.push("staffName = ?");
+                updateParams.push(staffName);
               }
               if (updates.length > 0) {
                 updateParams.push(existingRow.id);
@@ -302,8 +323,8 @@ async function startServer() {
         }
         
         await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, paymentGateway) VALUES (?, ?, ?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales, resolvedSaleType, paymentGateway || null]
+          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, paymentGateway, staffName) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [orderDate || null, orderNo || null, salesChannel || null, netSales, resolvedSaleType, paymentGateway || null, staffName || null]
         );
         imported++;
       }
@@ -312,6 +333,31 @@ async function startServer() {
     } catch (error) {
       console.error("[API] Upload sales error:", error);
       res.status(500).json({ error: "Failed to upload sales data" });
+    }
+  });
+
+  // API endpoint to get distinct staff names for filter (admin only)
+  app.get("/api/sales/staff-names", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const saleType = req.query.type as string || 'online';
+      let query = "SELECT DISTINCT staffName FROM sales WHERE staffName IS NOT NULL AND staffName != ''";
+      if (saleType === 'pos') {
+        query += " AND saleType = 'pos'";
+      } else {
+        query += " AND (saleType = 'online' OR saleType IS NULL)";
+      }
+      query += " ORDER BY staffName";
+      const [rows] = await db.execute(query);
+      const staffNames = (rows as any[]).map(r => r.staffName);
+      res.json({ staffNames });
+    } catch (error) {
+      console.error("[API] Get staff names error:", error);
+      res.status(500).json({ error: "Failed to get staff names" });
     }
   });
 
@@ -732,9 +778,12 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
                         <h2 style="margin:0">Online Sales History</h2>
-                        <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="onlineStaffFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        </div>
                     </div>
                     <div id="onlineSalesTableContainer">
                         <p class="loading">Loading sales data...</p>
@@ -754,9 +803,12 @@ function getAdminHTML(): string {
                     </div>
                 </div>
                 <div class="section">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
                         <h2 style="margin:0">POS Sales History</h2>
-                        <select id="posMonthFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="posStaffFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <select id="posMonthFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                        </div>
                     </div>
                     <div id="posSalesTableContainer">
                         <p class="loading">Loading POS sales data...</p>
@@ -909,9 +961,11 @@ function getAdminHTML(): string {
                 document.getElementById('adminTab').style.display = 'none';
                 document.getElementById('uploadTab').style.display = 'none';
                 document.getElementById('emailTab').style.display = 'none';
-                // Hide month filters for staff
+                // Hide month and staff filters for staff
                 document.getElementById('onlineMonthFilter').style.display = 'none';
                 document.getElementById('posMonthFilter').style.display = 'none';
+                document.getElementById('onlineStaffFilter').style.display = 'none';
+                document.getElementById('posStaffFilter').style.display = 'none';
             }
             
             // Ensure correct default panel visibility - always start on Online Sales
@@ -953,6 +1007,25 @@ function getAdminHTML(): string {
             if (tab === 'email') loadEmailConfig();
         }
         
+        async function populateStaffFilter(selectId, saleType) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.style.display = 'block';
+            if (sel.options.length > 1) return; // Already populated (has more than just 'All')
+            try {
+                const r = await fetch('/api/sales/staff-names?type=' + saleType, { credentials: 'include' });
+                const d = await r.json();
+                if (r.ok && d.staffNames) {
+                    sel.innerHTML = '<option value="all">All Staff</option>';
+                    d.staffNames.forEach(name => {
+                        sel.innerHTML += '<option value="' + name.replace(/"/g, '&quot;') + '">' + name + '</option>';
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load staff names:', e);
+            }
+        }
+        
         function populateMonthFilter(selectId) {
             const sel = document.getElementById(selectId);
             if (!sel) return;
@@ -980,12 +1053,18 @@ function getAdminHTML(): string {
         }
         
         async function loadOnlineSales() {
-            if (currentUser && currentUser.role === 'admin') populateMonthFilter('onlineMonthFilter');
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (isAdmin) {
+                populateMonthFilter('onlineMonthFilter');
+                populateStaffFilter('onlineStaffFilter', 'online');
+            }
             try {
                 let url = '/api/sales?type=online';
-                if (currentUser && currentUser.role === 'admin') {
+                if (isAdmin) {
                     const monthVal = document.getElementById('onlineMonthFilter')?.value || 'all';
                     url += '&month=' + monthVal;
+                    const staffVal = document.getElementById('onlineStaffFilter')?.value || 'all';
+                    if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
                 }
                 const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
@@ -995,10 +1074,16 @@ function getAdminHTML(): string {
                     document.getElementById('onlineOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
+                        let html = isAdmin
+                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Staff Name</th><th>Net Sales</th></tr></thead><tbody>'
+                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            if (isAdmin) {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.staffName || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            } else {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            }
                         });
                         html += '</tbody></table>';
                         document.getElementById('onlineSalesTableContainer').innerHTML = html;
@@ -1012,12 +1097,18 @@ function getAdminHTML(): string {
         }
         
         async function loadPosSales() {
-            if (currentUser && currentUser.role === 'admin') populateMonthFilter('posMonthFilter');
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (isAdmin) {
+                populateMonthFilter('posMonthFilter');
+                populateStaffFilter('posStaffFilter', 'pos');
+            }
             try {
                 let url = '/api/sales?type=pos';
-                if (currentUser && currentUser.role === 'admin') {
+                if (isAdmin) {
                     const monthVal = document.getElementById('posMonthFilter')?.value || 'all';
                     url += '&month=' + monthVal;
+                    const staffVal = document.getElementById('posStaffFilter')?.value || 'all';
+                    if (staffVal !== 'all') url += '&staffName=' + encodeURIComponent(staffVal);
                 }
                 const r = await fetch(url, { credentials: 'include' });
                 const d = await r.json();
@@ -1027,10 +1118,16 @@ function getAdminHTML(): string {
                     document.getElementById('posOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
-                        let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
+                        let html = isAdmin
+                            ? '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Staff Name</th><th>Net Sales</th></tr></thead><tbody>'
+                            : '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            if (isAdmin) {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td>' + (s.staffName || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            } else {
+                                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                            }
                         });
                         html += '</tbody></table>';
                         document.getElementById('posSalesTableContainer').innerHTML = html;
@@ -1299,11 +1396,15 @@ function getAdminHTML(): string {
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('uploadPanel').style.display = 'none';
             document.getElementById('emailPanel').style.display = 'none';
-            // Reset month filters
+            // Reset month and staff filters
             const onlineFilter = document.getElementById('onlineMonthFilter');
             const posFilter = document.getElementById('posMonthFilter');
+            const onlineStaffFilter = document.getElementById('onlineStaffFilter');
+            const posStaffFilter = document.getElementById('posStaffFilter');
             if (onlineFilter) { onlineFilter.style.display = 'none'; onlineFilter.innerHTML = ''; }
             if (posFilter) { posFilter.style.display = 'none'; posFilter.innerHTML = ''; }
+            if (onlineStaffFilter) { onlineStaffFilter.style.display = 'none'; onlineStaffFilter.innerHTML = ''; }
+            if (posStaffFilter) { posStaffFilter.style.display = 'none'; posStaffFilter.innerHTML = ''; }
             // Reset tab active state
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector('.tab').classList.add('active');
