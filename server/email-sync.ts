@@ -325,6 +325,12 @@ async function importExcelData(content: Buffer): Promise<number> {
     
     if (isNaN(netSales) || netSales === 0) continue;
     
+    // Skip invalid rows (Grand Total, empty order names, etc.)
+    if (!orderName || orderName.toLowerCase().includes("grand total") || orderName.toLowerCase().includes("total")) {
+      console.log(`[EmailSync] Skipping invalid row: ${orderName}`);
+      continue;
+    }
+    
     // Try to find user ID from staff mapping using WVReferredByStaff
     let userId = 1; // Default to admin user
     if (customerTags) {
@@ -334,16 +340,22 @@ async function importExcelData(content: Buffer): Promise<number> {
       }
     }
     
-    // Check if order already exists to avoid duplicates
-    if (orderName) {
+    // Check if order already exists to avoid duplicates (from manual upload or previous email sync)
+    try {
       const existingOrder = await db.execute(
         "SELECT id FROM sales WHERE orderNo = ? LIMIT 1",
         [orderName]
       );
-      if (existingOrder[0] && (existingOrder[0] as any[]).length > 0) {
-        console.log(`[EmailSync] Skipping duplicate: ${orderName}`);
+      // Check if any rows were returned - handle both array and object formats
+      const rows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+      const hasExisting = rows && (Array.isArray(rows) ? rows.length > 0 : Object.keys(rows).length > 0);
+      if (hasExisting) {
+        console.log(`[EmailSync] Skipping duplicate order: ${orderName} (already exists in database)`);
         continue;
       }
+    } catch (dupCheckError: any) {
+      console.log(`[EmailSync] Duplicate check error for ${orderName}: ${dupCheckError.message}`);
+      // Continue anyway - better to potentially have a duplicate than miss data
     }
     
     try {

@@ -774,14 +774,14 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok) {
-                    document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toFixed(2);
+                    document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('onlineOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
                         let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toFixed(2) + '</td></tr>';
+                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
                         });
                         html += '</tbody></table>';
                         document.getElementById('onlineSalesTableContainer').innerHTML = html;
@@ -800,14 +800,14 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok) {
-                    document.getElementById('totalPosSales').textContent = 'HK$' + d.total.toFixed(2);
+                    document.getElementById('totalPosSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('posOrderCount').textContent = d.count;
                     
                     if (d.sales && d.sales.length > 0) {
                         let html = '<table class="sales-table"><thead><tr><th>Order Date</th><th>Order</th><th>Channel</th><th>Payment Gateway</th><th>Net Sales</th></tr></thead><tbody>';
                         d.sales.forEach(s => {
                             const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toFixed(2) + '</td></tr>';
+                            html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td><td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
                         });
                         html += '</tbody></table>';
                         document.getElementById('posSalesTableContainer').innerHTML = html;

@@ -186,3 +186,38 @@
 - [ ] Test email sync to fetch the correct emails
 - [x] Update email sync to only fetch the latest email instead of all matching emails
 - [x] Fix email sync to properly import new sales data (use orderNo column)
+
+## Currency Formatting (Feb 6, 2026)
+- [ ] Add comma formatting to currency numbers in the interface (e.g., HK$91,660.63)
+
+
+## Security Fix (Feb 6, 2026)
+- [x] CRITICAL: Staff members can see Staff Management tab and all staff data including PINs - must hide from non-admin users
+- [x] FIX: Admin panel content still showing to staff on first login (tabs hidden but panel visible)
+
+
+## POS Sales Email Sync (Feb 6, 2026)
+- [ ] Add email sync for POS_Sales_Attribution report
+- [ ] Fetch POS report every hour (same schedule as Online Sales)
+- [ ] Display POS data in POS Sales tab with columns: Order Date, Order Name, Sales Channel, Net Sales, Payment Gateway
+- [ ] Set saleType = 'pos' for POS sales records
+
+
+## Date Range Filtering (Feb 6, 2026)
+- [x] Admin: Show Year-to-Date Sales History (both Online and POS)
+- [x] Staff: Show Month-to-Date Sales History only (both Online and POS)
+
+
+## Month Filter for Admin (Feb 6, 2026)
+- [x] Add month dropdown filter for Admin on Online Sales tab
+- [x] Add month dropdown filter for Admin on POS Sales tab
+- [x] Filter sales data by selected month
+
+## Month Filter Totals Fix (Feb 6, 2026)
+- [x] Fix Total Sales to update when month filter is selected
+- [x] Fix Total Orders to update when month filter is selected
+
+
+## Upload Sale Type Selector (Feb 6, 2026)
+- [x] Add dropdown selector to Upload Sales panel to choose Online Sales or POS Sales
+- [x] Update upload API to handle sale type parameter
