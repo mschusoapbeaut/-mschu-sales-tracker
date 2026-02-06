@@ -48,6 +48,8 @@ export async function ensureDbSchema() {
       ["staffId", "VARCHAR(50) DEFAULT NULL"],
       ["loginMethod", "VARCHAR(64) DEFAULT NULL"],
       ["monthlyTarget", "DECIMAL(12,2) DEFAULT '0'"],
+      ["updatedAt", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"],
+      ["lastSignedIn", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
     ];
     
     for (const [col, def] of missingCols) {
