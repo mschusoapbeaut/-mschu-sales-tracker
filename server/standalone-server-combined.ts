@@ -797,6 +797,13 @@ function getAdminHTML(): string {
                 document.getElementById('emailTab').style.display = 'block';
             }
             
+            // Ensure correct default panel visibility
+            document.getElementById('onlineSalesPanel').style.display = 'block';
+            document.getElementById('posSalesPanel').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('uploadPanel').style.display = 'none';
+            document.getElementById('emailPanel').style.display = 'none';
+            
             loadOnlineSales();
         }
         
