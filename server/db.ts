@@ -30,6 +30,56 @@ export async function getDb() {
   return _db;
 }
 
+// ============ AUTO-MIGRATION ============
+
+export async function ensureDbSchema() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const mysql = await import("mysql2/promise");
+    const connection = await mysql.createConnection(process.env.DATABASE_URL);
+    
+    // Check and add missing columns to users table
+    const [cols] = await connection.execute("SHOW COLUMNS FROM users") as [any[], any];
+    const existingCols = new Set((cols as any[]).map((c: any) => c.Field));
+    
+    const missingCols: [string, string][] = [
+      ["email", "VARCHAR(320) DEFAULT NULL"],
+      ["pin", "VARCHAR(10) DEFAULT NULL"],
+      ["staffId", "VARCHAR(50) DEFAULT NULL"],
+      ["loginMethod", "VARCHAR(64) DEFAULT NULL"],
+      ["monthlyTarget", "DECIMAL(12,2) DEFAULT '0'"],
+    ];
+    
+    for (const [col, def] of missingCols) {
+      if (!existingCols.has(col)) {
+        console.log(`[DB Migration] Adding missing column: users.${col}`);
+        await connection.execute(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
+      }
+    }
+    
+    // Check sales table
+    const [salesCols] = await connection.execute("SHOW COLUMNS FROM sales") as [any[], any];
+    const existingSalesCols = new Set((salesCols as any[]).map((c: any) => c.Field));
+    
+    const missingSalesCols: [string, string][] = [
+      ["saleType", "VARCHAR(20) DEFAULT 'online'"],
+      ["paymentGateway", "VARCHAR(100) DEFAULT NULL"],
+    ];
+    
+    for (const [col, def] of missingSalesCols) {
+      if (!existingSalesCols.has(col)) {
+        console.log(`[DB Migration] Adding missing column: sales.${col}`);
+        await connection.execute(`ALTER TABLE sales ADD COLUMN ${col} ${def}`);
+      }
+    }
+    
+    await connection.end();
+    console.log("[DB Migration] Schema check complete");
+  } catch (error) {
+    console.error("[DB Migration] Error:", error);
+  }
+}
+
 // ============ USER FUNCTIONS ============
 
 export async function upsertUser(user: InsertUser): Promise<void> {

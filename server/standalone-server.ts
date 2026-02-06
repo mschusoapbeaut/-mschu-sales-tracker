@@ -12,6 +12,7 @@ import { registerStandaloneAuthRoutes, authenticateRequest } from "./standalone-
 import { standaloneAppRouter } from "./standalone-routers";
 import { syncAllDriveConnections } from "./drive-sync";
 import { startScheduledEmailSync, fetchAndProcessEmails, testImapConnection, getEmailConfig, getLastSyncInfo } from "./email-sync";
+import { ensureDbSchema } from "./db";
 import type { Request, Response, NextFunction } from "express";
 
 const PORT = parseInt(process.env.PORT || "3000");
@@ -454,6 +455,9 @@ const ADMIN_HTML = `<!DOCTYPE html>
 </html>`;
 
 async function startServer() {
+  // Ensure DB schema has all required columns
+  await ensureDbSchema();
+
   const app = express();
   const server = createServer(app);
 
