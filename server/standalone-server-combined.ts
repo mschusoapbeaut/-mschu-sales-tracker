@@ -360,9 +360,19 @@ async function startServer() {
           continue;
         }
         
-        // Check for duplicate
-        if (orderNo) {
-          const [existing] = await db.execute("SELECT id FROM sales WHERE orderNo = ?", [orderNo]);
+        // Check for duplicate - use orderNo + orderDate + netSales combination
+        // because different orders can share the same Order Name but have different dates/amounts
+        if (orderNo && orderDate) {
+          const [existing] = await db.execute(
+            "SELECT id FROM sales WHERE orderNo = ? AND orderDate = ? AND netSales = ? AND saleType = ?",
+            [orderNo, orderDate, netSales, uploadSaleType || 'online']
+          );
+          if ((existing as any[]).length > 0) {
+            skipped++;
+            continue;
+          }
+        } else if (orderNo) {
+          const [existing] = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = ?", [orderNo, uploadSaleType || 'online']);
           if ((existing as any[]).length > 0) {
             skipped++;
             continue;

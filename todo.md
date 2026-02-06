@@ -294,3 +294,6 @@
 ## Staff Dropdown Cleanup (Feb 6, 2026)
 - [x] Remove staff dropdown entries without proper Staff ID (raw IDs like 78022869039, duplicates like "Eva Lee" without ID)
 - [x] Only show known staff members: Egenie Tang, Eva Lee, Maggie Liang, Maggie Wong, Ting Siew, Win Lee, Wing Ho, Sharon Li, Hailey Hoi Ling Wong, Bon Lau, Sze
+
+## POS Sales Order Name Fix (Feb 7, 2026)
+- [x] Fixed duplicate check: now uses orderNo + orderDate + netSales + saleType combination instead of just orderNo, so different orders with the same Order Name are no longer skipped during import
