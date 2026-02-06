@@ -492,6 +492,18 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now(), mode: "standalone" });
   });
 
+  // Temporary debug endpoint
+  app.get("/api/debug/db", async (_req, res) => {
+    try {
+      const { execute } = await import("./db");
+      const [cols] = await execute("SHOW COLUMNS FROM users");
+      const [userRows] = await execute("SELECT id, name, openId, role, pin FROM users LIMIT 5");
+      res.json({ columns: cols, users: userRows });
+    } catch (error: any) {
+      res.json({ error: error.message, stack: error.stack });
+    }
+  });
+
   // Email sync endpoints (admin only)
   app.get("/api/email/status", async (req, res) => {
     try {
