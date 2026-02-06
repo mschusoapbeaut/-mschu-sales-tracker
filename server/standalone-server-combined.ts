@@ -206,6 +206,20 @@ async function startServer() {
         return;
       }
       const saleType = req.query.type as string || 'online';
+      // Known staff members with their Staff IDs
+      const knownStaff = [
+        'Egenie Tang 78319321135',
+        'Eva Lee 78319255599',
+        'Maggie Liang 78319190063',
+        'Maggie Wong 79208775727',
+        'Ting Siew 78319386671',
+        'Win Lee 78319550511',
+        'Wing Ho 78319091759',
+        'Sharon Li 101232115995',
+        'Hailey Hoi Ling Wong 109111279899',
+        'Bon Lau 111913632027',
+        'Sze 118809198875',
+      ];
       let query = "SELECT DISTINCT staffName FROM sales WHERE staffName IS NOT NULL AND staffName != ''";
       if (saleType === 'online') {
         query += " AND (saleType = 'online' OR saleType IS NULL)";
@@ -214,7 +228,8 @@ async function startServer() {
       }
       query += " ORDER BY staffName";
       const [rows] = await db.execute(query);
-      const staffNames = (rows as any[]).map(r => r.staffName);
+      // Filter to only include known staff members (Name + StaffID format)
+      const staffNames = (rows as any[]).map(r => r.staffName).filter(name => knownStaff.includes(name));
       res.json({ staffNames });
     } catch (error) {
       console.error("[API] Get staff names error:", error);

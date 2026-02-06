@@ -290,3 +290,7 @@
 - [x] Fix authFetch to use _originalFetch (window.fetch.bind(window)) to avoid recursion
 - [x] Fix cookie domain for Railway (public suffix handling)
 - [x] Email sync already configured (mschusoapfinance@gmail.com) - Status: Connected and enabled
+
+## Staff Dropdown Cleanup (Feb 6, 2026)
+- [x] Remove staff dropdown entries without proper Staff ID (raw IDs like 78022869039, duplicates like "Eva Lee" without ID)
+- [x] Only show known staff members: Egenie Tang, Eva Lee, Maggie Liang, Maggie Wong, Ting Siew, Win Lee, Wing Ho, Sharon Li, Hailey Hoi Ling Wong, Bon Lau, Sze
