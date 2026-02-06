@@ -256,19 +256,37 @@ async function importExcelData(content: Buffer): Promise<number> {
   
   let imported = 0;
   
+  // Log the header row to verify column positions
+  if (rows.length > 0) {
+    console.log(`[EmailSync] Header row: ${JSON.stringify(rows[0])}`);
+  }
+  
   // Skip header row (row 0), start from row 1
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
     
-    // Column mapping (0-indexed):
-    // A=0: Order Date, B=1: Order Name, C=2: Sales Channel
-    // E=4: Customer Tags (WVReferredByStaff), H=7: Net Sales
+    // Log first data row for debugging
+    if (i === 1) {
+      console.log(`[EmailSync] First data row: ${JSON.stringify(row)}`);
+      console.log(`[EmailSync] Row length: ${row.length}`);
+    }
+    
+    // Column mapping (0-indexed) based on actual Excel format:
+    // A=0: Order Date, B=1: Order Name, C=2: Sales Channel, D=3: Customer Created At
+    // E=4: Customer Tags (WVReferredByStaff), F=5: Payment Method
+    // G=6: Email Marketing, H=7: SMS Marketing
+    // I=8: Gross Sales, J=9: Net Sales, K=10: Total Sales, L=11: Refund Adjustment
     const orderDateRaw = row[0];
     const orderName = row[1] ? String(row[1]).trim() : null;
     const salesChannel = row[2] ? String(row[2]).trim() : null;
     const customerTags = row[4] ? String(row[4]).trim() : "";
-    const netSalesRaw = row[7];
+    const netSalesRaw = row[9]; // Column J = Net Sales (index 9)
+    
+    // Log parsed values for first few rows
+    if (i <= 3) {
+      console.log(`[EmailSync] Row ${i}: date=${orderDateRaw}, order=${orderName}, channel=${salesChannel}, tags=${customerTags}, netSales=${netSalesRaw}`);
+    }
     
     // Parse order date
     let orderDate: Date | null = null;
@@ -310,29 +328,37 @@ async function importExcelData(content: Buffer): Promise<number> {
     // Try to find user ID from staff mapping using WVReferredByStaff
     let userId = 1; // Default to admin user
     if (customerTags) {
-      const staffIdMatch = customerTags.match(/WVReferredByStaff:(\d+)/);
+      const staffIdMatch = customerTags.match(/WVReferredByStaff_(\d+)/);
       if (staffIdMatch && staffMapping[staffIdMatch[1]]) {
         userId = staffMapping[staffIdMatch[1]];
       }
     }
     
+    // Check if order already exists to avoid duplicates
+    if (orderName) {
+      const existingOrder = await db.execute(
+        "SELECT id FROM sales WHERE orderNo = ? LIMIT 1",
+        [orderName]
+      );
+      if (existingOrder[0] && (existingOrder[0] as any[]).length > 0) {
+        console.log(`[EmailSync] Skipping duplicate: ${orderName}`);
+        continue;
+      }
+    }
+    
     try {
-      await db.createSale({
-        userId,
-        productName: salesChannel || "Sale",
-        productCategory: "Shopify",
-        quantity: 1,
-        unitPrice: netSales.toString(),
-        totalAmount: netSales.toString(),
-        saleDate: orderDate || new Date(),
-        orderReference: orderName || undefined,
-        saleType: "online", // Email imports are always online sales
-      });
+      console.log(`[EmailSync] Inserting: order=${orderName}, channel=${salesChannel}, amount=${netSales}, date=${orderDate}`);
+      // Use raw SQL to match production database schema (orderNo, not orderReference)
+      const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      await db.execute(
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, saleType) VALUES (?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, "online"]
+      );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
-    } catch (error) {
-      // Skip duplicates or other errors
-      console.log(`[EmailSync] Skipped record: ${orderName}`);
+    } catch (error: any) {
+      // Log the actual error for debugging
+      console.error(`[EmailSync] Error inserting ${orderName}:`, error.message || error);
     }
   }
   
