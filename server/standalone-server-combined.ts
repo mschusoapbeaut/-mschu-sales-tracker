@@ -185,6 +185,7 @@ async function startServer() {
       
       let imported = 0;
       let skipped = 0;
+      let updated = 0;
       
       // Better CSV parsing function that handles quoted fields
       function parseCSVLine(line: string): string[] {
@@ -206,6 +207,11 @@ async function startServer() {
         result.push(current.trim().replace(/^"|"$/g, ''));
         return result;
       }
+      
+      // For POS uploads: track last known channel/gateway per order to carry forward
+      let lastChannel: string | null = null;
+      let lastPaymentGateway: string | null = null;
+      let lastOrderNo: string | null = null;
       
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -242,8 +248,8 @@ async function startServer() {
           }
         }
         const orderNo = orderIdx >= 0 ? values[orderIdx] : null;
-        const salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
-        const paymentGateway = paymentGatewayIdx >= 0 ? values[paymentGatewayIdx] : null;
+        let salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
+        let paymentGateway = paymentGatewayIdx >= 0 ? values[paymentGatewayIdx] : null;
         const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
         
         if (isNaN(netSales)) {
@@ -251,10 +257,45 @@ async function startServer() {
           continue;
         }
         
+        // For POS uploads: carry forward channel/gateway from previous row with same order
+        if (resolvedSaleType === 'pos' && orderNo) {
+          if (orderNo === lastOrderNo) {
+            // Same order as previous row - carry forward if current is empty
+            if (!salesChannel && lastChannel) salesChannel = lastChannel;
+            if (!paymentGateway && lastPaymentGateway) paymentGateway = lastPaymentGateway;
+          } else {
+            // New order - update tracking
+            if (salesChannel) lastChannel = salesChannel;
+            else lastChannel = null;
+            if (paymentGateway) lastPaymentGateway = paymentGateway;
+            else lastPaymentGateway = null;
+            lastOrderNo = orderNo;
+          }
+        }
+        
         // Check for duplicate
         if (orderNo) {
-          const [existing] = await db.execute("SELECT id FROM sales WHERE orderNo = ?", [orderNo]);
+          const [existing] = await db.execute("SELECT id, salesChannel, paymentGateway FROM sales WHERE orderNo = ?", [orderNo]);
           if ((existing as any[]).length > 0) {
+            // If existing record has missing channel/gateway, update it
+            const existingRow = (existing as any[])[0];
+            if (resolvedSaleType === 'pos' && (salesChannel || paymentGateway)) {
+              const updates: string[] = [];
+              const updateParams: any[] = [];
+              if (salesChannel && !existingRow.salesChannel) {
+                updates.push("salesChannel = ?");
+                updateParams.push(salesChannel);
+              }
+              if (paymentGateway && !existingRow.paymentGateway) {
+                updates.push("paymentGateway = ?");
+                updateParams.push(paymentGateway);
+              }
+              if (updates.length > 0) {
+                updateParams.push(existingRow.id);
+                await db.execute(`UPDATE sales SET ${updates.join(", ")} WHERE id = ?`, updateParams);
+                updated++;
+              }
+            }
             skipped++;
             continue;
           }
@@ -267,7 +308,7 @@ async function startServer() {
         imported++;
       }
       
-      res.json({ success: true, imported, skipped, message: `Imported ${imported} sales, skipped ${skipped} duplicates/invalid` });
+      res.json({ success: true, imported, skipped, updated, message: `Imported ${imported} new sales, updated ${updated} existing records, skipped ${skipped} duplicates` });
     } catch (error) {
       console.error("[API] Upload sales error:", error);
       res.status(500).json({ error: "Failed to upload sales data" });
