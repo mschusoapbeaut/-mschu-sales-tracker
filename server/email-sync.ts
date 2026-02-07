@@ -376,6 +376,13 @@ async function importExcelData(content: Buffer): Promise<number> {
       continue;
     }
     
+    // Skip Point of Sale orders from Online Sales import
+    // The Shopify "Online Orders by customer" report may include POS orders
+    if (salesChannel && salesChannel.toLowerCase().includes("point of sale")) {
+      console.log(`[EmailSync] Skipping POS order from Online Sales import: ${orderName} (channel: ${salesChannel})`);
+      continue;
+    }
+    
     // Try to find user ID and staff name from staff mapping using WVReferredByStaff
     let userId = 1; // Default to admin user
     let staffName: string | null = null;

@@ -96,6 +96,45 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Auto-migrate: add new columns if they don't exist
+  try {
+    const columnsToAdd = [
+      { name: 'emailMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
+      { name: 'smsMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
+      { name: 'customerEmail', def: 'VARCHAR(255) DEFAULT NULL' },
+    ];
+    for (const col of columnsToAdd) {
+      try {
+        await db.execute(`ALTER TABLE sales ADD COLUMN ${col.name} ${col.def}`);
+        console.log(`[Migration] Added column ${col.name} to sales table`);
+      } catch (e: any) {
+        if (e.code === 'ER_DUP_FIELDNAME' || e.errno === 1060) {
+          // Column already exists, skip
+        } else {
+          console.error(`[Migration] Error adding column ${col.name}:`, e.message);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Migration] Auto-migration failed:', e);
+  }
+
+  // One-time cleanup: remove Point of Sale orders that were incorrectly imported as Online Sales
+  try {
+    const [posInOnline] = await db.execute(
+      "SELECT COUNT(*) as cnt FROM sales WHERE saleType = 'online' AND salesChannel LIKE '%Point of Sale%'"
+    );
+    const posCount = (posInOnline as any[])[0]?.cnt || 0;
+    if (posCount > 0) {
+      await db.execute(
+        "DELETE FROM sales WHERE saleType = 'online' AND salesChannel LIKE '%Point of Sale%'"
+      );
+      console.log(`[Cleanup] Removed ${posCount} POS orders incorrectly stored as Online Sales`);
+    }
+  } catch (e: any) {
+    console.error('[Cleanup] Error removing POS orders from Online Sales:', e.message);
+  }
+
   // Enable CORS for all routes
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -387,6 +426,12 @@ async function startServer() {
         
         // Skip Grand Total / summary rows
         if (orderNo && (orderNo.toLowerCase().includes('grand total') || orderNo.toLowerCase() === 'total')) {
+          skippedInvalid++; continue;
+        }
+        
+        // Skip Point of Sale orders when uploading as Online Sales
+        // The Shopify "Online Orders by customer" report may include POS orders
+        if ((uploadSaleType === 'online' || !uploadSaleType) && salesChannel && salesChannel.toLowerCase().includes('point of sale')) {
           skippedInvalid++; continue;
         }
         
@@ -1191,8 +1236,8 @@ function getAdminHTML(): string {
             html += '<th>Channel</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
             html += '<th>Customer Email</th>';
-            html += '<th>Email Mkt</th>';
-            html += '<th>SMS Mkt</th>';
+            html += '<th class="' + sortClass('emailMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;emailMarketing&#39;)">Email Mkt</th>';
+            html += '<th class="' + sortClass('smsMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;smsMarketing&#39;)">SMS Mkt</th>';
             html += '<th>Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
                 const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';

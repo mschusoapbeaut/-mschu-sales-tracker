@@ -424,3 +424,19 @@
 - [x] Added customerEmail column to sales database table
 - [x] API endpoint updated to return emailMarketing, smsMarketing, customerEmail fields
 - [x] Deployed to Railway — everything else stays the same
+
+## Upload Not Showing Data (Feb 7, 2026)
+- [ ] Debug why uploaded Jan 2026 Online Sales data shows $0 / 0 orders
+- [ ] Check Railway logs for upload errors
+- [ ] Check database for inserted records
+- [x] Fix the issue — added ALTER TABLE migration for emailMarketing, smsMarketing, customerEmail columns; deployed to Railway
+
+## POS Orders in Online Sales Tab Fix (Feb 7, 2026)
+- [ ] Filter out "Point of Sale" channel orders from Online Sales tab during email sync
+- [ ] Filter out "Point of Sale" channel orders from Online Sales tab during manual upload
+- [ ] Verify Jan 2026 data source (manual upload) and Feb 2026 data source (email auto-fetch)
+- [x] Clean up existing Feb 2026 POS orders incorrectly in Online Sales
+
+## Sorting Arrows for Email Mkt and SMS Mkt (Feb 7, 2026)
+- [x] Add sorting arrows to Email Mkt column in Online Sales table
+- [x] Add sorting arrows to SMS Mkt column in Online Sales table
