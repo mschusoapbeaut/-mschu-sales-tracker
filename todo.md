@@ -458,6 +458,7 @@
 - [x] Replace PIN with single visible input field for Shopify POS browser compatibility
 - [x] Fix Login button not working after typing PIN on POS staff view — reverted to 4-square PIN matching admin, fixed _fetch to fetch, fixed pinField to pinInput
 - [x] Replace hidden input overlay with 4 visible tappable input boxes (hidden overlay doesn't work on Shopify POS)
+- [x] Use simplest possible single password input + Login button for POS staff view (all fancy approaches fail on Shopify POS browser)
 
 ## Email Auto-Sync Not Running (Feb 8, 2026)
 - [x] Fix email auto-sync showing 'Last synced: Never' - removed 1-minute delay, sync runs immediately on startup

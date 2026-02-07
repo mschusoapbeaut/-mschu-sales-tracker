@@ -1848,8 +1848,8 @@ function getAdminHTML(): string {
                 } else {
                     updateEmailStatus(null, false, false);
                 }
-                if (d.lastSyncTime) {
-                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date(d.lastSyncTime).toLocaleString();
+                if (d.config && d.config.lastSyncTime) {
+                    document.getElementById('lastSyncTime').textContent = 'Last synced: ' + new Date(d.config.lastSyncTime).toLocaleString();
                 } else {
                     document.getElementById('lastSyncTime').textContent = 'Last synced: Never';
                 }
@@ -1997,10 +1997,8 @@ function getStaffViewHTML(): string {
         .login-card .logo img { width: 150px; height: auto; object-fit: contain; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .pin-box { width: 50px; height: 60px; text-align: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; color: #333; outline: none; -webkit-appearance: none; -moz-appearance: textfield; -webkit-text-security: disc; }
-        .pin-box:focus { border-color: #6B8E6B; box-shadow: 0 0 0 3px rgba(107,142,107,0.2); }
-        .pin-box::-webkit-outer-spin-button, .pin-box::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .pin-input { text-align: center; margin-bottom: 20px; }
+        .pin-field { width: 200px; height: 50px; text-align: center; font-size: 24px; letter-spacing: 12px; border: 2px solid #ddd; border-radius: 10px; background: white; color: #333; padding: 0 10px; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
@@ -2052,10 +2050,7 @@ function getStaffViewHTML(): string {
             <h1>Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
             <div class="pin-input">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p0" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p1" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p2" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p3" autocomplete="off" pattern="[0-9]*">
+                <input type="password" inputmode="numeric" maxlength="4" class="pin-field" id="pinField" autocomplete="off" placeholder="••••">
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error-msg" id="errMsg"></p>
@@ -2106,48 +2101,18 @@ function getStaffViewHTML(): string {
         let posData = [];
         let currentTab = 'online';
 
-        // 4 visible real input boxes - no hidden inputs, works on Shopify POS
-        const pins = [document.getElementById('p0'), document.getElementById('p1'), document.getElementById('p2'), document.getElementById('p3')];
+        // Simple single PIN field
+        const pinField = document.getElementById('pinField');
 
-        function getPin() { return pins.map(p => p.value).join(''); }
+        function getPin() { return pinField.value.replace(/[^0-9]/g, ''); }
 
         function clearPin() {
-            pins.forEach(p => { p.value = ''; });
-            pins[0].focus();
+            pinField.value = '';
+            pinField.focus();
         }
 
-        // Simple input handler for each box
-        pins.forEach((el, i) => {
-            el.addEventListener('input', function() {
-                // Only allow digits
-                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 1);
-                // Move to next box if digit entered
-                if (this.value && i < 3) {
-                    pins[i + 1].focus();
-                }
-                // Auto-submit when all 4 filled
-                if (getPin().length === 4) {
-                    doLogin();
-                }
-            });
-            el.addEventListener('keydown', function(e) {
-                // Backspace: clear and go back
-                if (e.key === 'Backspace') {
-                    if (!this.value && i > 0) {
-                        pins[i - 1].value = '';
-                        pins[i - 1].focus();
-                    } else {
-                        this.value = '';
-                    }
-                    e.preventDefault();
-                }
-            });
-            // Select on focus
-            el.addEventListener('focus', function() { this.select(); });
-        });
-
-        // Focus first box
-        setTimeout(function() { pins[0].focus(); }, 300);
+        // Focus the field on load
+        setTimeout(function() { pinField.focus(); }, 300);
 
         document.getElementById('loginBtn').onclick = doLogin;
 
@@ -2334,7 +2299,7 @@ function getStaffViewHTML(): string {
             clearPin();
         }
 
-        pins[0].focus();
+        pinField.focus();
     </script>
 </body>
 </html>`;
