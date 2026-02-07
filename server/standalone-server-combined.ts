@@ -1021,7 +1021,10 @@ function getAdminHTML(): string {
                         <label style="font-weight:600">Month to clear:</label>
                         <input type="month" id="clearMonth" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px" />
                         <label style="font-weight:600;margin-left:10px">Type:</label>
-                        <span id="clearTypeLabel" style="font-weight:600;color:#2c5530">Online Sales</span>
+                        <select id="clearSaleType" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px;font-weight:600;color:#2c5530">
+                            <option value="online">Online Sales</option>
+                            <option value="pos">POS Sales</option>
+                        </select>
                     </div>
                     <div style="display:flex;gap:10px">
                         <button class="btn" onclick="executeClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Confirm: Clear &amp; Re-import</button>
@@ -1632,9 +1635,9 @@ function getAdminHTML(): string {
             const now = new Date();
             const monthInput = document.getElementById('clearMonth');
             monthInput.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-            // Update type label to match the selected sale type
-            const saleType = document.getElementById('uploadSaleType').value;
-            document.getElementById('clearTypeLabel').textContent = saleType === 'pos' ? 'POS Sales' : 'Online Sales';
+            // Default the clear sale type dropdown to match the upload panel's selection
+            var uploadType = document.getElementById('uploadSaleType').value;
+            document.getElementById('clearSaleType').value = uploadType;
         }
         
         function hideClearReimport() {
@@ -1643,7 +1646,7 @@ function getAdminHTML(): string {
         
         async function executeClearReimport() {
             const month = document.getElementById('clearMonth').value;
-            const saleType = document.getElementById('uploadSaleType').value;
+            const saleType = document.getElementById('clearSaleType').value;
             const csvData = document.getElementById('csvPreview').value.trim();
             
             if (!month) {

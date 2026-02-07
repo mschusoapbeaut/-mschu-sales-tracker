@@ -352,3 +352,8 @@
 - [x] Add back missing file chooser button (Choose Excel/CSV File)
 - [x] Fix parseExcelFile to work with handleFileSelect (XLSX library loading)
 - [x] Month picker now shows immediately without requiring file selection first
+
+## Clear & Re-import Sale Type Selector (Feb 7, 2026)
+- [x] Add Sale Type dropdown (Online Sales / POS Sales) inside the Clear & Re-import section
+- [x] Remove dependency on the upload panel's Sale Type dropdown for clear operations
+- [x] Default the clear dropdown to match the upload panel's selection when opening
