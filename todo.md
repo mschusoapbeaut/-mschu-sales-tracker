@@ -440,3 +440,14 @@
 ## Sorting Arrows for Email Mkt and SMS Mkt (Feb 7, 2026)
 - [x] Add sorting arrows to Email Mkt column in Online Sales table
 - [x] Add sorting arrows to SMS Mkt column in Online Sales table
+
+## Feb 2026 Missing Customer Email / Marketing Data (Feb 8, 2026)
+- [x] Investigate why most Feb 2026 orders are missing Customer Email, Email Mkt, SMS Mkt
+- [x] Fix: cleared 41 orders missing data, email sync re-imported 61 orders from all 17 emails with full data
+
+## POS Staff View Table Layout (Feb 8, 2026)
+- [x] Update POS URL extension staff view to use table layout matching desktop admin view
+
+## Unknown Staff IDs in Feb 2026 Online Sales (Feb 8, 2026)
+- [x] Investigate which staff IDs are showing as 'Unknown Staff' (e.g., 90979827995, 101244961051) — confirmed former staff
+- [x] Keep 'Unknown Staff [ID]' label as-is per user request

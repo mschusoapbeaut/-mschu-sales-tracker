@@ -161,13 +161,13 @@ export async function fetchAndProcessEmails(): Promise<{
 
           console.log(`[EmailSync] Found ${results.length} emails matching subject filter`);
           
-          // Only process the latest email (last one in results)
-          const latestEmailId = results[results.length - 1];
-          console.log(`[EmailSync] Processing only the latest email (ID: ${latestEmailId})`);
+          // Process ALL matching emails to ensure complete data coverage
+          // Duplicate check in importExcelData prevents double-importing
+          console.log(`[EmailSync] Processing all ${results.length} matching emails`);
           
           const processPromises: Promise<number>[] = [];
 
-          const f = imap.fetch([latestEmailId], { bodies: "", markSeen: true });
+          const f = imap.fetch(results, { bodies: "", markSeen: true });
 
           f.on("message", (msg) => {
             const processPromise = new Promise<number>((resolveMsg) => {

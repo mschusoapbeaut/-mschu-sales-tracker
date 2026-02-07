@@ -135,6 +135,24 @@ async function startServer() {
     console.error('[Cleanup] Error removing POS orders from Online Sales:', e.message);
   }
 
+  // One-time fix: clear Feb 2026 online sales that are missing email/marketing data
+  // These were imported before the emailMarketing/smsMarketing/customerEmail columns existed
+  // The email sync will re-import them with full data on next run
+  try {
+    const [missingData] = await db.execute(
+      "SELECT COUNT(*) as cnt FROM sales WHERE saleType = 'online' AND orderDate >= '2026-02-01' AND orderDate < '2026-03-01' AND customerEmail IS NULL AND emailMarketing IS NULL"
+    );
+    const missingCount = (missingData as any[])[0]?.cnt || 0;
+    if (missingCount > 0) {
+      await db.execute(
+        "DELETE FROM sales WHERE saleType = 'online' AND orderDate >= '2026-02-01' AND orderDate < '2026-03-01' AND customerEmail IS NULL AND emailMarketing IS NULL"
+      );
+      console.log(`[Cleanup] Cleared ${missingCount} Feb 2026 online orders missing email/marketing data (will be re-imported by email sync)`);
+    }
+  } catch (e: any) {
+    console.error('[Cleanup] Error clearing Feb 2026 data:', e.message);
+  }
+
   // Enable CORS for all routes
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -1998,25 +2016,32 @@ function getStaffViewHTML(): string {
         .logout-link { font-size: 14px; color: #999; cursor: pointer; border: none; background: none; }
         .month-label { font-size: 13px; color: #888; margin-top: 4px; }
 
-        .tab-bar { display: flex; background: white; border-bottom: 1px solid #e5e5e5; padding: 0 20px; position: sticky; top: 57px; z-index: 9; }
-        .tab-item { flex: 1; text-align: center; padding: 12px 0; font-size: 14px; font-weight: 500; color: #999; border-bottom: 2px solid transparent; cursor: pointer; }
-        .tab-item.active { color: #4A6B4A; border-bottom-color: #4A6B4A; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .tab-item { padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 15px; color: #666; border-radius: 8px; }
+        .tab-item.active { background: #6B8E6B; color: white; }
+        .tab-item:hover:not(.active) { background: #f0f0f0; }
 
-        .content { padding: 16px 20px 100px; }
+        .content { padding: 20px; padding-bottom: 100px; background: linear-gradient(135deg, #8BAF8B 0%, #5C7F5C 100%); min-height: calc(100vh - 120px); }
+        .content-inner { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
 
         .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
         .summary-card { background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); border-radius: 14px; padding: 16px; color: white; text-align: center; }
         .summary-card .amount { font-size: 22px; font-weight: 700; }
         .summary-card .label { font-size: 11px; opacity: 0.85; margin-top: 4px; }
 
-        .orders-section { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .orders-header { padding: 14px 16px; font-size: 15px; font-weight: 600; color: #333; border-bottom: 1px solid #f0f0f0; }
-        .order-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f5f5f5; }
-        .order-row:last-child { border-bottom: none; }
-        .order-info { flex: 1; }
-        .order-id { font-size: 14px; font-weight: 500; color: #333; }
-        .order-meta { font-size: 12px; color: #999; margin-top: 2px; }
-        .order-amount { font-size: 15px; font-weight: 600; color: #27ae60; text-align: right; white-space: nowrap; }
+        .section { margin-bottom: 20px; }
+        .section h2 { color: #333; font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .sales-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .sales-table th { background: #f8f9fa; padding: 10px 8px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e0e0e0; white-space: nowrap; }
+        .sales-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 18px; }
+        .sales-table th.sortable:hover { background: #eef1f4; color: #333; }
+        .sales-table th.sortable::after { content: '\u21C5'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #aaa; }
+        .sales-table th.sortable.sort-asc::after { content: '\u25B2'; color: #5b6abf; }
+        .sales-table th.sortable.sort-desc::after { content: '\u25BC'; color: #5b6abf; }
+        .sales-table td { padding: 10px 8px; border-bottom: 1px solid #eee; color: #333; }
+        .sales-table tr:hover { background: #f8f9fa; }
+        .sales-table .amount { font-weight: 600; color: #27ae60; white-space: nowrap; }
         .no-data { text-align: center; padding: 40px 20px; color: #bbb; font-size: 14px; }
         .loading { text-align: center; padding: 30px; color: #999; font-size: 14px; }
     </style>
@@ -2050,11 +2075,12 @@ function getStaffViewHTML(): string {
             </div>
             <div class="month-label" id="monthLabel"></div>
         </div>
-        <div class="tab-bar">
-            <div class="tab-item active" id="tabOnline" onclick="switchTab('online')">Online Sales</div>
-            <div class="tab-item" id="tabPos" onclick="switchTab('pos')">POS Sales</div>
-        </div>
         <div class="content">
+          <div class="content-inner">
+            <div class="tabs">
+                <div class="tab-item active" id="tabOnline" onclick="switchTab('online')">Online Sales</div>
+                <div class="tab-item" id="tabPos" onclick="switchTab('pos')">POS Sales</div>
+            </div>
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="amount" id="totalAmount">HK$0</div>
@@ -2065,10 +2091,13 @@ function getStaffViewHTML(): string {
                     <div class="label">Orders</div>
                 </div>
             </div>
-            <div class="orders-section">
-                <div class="orders-header" id="ordersHeader">Online Orders</div>
-                <div id="ordersList"><div class="no-data">No orders yet</div></div>
+            <div class="section">
+                <h2 id="ordersHeader">Online Sales History</h2>
+                <div class="table-wrapper">
+                    <div id="ordersList"><div class="no-data">No orders yet</div></div>
+                </div>
             </div>
+          </div>
         </div>
     </div>
 
@@ -2190,6 +2219,8 @@ function getStaffViewHTML(): string {
 
         function switchTab(tab) {
             currentTab = tab;
+            sortCol = null;
+            sortDir = null;
             document.getElementById('tabOnline').className = 'tab-item' + (tab === 'online' ? ' active' : '');
             document.getElementById('tabPos').className = 'tab-item' + (tab === 'pos' ? ' active' : '');
             renderTab();
@@ -2200,45 +2231,89 @@ function getStaffViewHTML(): string {
             return 'HK$' + n.toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        let sortCol = null;
+        let sortDir = null;
+
+        function sortData(data, col, dir) {
+            return [...data].sort((a, b) => {
+                let va = a[col] || '';
+                let vb = b[col] || '';
+                if (col === 'orderDate') {
+                    va = va ? new Date(va).getTime() : 0;
+                    vb = vb ? new Date(vb).getTime() : 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                va = String(va).toLowerCase();
+                vb = String(vb).toLowerCase();
+                if (va < vb) return dir === 'asc' ? -1 : 1;
+                if (va > vb) return dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function handleSort(col) {
+            if (sortCol === col) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortCol = col;
+                sortDir = 'asc';
+            }
+            renderTab();
+        }
+
+        function sortClass(col) {
+            if (col !== sortCol) return 'sortable';
+            return 'sortable sort-' + sortDir;
+        }
+
         function renderTab() {
-            const sales = currentTab === 'online' ? onlineData : posData;
+            const rawSales = currentTab === 'online' ? onlineData : posData;
+            const sales = sortCol ? sortData(rawSales, sortCol, sortDir) : rawSales;
             const typeLabel = currentTab === 'online' ? 'Online' : 'POS';
             const total = sales.reduce((s, r) => s + (parseFloat(r.netSales) || 0), 0);
 
             document.getElementById('totalAmount').textContent = fmtCurrency(total);
             document.getElementById('totalOrders').textContent = sales.length;
             document.getElementById('totalLabel').textContent = 'Total ' + typeLabel + ' Sales';
-            document.getElementById('ordersHeader').textContent = typeLabel + ' Orders';
+            document.getElementById('ordersHeader').textContent = typeLabel + ' Sales History';
 
             const listEl = document.getElementById('ordersList');
             if (sales.length === 0) {
                 listEl.innerHTML = '<div class="no-data">No ' + typeLabel.toLowerCase() + ' orders this month</div>';
                 return;
             }
-            let html = '';
+
+            let html = '<table class="sales-table"><thead><tr>';
+            html += '<th class="' + sortClass('orderDate') + '" onclick="handleSort(\'orderDate\')">Order Date</th>';
+            html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order</th>';
+            html += '<th>Channel</th>';
+            if (currentTab === 'online') {
+                html += '<th>Customer Email</th>';
+                html += '<th class="' + sortClass('emailMarketing') + '" onclick="handleSort(\'emailMarketing\')">Email Mkt</th>';
+                html += '<th class="' + sortClass('smsMarketing') + '" onclick="handleSort(\'smsMarketing\')">SMS Mkt</th>';
+            } else {
+                html += '<th>Payment</th>';
+            }
+            html += '<th>Net Sales</th>';
+            html += '</tr></thead><tbody>';
+
             sales.forEach(r => {
                 const date = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
-                const channel = r.salesChannel || '-';
-                const gateway = r.paymentGateway || '';
-                const meta = currentTab === 'pos' ? date + ' \u00B7 ' + channel + (gateway ? ' \u00B7 ' + gateway : '') : date + ' \u00B7 ' + channel;
-                // For online orders, show additional marketing fields
-                let extraInfo = '';
+                html += '<tr>';
+                html += '<td>' + date + '</td>';
+                html += '<td>' + (r.orderNo || '-') + '</td>';
+                html += '<td>' + (r.salesChannel || '-') + '</td>';
                 if (currentTab === 'online') {
-                    const email = r.customerEmail || '-';
-                    const emailMkt = r.emailMarketing || '-';
-                    const smsMkt = r.smsMarketing || '-';
-                    extraInfo = '<div class="order-meta" style="margin-top:2px;font-size:11px">' + email + '</div>';
-                    extraInfo += '<div class="order-meta" style="margin-top:1px;font-size:11px">Email: ' + emailMkt + ' \u00B7 SMS: ' + smsMkt + '</div>';
+                    html += '<td style="font-size:12px">' + (r.customerEmail || '-') + '</td>';
+                    html += '<td>' + (r.emailMarketing || '-') + '</td>';
+                    html += '<td>' + (r.smsMarketing || '-') + '</td>';
+                } else {
+                    html += '<td>' + (r.paymentGateway || '-') + '</td>';
                 }
-                html += '<div class="order-row">';
-                html += '  <div class="order-info">';
-                html += '    <div class="order-id">#' + (r.orderNo || '-') + '</div>';
-                html += '    <div class="order-meta">' + meta + '</div>';
-                html += extraInfo;
-                html += '  </div>';
-                html += '  <div class="order-amount">' + fmtCurrency(r.netSales) + '</div>';
-                html += '</div>';
+                html += '<td class="amount">' + fmtCurrency(r.netSales) + '</td>';
+                html += '</tr>';
             });
+            html += '</tbody></table>';
             listEl.innerHTML = html;
         }
 
