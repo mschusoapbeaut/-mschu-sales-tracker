@@ -389,3 +389,9 @@
 - [x] Replaced soap emoji with logo image on admin dashboard login screen
 - [x] Replaced soap emoji with logo image on staff-view login screen
 - [x] Deployed to Railway
+
+## Official Logo from Website (Feb 7, 2026)
+- [x] Extracted official Ms. Chu logo from mschusoapandbeaut.com (black brush script with water droplets)
+- [x] Replaced generated logo with official logo on admin dashboard and staff-view login pages
+- [x] Adjusted CSS for horizontal logo format (180px admin, 150px staff-view)
+- [x] Deployed to Railway
