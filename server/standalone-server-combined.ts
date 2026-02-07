@@ -998,6 +998,11 @@ function getAdminHTML(): string {
                         </select>
                     </div>
                     <div class="form-row">
+                        <div class="file-input-wrapper">
+                            <span class="file-input-label">Choose Excel/CSV File</span>
+                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
+                        </div>
+                        <span id="fileName" style="margin-left:10px;color:#666;font-size:13px"></span>
                     </div>
                     <div class="form-row" style="margin-top:15px">
                         <textarea id="csvPreview" placeholder="CSV content will appear here after selecting a file, or paste CSV data directly..."></textarea>
@@ -1621,11 +1626,6 @@ function getAdminHTML(): string {
         }
         
         function showClearReimport() {
-            const csvData = document.getElementById('csvPreview').value.trim();
-            if (!csvData) {
-                showMessage('uploadMessage', 'Please select a file first before using Clear & Re-import', 'error');
-                return;
-            }
             const section = document.getElementById('clearReimportSection');
             section.style.display = 'block';
             // Set default month to current month

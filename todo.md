@@ -346,3 +346,9 @@
 - [x] Fix auto-login after 4th digit on all three PIN login screens
 - [x] Verify admin PIN 9999 works on all three
 - [x] Fix JS syntax errors caused by \n inside template literals — rewrote to use array.join('<br>') approach
+
+## Clear & Re-import Button Bug (Feb 7, 2026)
+- [x] Fix Clear & Re-import Month button not showing month picker section when clicked
+- [x] Add back missing file chooser button (Choose Excel/CSV File)
+- [x] Fix parseExcelFile to work with handleFileSelect (XLSX library loading)
+- [x] Month picker now shows immediately without requiring file selection first
