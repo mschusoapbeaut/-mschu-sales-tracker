@@ -1997,10 +1997,10 @@ function getStaffViewHTML(): string {
         .login-card .logo img { width: 150px; height: auto; object-fit: contain; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-        .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .pin-digit { width: 48px; height: 56px; text-align: center; font-size: 26px; border: 2px solid #ddd; border-radius: 12px; background: white; color: #333; outline: none; -webkit-appearance: none; -moz-appearance: textfield; caret-color: #6B8E6B; }
-        .pin-digit:focus { border-color: #6B8E6B; box-shadow: 0 0 0 3px rgba(107,142,107,0.2); }
-        .pin-digit::-webkit-outer-spin-button, .pin-digit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .pin-row { display: flex; justify-content: center; margin-bottom: 20px; }
+        .pin-single { width: 220px; height: 56px; text-align: center; font-size: 32px; letter-spacing: 20px; padding-left: 20px; border: 2px solid #ddd; border-radius: 12px; background: white; color: #333; outline: none; -webkit-appearance: none; -moz-appearance: textfield; caret-color: #6B8E6B; -webkit-text-security: disc; }
+        .pin-single:focus { border-color: #6B8E6B; box-shadow: 0 0 0 3px rgba(107,142,107,0.2); }
+        .pin-single::-webkit-outer-spin-button, .pin-single::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
@@ -2052,10 +2052,7 @@ function getStaffViewHTML(): string {
             <h1>Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
             <div class="pin-row">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-digit" id="d0" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-digit" id="d1" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-digit" id="d2" autocomplete="off" pattern="[0-9]*">
-                <input type="tel" inputmode="numeric" maxlength="1" class="pin-digit" id="d3" autocomplete="off" pattern="[0-9]*">
+                <input type="tel" inputmode="numeric" maxlength="4" class="pin-single" id="pinField" autocomplete="off" pattern="[0-9]*" placeholder="••••">
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error-msg" id="errMsg"></p>
@@ -2107,96 +2104,31 @@ function getStaffViewHTML(): string {
         let posData = [];
         let currentTab = 'online';
 
-        // 4 individual visible inputs - most reliable on all devices including Shopify POS
-        const digits = [document.getElementById('d0'), document.getElementById('d1'), document.getElementById('d2'), document.getElementById('d3')];
+        // Single visible input - simplest and most reliable for all browsers including Shopify POS
+        const pinField = document.getElementById('pinField');
         let loginPending = false;
 
-        function getPin() { return digits.map(d => d.value).join(''); }
+        function getPin() { return pinField.value; }
 
-        function handleDigitChange(el, i) {
-            el.value = el.value.replace(/[^0-9]/g, '');
-            // If multiple chars typed (e.g. fast typing), distribute across fields
-            if (el.value.length > 1) {
-                const chars = el.value.split('');
-                el.value = chars[0];
-                for (let j = 1; j < chars.length && (i + j) < 4; j++) {
-                    digits[i + j].value = chars[j];
-                }
-            }
-            // Auto-jump to next field
-            if (el.value.length === 1 && i < 3) {
-                // Use multiple methods to ensure focus moves
-                digits[i + 1].focus();
-                // Fallback with setTimeout for browsers that delay focus
-                setTimeout(() => { digits[i + 1].focus(); }, 10);
-                setTimeout(() => { digits[i + 1].focus(); }, 50);
-            }
-            // Auto-submit when all 4 filled
-            const pin = getPin();
-            if (pin.length === 4 && !loginPending) {
+        pinField.addEventListener('input', () => {
+            pinField.value = pinField.value.replace(/[^0-9]/g, '').slice(0, 4);
+            if (pinField.value.length === 4 && !loginPending) {
                 loginPending = true;
                 setTimeout(() => {
-                    if (getPin().length === 4) doLogin();
+                    if (pinField.value.length === 4) doLogin();
                     loginPending = false;
                 }, 300);
             }
-        }
-
-        digits.forEach((el, i) => {
-            // Listen to multiple events for maximum compatibility
-            el.addEventListener('input', () => handleDigitChange(el, i));
-            el.addEventListener('keyup', (e) => {
-                if (e.key >= '0' && e.key <= '9') {
-                    el.value = e.key;
-                    handleDigitChange(el, i);
-                }
-            });
-            el.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace') {
-                    if (!el.value && i > 0) {
-                        digits[i - 1].value = '';
-                        digits[i - 1].focus();
-                        setTimeout(() => { digits[i - 1].focus(); }, 10);
-                    } else {
-                        el.value = '';
-                    }
-                    e.preventDefault();
-                }
-                // If a digit key is pressed and field already has a value, move to next
-                if (e.key >= '0' && e.key <= '9' && el.value.length === 1 && i < 3) {
-                    digits[i + 1].value = e.key;
-                    digits[i + 1].focus();
-                    setTimeout(() => { digits[i + 1].focus(); }, 10);
-                    e.preventDefault();
-                    handleDigitChange(digits[i + 1], i + 1);
-                }
-            });
-            // Select all text on focus so next keystroke replaces it
-            el.addEventListener('focus', () => { el.select(); });
-            // Handle paste
-            el.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 4);
-                pasted.split('').forEach((ch, j) => {
-                    if (digits[j]) digits[j].value = ch;
-                });
-                const focusIdx = Math.min(pasted.length, 3);
-                digits[focusIdx].focus();
-                if (pasted.length === 4 && !loginPending) {
-                    loginPending = true;
-                    setTimeout(() => { doLogin(); loginPending = false; }, 300);
-                }
-            });
         });
 
-        // Auto-focus first digit
-        setTimeout(() => { digits[0].focus(); }, 300);
+        // Auto-focus
+        setTimeout(() => { pinField.focus(); }, 300);
 
         document.getElementById('loginBtn').addEventListener('click', doLogin);
 
         function clearPin() {
-            digits.forEach(d => d.value = '');
-            digits[0].focus();
+            pinField.value = '';
+            pinField.focus();
         }
 
         async function doLogin() {
@@ -2382,7 +2314,7 @@ function getStaffViewHTML(): string {
             clearPin();
         }
 
-        digits[0].focus();
+        pinField.focus();
     </script>
 </body>
 </html>`;

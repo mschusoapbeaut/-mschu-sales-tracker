@@ -455,3 +455,4 @@
 ## PIN Login Not Working (Feb 8, 2026)
 - [x] Fix PIN input not accepting typing on POS URL extension staff view — replaced hidden input with 4 visible individual inputs
 - [x] Fix PIN digit auto-jump not working on Shopify POS browser — added multiple event listeners (input, keyup, keydown) with setTimeout fallbacks
+- [x] Replace PIN with single visible input field for Shopify POS browser compatibility
