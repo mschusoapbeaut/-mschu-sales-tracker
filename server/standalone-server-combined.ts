@@ -248,11 +248,14 @@ async function startServer() {
         return;
       }
       
-      const { csvData, saleType: uploadSaleType } = req.body;
+      const { csvData, saleType: uploadSaleType, staffMappings } = req.body;
       if (!csvData) {
         res.status(400).json({ error: "No CSV data provided" });
         return;
       }
+      
+      // Staff mappings from client-side Excel parsing: { orderNo: staffName }
+      const orderStaffMap: Record<string, string> = staffMappings || {};
       
       // Parse CSV
       const lines = csvData.trim().split("\n");
@@ -381,9 +384,12 @@ async function startServer() {
           }
         }
         
+        // Check if we have a staff name from the Excel Customer Tags
+        const staffName = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
+        
         await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType) VALUES (?, ?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online']
+          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?)",
+          [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName]
         );
         imported++;
       }
@@ -392,6 +398,39 @@ async function startServer() {
     } catch (error) {
       console.error("[API] Upload sales error:", error);
       res.status(500).json({ error: "Failed to upload sales data" });
+    }
+  });
+
+  // API endpoint to bulk update staffName for orders (admin only)
+  app.post("/api/sales/update-staff", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      
+      const { updates } = req.body;
+      if (!updates || !Array.isArray(updates)) {
+        res.status(400).json({ error: "Expected updates array" });
+        return;
+      }
+      
+      let updated = 0;
+      for (const u of updates) {
+        if (u.orderNo && u.staffName) {
+          const [result] = await db.execute(
+            "UPDATE sales SET staffName = ? WHERE orderNo = ? AND saleType = ? AND (staffName IS NULL OR staffName = '')",
+            [u.staffName, u.orderNo, u.saleType || 'online']
+          );
+          if ((result as any).affectedRows > 0) updated++;
+        }
+      }
+      
+      res.json({ success: true, updated });
+    } catch (error) {
+      console.error("[API] Update staff names error:", error);
+      res.status(500).json({ error: "Failed to update staff names" });
     }
   });
 
@@ -1308,6 +1347,24 @@ function getAdminHTML(): string {
             }
         }
         
+        // Known staff ID to name mappings
+        const KNOWN_STAFF = {
+            '78319321135': 'Egenie Tang 78319321135',
+            '78319255599': 'Eva Lee 78319255599',
+            '78319190063': 'Maggie Liang 78319190063',
+            '79208775727': 'Maggie Wong 79208775727',
+            '78319386671': 'Ting Siew 78319386671',
+            '78319550511': 'Win Lee 78319550511',
+            '78319091759': 'Wing Ho 78319091759',
+            '101232115995': 'Sharon Li 101232115995',
+            '109111279899': 'Hailey Hoi Ling Wong 109111279899',
+            '111913632027': 'Bon Lau 111913632027',
+            '118809198875': 'Sze 118809198875'
+        };
+        
+        // Store staff mappings extracted from Excel
+        window._staffMappings = {};
+        
         function parseExcelFile(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -1315,9 +1372,26 @@ function getAdminHTML(): string {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Extract staff mappings from Customer Tags (Column E)
+                    window._staffMappings = {};
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        const orderName = row[1] ? String(row[1]).trim() : null;
+                        const customerTags = row[4] ? String(row[4]).trim() : '';
+                        if (orderName && customerTags) {
+                            const match = customerTags.match(/WVReferredByStaff_(\d+)/);
+                            if (match && KNOWN_STAFF[match[1]]) {
+                                window._staffMappings[orderName] = KNOWN_STAFF[match[1]];
+                            }
+                        }
+                    }
+                    
                     const csv = XLSX.utils.sheet_to_csv(firstSheet);
                     document.getElementById('csvPreview').value = csv;
-                    showMessage('uploadMessage', 'Excel file converted to CSV format', 'success');
+                    const staffCount = Object.keys(window._staffMappings).length;
+                    showMessage('uploadMessage', 'Excel file converted. ' + staffCount + ' orders with staff attribution detected.', 'success');
                 } catch (err) {
                     showMessage('uploadMessage', 'Failed to parse Excel file: ' + err.message, 'error');
                 }
@@ -1338,7 +1412,7 @@ function getAdminHTML(): string {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ csvData, saleType })
+                    body: JSON.stringify({ csvData, saleType, staffMappings: window._staffMappings || {} })
                 });
                 const d = await r.json();
                 

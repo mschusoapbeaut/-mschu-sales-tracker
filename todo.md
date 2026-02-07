@@ -312,3 +312,12 @@
 - [x] Fix broken template literal for yearStart calculation (same issue)
 - [x] Fix staff sales filtering: match by staffName LIKE '%staffId%' since sales table staffId column is NULL but staffName contains the ID
 - [x] Fix staff view API calls to use correct query parameter names (type instead of saleType)
+
+## Missing Online Orders Bug (Feb 7, 2026)
+- [x] Investigate why orders 73428, 72957, 72954, 72892 for Eva Lee (78319255599) are missing from Jan 2026 data
+- [x] Fix the root cause of missing orders during import (removed netSales === 0 skip, fixed email sync only importing partial data)
+- [x] Re-import 173 missing January orders from Excel file
+- [x] Update staffName for 59 orders missing staff attribution
+- [x] Verify Eva Lee's Jan 2026 Online Sales total: HK$5,085.64 (6 orders)
+- [x] Enhanced upload endpoint to extract staff names from Customer Tags (WVReferredByStaff)
+- [x] Added bulk staff name update API endpoint (/api/sales/update-staff)

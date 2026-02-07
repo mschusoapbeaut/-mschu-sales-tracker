@@ -340,7 +340,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       netSales = parseFloat(String(netSalesRaw).replace(/[^0-9.-]/g, "") || "0");
     }
     
-    if (isNaN(netSales) || netSales === 0) continue;
+    if (isNaN(netSales)) continue;
+    // Note: We no longer skip netSales === 0, as these are valid orders (e.g., exchanges, gift orders)
     
     // Skip invalid rows (Grand Total, empty order names, etc.)
     if (!orderName || orderName.toLowerCase().includes("grand total") || orderName.toLowerCase().includes("total")) {
@@ -486,7 +487,8 @@ async function importCSVData(csvData: string): Promise<number> {
     const salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
     const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
 
-    if (isNaN(netSales) || netSales === 0) continue;
+    if (isNaN(netSales)) continue;
+    // Note: We no longer skip netSales === 0, as these are valid orders (e.g., exchanges, gift orders)
 
     // Try to find user ID from staff mapping
     let userId = 1; // Default to admin user
