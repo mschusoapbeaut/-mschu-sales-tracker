@@ -331,3 +331,10 @@
 - [x] Prioritize Net Sales column detection over Total Sales to avoid wrong column matching
 - [x] Add admin delete sale endpoint for data cleanup
 - [x] Multi-line upload result display with 15s visibility
+
+## Clear & Re-import Feature (Feb 7, 2026)
+- [x] Add server endpoint to clear sales by month and sale type
+- [x] Add Clear & Re-import button to admin upload panel with month selector
+- [x] Add confirmation dialog before clearing data (browser confirm + red warning UI)
+- [x] After clearing, automatically import the uploaded file
+- [x] Show summary of deleted + imported records with row accounting

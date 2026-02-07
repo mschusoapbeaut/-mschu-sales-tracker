@@ -448,6 +448,60 @@ async function startServer() {
     }
   });
 
+  // API endpoint to clear sales data by month and sale type (admin only)
+  app.post("/api/sales/clear", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      
+      const { month, saleType } = req.body;
+      if (!month || !saleType) {
+        res.status(400).json({ error: "Month (YYYY-MM) and saleType are required" });
+        return;
+      }
+      
+      // Validate month format
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        res.status(400).json({ error: "Month must be in YYYY-MM format" });
+        return;
+      }
+      
+      const monthStart = month + '-01';
+      const [y, m] = month.split('-').map(Number);
+      const nextMonth = m === 12 ? (y + 1) + '-01-01' : y + '-' + String(m + 1).padStart(2, '0') + '-01';
+      
+      // Count records before deleting
+      const [countResult] = await db.execute(
+        "SELECT COUNT(*) as cnt, COALESCE(SUM(netSales), 0) as total FROM sales WHERE saleType = ? AND orderDate >= ? AND orderDate < ?",
+        [saleType, monthStart, nextMonth]
+      );
+      const deletedCount = (countResult as any[])[0]?.cnt || 0;
+      const deletedTotal = (countResult as any[])[0]?.total || 0;
+      
+      // Delete the records
+      await db.execute(
+        "DELETE FROM sales WHERE saleType = ? AND orderDate >= ? AND orderDate < ?",
+        [saleType, monthStart, nextMonth]
+      );
+      
+      console.log('[Clear] Deleted ' + deletedCount + ' ' + saleType + ' records for ' + month + ' (HK$' + deletedTotal + ')');
+      res.json({
+        success: true,
+        deleted: deletedCount,
+        deletedTotal: Math.round(deletedTotal * 100) / 100,
+        month,
+        saleType,
+        message: 'Cleared ' + deletedCount + ' ' + saleType + ' records for ' + month + ' (HK$' + Number(deletedTotal).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')'
+      });
+    } catch (error) {
+      console.error("[API] Clear sales error:", error);
+      res.status(500).json({ error: "Failed to clear sales data" });
+    }
+  });
+
   // API endpoint to bulk update staffName for orders (admin only)
   app.post("/api/sales/update-staff", async (req: Request, res: Response) => {
     try {
@@ -941,17 +995,29 @@ function getAdminHTML(): string {
                         </select>
                     </div>
                     <div class="form-row">
-                        <div class="file-input-wrapper">
-                            <span class="file-input-label">Choose File (CSV or Excel)</span>
-                            <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
-                        </div>
-                        <span id="fileName" style="color:#666">No file selected</span>
                     </div>
                     <div class="form-row" style="margin-top:15px">
                         <textarea id="csvPreview" placeholder="CSV content will appear here after selecting a file, or paste CSV data directly..."></textarea>
                     </div>
-                    <div class="form-row" style="margin-top:10px">
+                    <div class="form-row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                         <button class="btn btn-primary" onclick="uploadCSV()">Upload Sales Data</button>
+                        <span style="color:#999;font-size:13px">or</span>
+                        <button class="btn" onclick="showClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">Clear &amp; Re-import Month</button>
+                    </div>
+                </div>
+                <div id="clearReimportSection" style="display:none;margin-top:20px;padding:20px;background:#fff8f0;border:2px solid #e74c3c;border-radius:10px">
+                    <h3 style="color:#e74c3c;margin-bottom:10px">Clear &amp; Re-import</h3>
+                    <p class="help-text" style="margin-bottom:15px;color:#666">This will <strong>delete ALL existing records</strong> for the selected month and sale type, then import fresh data from the file above. Use this when you have a corrected or complete report that should replace existing data.</p>
+                    <div id="clearMessage" class="message"></div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:15px">
+                        <label style="font-weight:600">Month to clear:</label>
+                        <input type="month" id="clearMonth" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px" />
+                        <label style="font-weight:600;margin-left:10px">Type:</label>
+                        <span id="clearTypeLabel" style="font-weight:600;color:#2c5530">Online Sales</span>
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <button class="btn" onclick="executeClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Confirm: Clear &amp; Re-import</button>
+                        <button class="btn" onclick="hideClearReimport()" style="background:#ccc;color:#333;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -1541,6 +1607,119 @@ function getAdminHTML(): string {
                 }
             } catch (e) {
                 showMessage('uploadMessage', 'Connection error: ' + e.message, 'error');
+            }
+        }
+        
+        function showClearReimport() {
+            const csvData = document.getElementById('csvPreview').value.trim();
+            if (!csvData) {
+                showMessage('uploadMessage', 'Please select a file first before using Clear & Re-import', 'error');
+                return;
+            }
+            const section = document.getElementById('clearReimportSection');
+            section.style.display = 'block';
+            // Set default month to current month
+            const now = new Date();
+            const monthInput = document.getElementById('clearMonth');
+            monthInput.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            // Update type label to match the selected sale type
+            const saleType = document.getElementById('uploadSaleType').value;
+            document.getElementById('clearTypeLabel').textContent = saleType === 'pos' ? 'POS Sales' : 'Online Sales';
+        }
+        
+        function hideClearReimport() {
+            document.getElementById('clearReimportSection').style.display = 'none';
+        }
+        
+        async function executeClearReimport() {
+            const month = document.getElementById('clearMonth').value;
+            const saleType = document.getElementById('uploadSaleType').value;
+            const csvData = document.getElementById('csvPreview').value.trim();
+            
+            if (!month) {
+                showMessage('clearMessage', 'Please select a month', 'error');
+                return;
+            }
+            if (!csvData) {
+                showMessage('clearMessage', 'Please select a file first', 'error');
+                return;
+            }
+            
+            const typeLabel = saleType === 'pos' ? 'POS Sales' : 'Online Sales';
+            const confirmed = confirm('Are you sure you want to DELETE ALL ' + typeLabel + ' records for ' + month + ' and re-import from the uploaded file?\n\nThis action cannot be undone.');
+            if (!confirmed) return;
+            
+            showMessage('clearMessage', 'Step 1/2: Clearing existing data...', 'success');
+            
+            try {
+                // Step 1: Clear existing data
+                const clearRes = await authFetch('/api/sales/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ month, saleType })
+                });
+                const clearData = await clearRes.json();
+                
+                if (!clearRes.ok || !clearData.success) {
+                    showMessage('clearMessage', 'Failed to clear data: ' + (clearData.error || 'Unknown error'), 'error');
+                    return;
+                }
+                
+                showMessage('clearMessage', 'Step 2/2: Importing fresh data... (' + clearData.deleted + ' old records removed)', 'success');
+                
+                // Step 2: Upload fresh data
+                const uploadRes = await authFetch('/api/sales/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        csvData,
+                        saleType,
+                        staffMappings: window._staffMappings || {},
+                        totalRowsInFile: window._totalRowsInFile || 0
+                    })
+                });
+                const uploadData = await uploadRes.json();
+                
+                // Build combined summary
+                let msg = 'CLEAR & RE-IMPORT COMPLETE\n\n';
+                msg += '\u274C Cleared: ' + clearData.deleted + ' old records (HK$' + Number(clearData.deletedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')\n';
+                msg += '\u2705 Imported: ' + uploadData.imported + ' new records';
+                if (uploadData.importedTotal) msg += ' (HK$' + Number(uploadData.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
+                msg += '\n';
+                if (uploadData.skippedDuplicate > 0) msg += '\u23ED Duplicates skipped: ' + uploadData.skippedDuplicate + '\n';
+                if (uploadData.skippedInvalid > 0) msg += '\u26A0 Invalid rows skipped: ' + uploadData.skippedInvalid + '\n';
+                if (uploadData.failed > 0) msg += '\u274C Failed: ' + uploadData.failed + '\n';
+                msg += '\nRows processed: ' + uploadData.totalRowsProcessed;
+                if (uploadData.totalRowsInFile) msg += ' of ' + uploadData.totalRowsInFile + ' in file';
+                
+                if (uploadData.totalRowsInFile && uploadData.totalRowsInFile > 0) {
+                    const accounted = uploadData.imported + (uploadData.skippedDuplicate || 0) + (uploadData.skippedInvalid || 0) + (uploadData.failed || 0);
+                    if (accounted < uploadData.totalRowsInFile - 1) {
+                        msg += '\n\n\u26A0 WARNING: ' + (uploadData.totalRowsInFile - accounted) + ' rows unaccounted for!';
+                    } else {
+                        msg += '\n\n\u2705 All rows accounted for.';
+                    }
+                }
+                
+                showMessage('uploadMessage', msg, uploadData.failed > 0 ? 'error' : 'success');
+                hideClearReimport();
+                document.getElementById('csvPreview').value = '';
+                document.getElementById('fileName').textContent = 'No file selected';
+                window._staffMappings = {};
+                window._totalRowsInFile = 0;
+                
+                // Refresh the relevant tab
+                if (saleType === 'pos') {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelector('.tab:nth-child(2)').classList.add('active');
+                    showTab('pos-sales');
+                } else {
+                    loadOnlineSales();
+                }
+            } catch (e) {
+                showMessage('clearMessage', 'Connection error: ' + e.message, 'error');
             }
         }
         
