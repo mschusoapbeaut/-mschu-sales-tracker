@@ -800,9 +800,11 @@ function getAdminHTML(): string {
         .logo { font-size: 36px; margin-bottom: 5px; text-align: center; }
         h1 { color: #333; margin-bottom: 5px; font-size: 22px; text-align: center; }
         .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; text-align: center; }
-        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; }
-        .pin-input input { width: 50px; height: 60px; text-align: center; font-size: 24px; border: 2px solid #ddd; border-radius: 10px; outline: none; }
-        .pin-input input:focus { border-color: #667eea; }
+        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; position: relative; }
+        .pin-box { width: 50px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: text; transition: border-color 0.2s; }
+        .pin-box.active { border-color: #667eea; }
+        .pin-box.filled { border-color: #667eea; }
+        .pin-hidden-input { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
         .login-btn { display: block; width: 200px; margin: 0 auto; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
         .error { color: #e74c3c; margin-top: 15px; font-size: 14px; display: none; text-align: center; }
@@ -882,10 +884,11 @@ function getAdminHTML(): string {
             <h1>Ms. Chu Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to login</p>
             <div class="pin-input">
-                <input type="password" maxlength="1" id="pin1" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="pin2" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="pin3" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="pin4" inputmode="numeric" pattern="[0-9]*">
+                <input type="tel" maxlength="4" id="pinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-hidden-input">
+                <div class="pin-box" id="box0"></div>
+                <div class="pin-box" id="box1"></div>
+                <div class="pin-box" id="box2"></div>
+                <div class="pin-box" id="box3"></div>
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error" id="error"></p>
@@ -1155,34 +1158,40 @@ function getAdminHTML(): string {
             document.getElementById('posSalesTableContainer').innerHTML = html;
         }
         
-        const pins = [
-            document.getElementById('pin1'),
-            document.getElementById('pin2'),
-            document.getElementById('pin3'),
-            document.getElementById('pin4')
-        ];
+        // Single hidden input approach - most reliable across all browsers/devices
+        const pinInput = document.getElementById('pinInput');
+        const boxes = [document.getElementById('box0'), document.getElementById('box1'), document.getElementById('box2'), document.getElementById('box3')];
+        let loginPending = false;
         
-        pins.forEach((p, i) => {
-            p.addEventListener('input', (e) => {
-                if (e.target.value && i < 3) pins[i + 1].focus();
-                const pinValue = pins.map(x => x.value).join('');
-                if (pinValue.length >= 4) {
-                    // Auto-login when 4+ digits entered
-                    setTimeout(() => {
-                        const currentPin = pins.map(x => x.value).join('');
-                        if (currentPin.length >= 4) login();
-                    }, 300);
-                }
+        function updateBoxes() {
+            const val = pinInput.value;
+            boxes.forEach((box, i) => {
+                box.textContent = val[i] ? '\u2022' : '';
+                box.className = 'pin-box' + (val[i] ? ' filled' : '') + (i === val.length ? ' active' : '');
             });
-            p.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !e.target.value && i > 0) pins[i - 1].focus();
-            });
+        }
+        
+        pinInput.addEventListener('input', () => {
+            pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+            updateBoxes();
+            if (pinInput.value.length === 4 && !loginPending) {
+                loginPending = true;
+                setTimeout(() => {
+                    if (pinInput.value.length === 4) login();
+                    loginPending = false;
+                }, 200);
+            }
         });
+        
+        // Clicking any box focuses the hidden input
+        boxes.forEach(box => box.addEventListener('click', () => pinInput.focus()));
+        pinInput.focus();
+        updateBoxes();
         
         document.getElementById('loginBtn').onclick = login;
         
         async function login() {
-            const pin = pins.map(p => p.value).join('');
+            const pin = pinInput.value;
             if (pin.length < 4) return;
             
             document.getElementById('error').style.display = 'none';
@@ -1203,8 +1212,9 @@ function getAdminHTML(): string {
                 } else {
                     document.getElementById('error').textContent = d.error || 'Invalid PIN';
                     document.getElementById('error').style.display = 'block';
-                    pins.forEach(p => p.value = '');
-                    pins[0].focus();
+                    pinInput.value = '';
+                    updateBoxes();
+                    pinInput.focus();
                 }
             } catch (e) {
                 document.getElementById('error').textContent = 'Connection error';
@@ -1569,26 +1579,26 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok && d.imported !== undefined) {
-                    // Build detailed result message
-                    let msg = 'UPLOAD COMPLETE\n';
-                    msg += '\u2705 Imported: ' + d.imported + ' orders';
-                    if (d.importedTotal) msg += ' (HK$' + Number(d.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
-                    msg += '\n';
-                    if (d.skippedDuplicate > 0) msg += '\u23ED Duplicates skipped: ' + d.skippedDuplicate + '\n';
-                    if (d.skippedInvalid > 0) msg += '\u26A0 Invalid rows skipped: ' + d.skippedInvalid + '\n';
-                    if (d.failed > 0) msg += '\u274C Failed: ' + d.failed + (d.failedOrders ? ' (' + d.failedOrders.join(', ') + ')' : '') + '\n';
-                    msg += '\nRows processed: ' + d.totalRowsProcessed;
-                    if (d.totalRowsInFile) msg += ' of ' + d.totalRowsInFile + ' in file';
-                    
-                    // Check for row count mismatch
+                    // Build detailed result message using array
+                    var lines = ['UPLOAD COMPLETE'];
+                    var impLine = '\u2705 Imported: ' + d.imported + ' orders';
+                    if (d.importedTotal) impLine += ' (HK$' + Number(d.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
+                    lines.push(impLine);
+                    if (d.skippedDuplicate > 0) lines.push('\u23ED Duplicates skipped: ' + d.skippedDuplicate);
+                    if (d.skippedInvalid > 0) lines.push('\u26A0 Invalid rows skipped: ' + d.skippedInvalid);
+                    if (d.failed > 0) lines.push('\u274C Failed: ' + d.failed + (d.failedOrders ? ' (' + d.failedOrders.join(', ') + ')' : ''));
+                    var rowLine = 'Rows processed: ' + d.totalRowsProcessed;
+                    if (d.totalRowsInFile) rowLine += ' of ' + d.totalRowsInFile + ' in file';
+                    lines.push(rowLine);
                     if (d.totalRowsInFile && d.totalRowsInFile > 0) {
-                        const accounted = d.imported + d.skippedDuplicate + d.skippedInvalid + (d.failed || 0);
+                        var accounted = d.imported + d.skippedDuplicate + d.skippedInvalid + (d.failed || 0);
                         if (accounted < d.totalRowsInFile - 1) {
-                            msg += '\n\n\u26A0 WARNING: ' + (d.totalRowsInFile - accounted) + ' rows unaccounted for!';
+                            lines.push('', '\u26A0 WARNING: ' + (d.totalRowsInFile - accounted) + ' rows unaccounted for!');
                         } else {
-                            msg += '\n\n\u2705 All rows accounted for.';
+                            lines.push('', '\u2705 All rows accounted for.');
                         }
                     }
+                    var msg = lines.join('<br>');
                     
                     showMessage('uploadMessage', msg, d.failed > 0 ? 'error' : 'success');
                     document.getElementById('csvPreview').value = '';
@@ -1646,7 +1656,8 @@ function getAdminHTML(): string {
             }
             
             const typeLabel = saleType === 'pos' ? 'POS Sales' : 'Online Sales';
-            const confirmed = confirm('Are you sure you want to DELETE ALL ' + typeLabel + ' records for ' + month + ' and re-import from the uploaded file?\n\nThis action cannot be undone.');
+            var confirmMsg = 'Are you sure you want to DELETE ALL ' + typeLabel + ' records for ' + month + ' and re-import from the uploaded file?' + String.fromCharCode(10,10) + 'This action cannot be undone.';
+            const confirmed = confirm(confirmMsg);
             if (!confirmed) return;
             
             showMessage('clearMessage', 'Step 1/2: Clearing existing data...', 'success');
@@ -1682,26 +1693,27 @@ function getAdminHTML(): string {
                 });
                 const uploadData = await uploadRes.json();
                 
-                // Build combined summary
-                let msg = 'CLEAR & RE-IMPORT COMPLETE\n\n';
-                msg += '\u274C Cleared: ' + clearData.deleted + ' old records (HK$' + Number(clearData.deletedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')\n';
-                msg += '\u2705 Imported: ' + uploadData.imported + ' new records';
-                if (uploadData.importedTotal) msg += ' (HK$' + Number(uploadData.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
-                msg += '\n';
-                if (uploadData.skippedDuplicate > 0) msg += '\u23ED Duplicates skipped: ' + uploadData.skippedDuplicate + '\n';
-                if (uploadData.skippedInvalid > 0) msg += '\u26A0 Invalid rows skipped: ' + uploadData.skippedInvalid + '\n';
-                if (uploadData.failed > 0) msg += '\u274C Failed: ' + uploadData.failed + '\n';
-                msg += '\nRows processed: ' + uploadData.totalRowsProcessed;
-                if (uploadData.totalRowsInFile) msg += ' of ' + uploadData.totalRowsInFile + ' in file';
-                
+                // Build combined summary using array
+                var clines = ['CLEAR & RE-IMPORT COMPLETE', ''];
+                clines.push('\u274C Cleared: ' + clearData.deleted + ' old records (HK$' + Number(clearData.deletedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')');
+                var cImpLine = '\u2705 Imported: ' + uploadData.imported + ' new records';
+                if (uploadData.importedTotal) cImpLine += ' (HK$' + Number(uploadData.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
+                clines.push(cImpLine);
+                if (uploadData.skippedDuplicate > 0) clines.push('\u23ED Duplicates skipped: ' + uploadData.skippedDuplicate);
+                if (uploadData.skippedInvalid > 0) clines.push('\u26A0 Invalid rows skipped: ' + uploadData.skippedInvalid);
+                if (uploadData.failed > 0) clines.push('\u274C Failed: ' + uploadData.failed);
+                var cRowLine = 'Rows processed: ' + uploadData.totalRowsProcessed;
+                if (uploadData.totalRowsInFile) cRowLine += ' of ' + uploadData.totalRowsInFile + ' in file';
+                clines.push(cRowLine);
                 if (uploadData.totalRowsInFile && uploadData.totalRowsInFile > 0) {
-                    const accounted = uploadData.imported + (uploadData.skippedDuplicate || 0) + (uploadData.skippedInvalid || 0) + (uploadData.failed || 0);
-                    if (accounted < uploadData.totalRowsInFile - 1) {
-                        msg += '\n\n\u26A0 WARNING: ' + (uploadData.totalRowsInFile - accounted) + ' rows unaccounted for!';
+                    var cAccounted = uploadData.imported + (uploadData.skippedDuplicate || 0) + (uploadData.skippedInvalid || 0) + (uploadData.failed || 0);
+                    if (cAccounted < uploadData.totalRowsInFile - 1) {
+                        clines.push('', '\u26A0 WARNING: ' + (uploadData.totalRowsInFile - cAccounted) + ' rows unaccounted for!');
                     } else {
-                        msg += '\n\n\u2705 All rows accounted for.';
+                        clines.push('', '\u2705 All rows accounted for.');
                     }
                 }
+                var msg = clines.join('<br>');
                 
                 showMessage('uploadMessage', msg, uploadData.failed > 0 ? 'error' : 'success');
                 hideClearReimport();
@@ -1799,14 +1811,12 @@ function getAdminHTML(): string {
         
         function showMessage(elementId, text, type) {
             const msg = document.getElementById(elementId);
-            // Support multi-line messages (replace newlines with <br>)
-            if (text.includes('\n')) {
-                msg.innerHTML = text.replace(/\n/g, '<br>');
-                msg.style.whiteSpace = 'pre-line';
+            // Support multi-line messages (text may contain <br> tags)
+            if (text.includes('<br>')) {
+                msg.innerHTML = text;
                 msg.style.textAlign = 'left';
             } else {
                 msg.textContent = text;
-                msg.style.whiteSpace = '';
                 msg.style.textAlign = '';
             }
             msg.className = 'message ' + type;
@@ -1844,8 +1854,9 @@ function getAdminHTML(): string {
             // Reset tab active state
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector('.tab').classList.add('active');
-            pins.forEach(p => p.value = '');
-            pins[0].focus();
+            pinInput.value = '';
+            updateBoxes();
+            pinInput.focus();
         }
         
         (async () => {
@@ -1861,7 +1872,7 @@ function getAdminHTML(): string {
             } catch (e) {}
         })();
         
-        pins[0].focus();
+        pinInput.focus();
     </script>
 </body>
 </html>`;
@@ -1882,9 +1893,11 @@ function getStaffViewHTML(): string {
         .login-card .logo { font-size: 40px; margin-bottom: 10px; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-        .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .pin-row input { width: 48px; height: 56px; text-align: center; font-size: 22px; border: 2px solid #ddd; border-radius: 12px; outline: none; -webkit-appearance: none; }
-        .pin-row input:focus { border-color: #667eea; }
+        .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; position: relative; }
+        .pin-box { width: 48px; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 26px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: text; transition: border-color 0.2s; }
+        .pin-box.active { border-color: #667eea; }
+        .pin-box.filled { border-color: #667eea; }
+        .pin-hidden { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
@@ -1927,10 +1940,11 @@ function getStaffViewHTML(): string {
             <h1>Ms. Chu Sales</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
             <div class="pin-row">
-                <input type="password" maxlength="1" id="p1" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="p2" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="p3" inputmode="numeric" pattern="[0-9]*">
-                <input type="password" maxlength="1" id="p4" inputmode="numeric" pattern="[0-9]*">
+                <input type="tel" maxlength="4" id="pinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-hidden">
+                <div class="pin-box" id="box0"></div>
+                <div class="pin-box" id="box1"></div>
+                <div class="pin-box" id="box2"></div>
+                <div class="pin-box" id="box3"></div>
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error-msg" id="errMsg"></p>
@@ -1975,22 +1989,39 @@ function getStaffViewHTML(): string {
         let posData = [];
         let currentTab = 'online';
 
-        // PIN input auto-jump
-        const pins = [document.getElementById('p1'), document.getElementById('p2'), document.getElementById('p3'), document.getElementById('p4')];
-        pins.forEach((p, i) => {
-            p.addEventListener('input', (e) => {
-                if (e.target.value && i < 3) pins[i + 1].focus();
-                if (i === 3 && e.target.value) doLogin();
+        // Single hidden input approach - most reliable across all browsers/devices
+        const pinInput = document.getElementById('pinInput');
+        const boxes = [document.getElementById('box0'), document.getElementById('box1'), document.getElementById('box2'), document.getElementById('box3')];
+        let loginPending = false;
+        
+        function updateBoxes() {
+            const val = pinInput.value;
+            boxes.forEach((box, i) => {
+                box.textContent = val[i] ? '\u2022' : '';
+                box.className = 'pin-box' + (val[i] ? ' filled' : '') + (i === val.length ? ' active' : '');
             });
-            p.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !e.target.value && i > 0) pins[i - 1].focus();
-            });
+        }
+        
+        pinInput.addEventListener('input', () => {
+            pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+            updateBoxes();
+            if (pinInput.value.length === 4 && !loginPending) {
+                loginPending = true;
+                setTimeout(() => {
+                    if (pinInput.value.length === 4) doLogin();
+                    loginPending = false;
+                }, 200);
+            }
         });
+        
+        boxes.forEach(box => box.addEventListener('click', () => pinInput.focus()));
+        pinInput.focus();
+        updateBoxes();
 
         document.getElementById('loginBtn').addEventListener('click', doLogin);
 
         async function doLogin() {
-            const pin = pins.map(p => p.value).join('');
+            const pin = pinInput.value;
             if (pin.length < 4) return;
             const errEl = document.getElementById('errMsg');
             errEl.style.display = 'none';
@@ -2005,8 +2036,9 @@ function getStaffViewHTML(): string {
                 if (!res.ok || !data.success) {
                     errEl.textContent = data.error || 'Invalid PIN';
                     errEl.style.display = 'block';
-                    pins.forEach(p => p.value = '');
-                    pins[0].focus();
+                    pinInput.value = '';
+                    updateBoxes();
+                    pinInput.focus();
                     return;
                 }
                 token = data.sessionToken;
@@ -2015,8 +2047,9 @@ function getStaffViewHTML(): string {
                     // Admin should use the main dashboard
                     errEl.textContent = 'Please use the main dashboard for admin access';
                     errEl.style.display = 'block';
-                    pins.forEach(p => p.value = '');
-                    pins[0].focus();
+                    pinInput.value = '';
+                    updateBoxes();
+                    pinInput.focus();
                     return;
                 }
                 showApp();
@@ -2116,11 +2149,12 @@ function getStaffViewHTML(): string {
             currentTab = 'online';
             document.getElementById('app').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
-            pins.forEach(p => p.value = '');
-            pins[0].focus();
+            pinInput.value = '';
+            updateBoxes();
+            pinInput.focus();
         }
 
-        pins[0].focus();
+        pinInput.focus();
     </script>
 </body>
 </html>`;

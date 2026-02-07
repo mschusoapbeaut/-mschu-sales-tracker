@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -24,46 +24,17 @@ export default function PinLoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const loginTriggered = useRef(false);
 
-  const handlePinChange = (value: string, index: number) => {
-    if (value.length > 1) {
-      // Handle paste - distribute digits across inputs
-      const digits = value.replace(/\D/g, "").slice(0, 4);
-      const newPin = [...pin];
-      for (let i = 0; i < digits.length && index + i < 4; i++) {
-        newPin[index + i] = digits[i];
-      }
-      setPin(newPin);
-      
-      // Focus last filled input or next empty
-      const nextIndex = Math.min(index + digits.length, 3);
-      inputRefs.current[nextIndex]?.focus();
-      return;
-    }
-
-    const newPin = [...pin];
-    newPin[index] = value.replace(/\D/g, "");
-    setPin(newPin);
-    setError(null);
-
-    // Auto-focus next input
-    if (value && index < 3) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace" && !pin[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleLogin = async () => {
-    const fullPin = pin.join("");
+  const handleLogin = useCallback(async (fullPin: string) => {
     if (fullPin.length !== 4) {
       setError("Please enter your 4-digit PIN");
       return;
     }
+
+    // Prevent double-trigger
+    if (loginTriggered.current) return;
+    loginTriggered.current = true;
 
     setLoading(true);
     setError(null);
@@ -86,7 +57,11 @@ export default function PinLoginScreen() {
         }
         setError(data.error || "Invalid PIN");
         setPin(["", "", "", ""]);
-        inputRefs.current[0]?.focus();
+        loginTriggered.current = false;
+        // Focus first input after a short delay
+        setTimeout(() => {
+          inputRefs.current[0]?.focus();
+        }, 100);
         return;
       }
 
@@ -118,8 +93,74 @@ export default function PinLoginScreen() {
     } catch (err) {
       console.error("[PIN Login] Error:", err);
       setError("Connection error. Please try again.");
+      loginTriggered.current = false;
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Auto-login when all 4 digits are entered
+  useEffect(() => {
+    const fullPin = pin.join("");
+    if (fullPin.length === 4 && !loading && !loginTriggered.current) {
+      handleLogin(fullPin);
+    }
+  }, [pin, loading, handleLogin]);
+
+  const handlePinChange = (value: string, index: number) => {
+    // Strip non-digits
+    const cleanValue = value.replace(/\D/g, "");
+    
+    if (cleanValue.length === 0) {
+      // Clearing the input
+      const newPin = [...pin];
+      newPin[index] = "";
+      setPin(newPin);
+      setError(null);
+      return;
+    }
+
+    if (cleanValue.length > 1) {
+      // Handle paste - distribute digits across inputs starting from current index
+      const digits = cleanValue.slice(0, 4 - index);
+      const newPin = [...pin];
+      for (let i = 0; i < digits.length && index + i < 4; i++) {
+        newPin[index + i] = digits[i];
+      }
+      setPin(newPin);
+      setError(null);
+      loginTriggered.current = false;
+      
+      // Focus the next empty input or last filled
+      const nextIndex = Math.min(index + digits.length, 3);
+      if (nextIndex < 4) {
+        inputRefs.current[nextIndex]?.focus();
+      }
+      return;
+    }
+
+    // Single digit entered
+    const newPin = [...pin];
+    newPin[index] = cleanValue;
+    setPin(newPin);
+    setError(null);
+    loginTriggered.current = false;
+
+    // Auto-focus next input
+    if (cleanValue && index < 3) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === "Backspace") {
+      if (!pin[index] && index > 0) {
+        // If current input is empty, go back and clear previous
+        const newPin = [...pin];
+        newPin[index - 1] = "";
+        setPin(newPin);
+        inputRefs.current[index - 1]?.focus();
+      }
     }
   };
 
@@ -152,7 +193,11 @@ export default function PinLoginScreen() {
                 styles.pinInput,
                 {
                   backgroundColor: colors.surface,
-                  borderColor: error ? colors.error : colors.border,
+                  borderColor: digit
+                    ? colors.primary
+                    : error
+                    ? colors.error
+                    : colors.border,
                   color: colors.foreground,
                 },
               ]}
@@ -160,10 +205,11 @@ export default function PinLoginScreen() {
               onChangeText={(value) => handlePinChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
-              maxLength={4}
+              maxLength={1}
               secureTextEntry
               selectTextOnFocus
               autoFocus={index === 0}
+              editable={!loading}
             />
           ))}
         </View>
@@ -172,25 +218,28 @@ export default function PinLoginScreen() {
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
         )}
 
-        {/* Login Button */}
-        <TouchableOpacity
-          style={[
-            styles.loginButton,
-            { backgroundColor: colors.primary },
-            loading && styles.loginButtonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
+        {/* Loading indicator or Login Button */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.muted }]}>
+              Signing in...
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.loginButton,
+              { backgroundColor: colors.primary },
+            ]}
+            onPress={() => handleLogin(pin.join(""))}
+            activeOpacity={0.8}
+          >
             <Text style={[styles.loginButtonText, { color: colors.background }]}>
               Sign In
             </Text>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
 
         {/* Help text */}
         <View style={styles.helpContainer}>
@@ -259,6 +308,14 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 14,
     marginBottom: 16,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    marginTop: 16,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
   },
   loginButton: {
     width: "100%",

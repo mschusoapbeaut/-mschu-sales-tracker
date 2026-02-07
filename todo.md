@@ -338,3 +338,11 @@
 - [x] Add confirmation dialog before clearing data (browser confirm + red warning UI)
 - [x] After clearing, automatically import the uploaded file
 - [x] Show summary of deleted + imported records with row accounting
+
+## PIN Login Bug Fix (Feb 7, 2026)
+- [x] Fix auto-jumping between PIN digit inputs on admin dashboard (Railway HTML) — rewrote to single hidden input + visual dot boxes
+- [x] Fix auto-jumping between PIN digit inputs on staff-view page (Railway HTML) — same approach
+- [x] Fix auto-jumping between PIN digit inputs on mobile app (Expo pin-login.tsx) — maxLength=1 per input + auto-focus
+- [x] Fix auto-login after 4th digit on all three PIN login screens
+- [x] Verify admin PIN 9999 works on all three
+- [x] Fix JS syntax errors caused by \n inside template literals — rewrote to use array.join('<br>') approach
