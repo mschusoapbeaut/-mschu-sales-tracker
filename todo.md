@@ -451,3 +451,6 @@
 ## Unknown Staff IDs in Feb 2026 Online Sales (Feb 8, 2026)
 - [x] Investigate which staff IDs are showing as 'Unknown Staff' (e.g., 90979827995, 101244961051) — confirmed former staff
 - [x] Keep 'Unknown Staff [ID]' label as-is per user request
+
+## PIN Login Not Working (Feb 8, 2026)
+- [x] Fix PIN input not accepting typing on POS URL extension staff view — replaced hidden input with 4 visible individual inputs
