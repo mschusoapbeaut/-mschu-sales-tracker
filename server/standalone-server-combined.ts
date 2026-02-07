@@ -2113,29 +2113,66 @@ function getStaffViewHTML(): string {
 
         function getPin() { return digits.map(d => d.value).join(''); }
 
-        digits.forEach((el, i) => {
-            el.addEventListener('input', (e) => {
-                // Only allow digits
-                el.value = el.value.replace(/[^0-9]/g, '').slice(0, 1);
-                if (el.value && i < 3) {
-                    digits[i + 1].focus();
+        function handleDigitChange(el, i) {
+            el.value = el.value.replace(/[^0-9]/g, '');
+            // If multiple chars typed (e.g. fast typing), distribute across fields
+            if (el.value.length > 1) {
+                const chars = el.value.split('');
+                el.value = chars[0];
+                for (let j = 1; j < chars.length && (i + j) < 4; j++) {
+                    digits[i + j].value = chars[j];
                 }
-                // Auto-submit when all 4 filled
-                const pin = getPin();
-                if (pin.length === 4 && !loginPending) {
-                    loginPending = true;
-                    setTimeout(() => {
-                        if (getPin().length === 4) doLogin();
-                        loginPending = false;
-                    }, 200);
+            }
+            // Auto-jump to next field
+            if (el.value.length === 1 && i < 3) {
+                // Use multiple methods to ensure focus moves
+                digits[i + 1].focus();
+                // Fallback with setTimeout for browsers that delay focus
+                setTimeout(() => { digits[i + 1].focus(); }, 10);
+                setTimeout(() => { digits[i + 1].focus(); }, 50);
+            }
+            // Auto-submit when all 4 filled
+            const pin = getPin();
+            if (pin.length === 4 && !loginPending) {
+                loginPending = true;
+                setTimeout(() => {
+                    if (getPin().length === 4) doLogin();
+                    loginPending = false;
+                }, 300);
+            }
+        }
+
+        digits.forEach((el, i) => {
+            // Listen to multiple events for maximum compatibility
+            el.addEventListener('input', () => handleDigitChange(el, i));
+            el.addEventListener('keyup', (e) => {
+                if (e.key >= '0' && e.key <= '9') {
+                    el.value = e.key;
+                    handleDigitChange(el, i);
                 }
             });
             el.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && !el.value && i > 0) {
-                    digits[i - 1].focus();
-                    digits[i - 1].value = '';
+                if (e.key === 'Backspace') {
+                    if (!el.value && i > 0) {
+                        digits[i - 1].value = '';
+                        digits[i - 1].focus();
+                        setTimeout(() => { digits[i - 1].focus(); }, 10);
+                    } else {
+                        el.value = '';
+                    }
+                    e.preventDefault();
+                }
+                // If a digit key is pressed and field already has a value, move to next
+                if (e.key >= '0' && e.key <= '9' && el.value.length === 1 && i < 3) {
+                    digits[i + 1].value = e.key;
+                    digits[i + 1].focus();
+                    setTimeout(() => { digits[i + 1].focus(); }, 10);
+                    e.preventDefault();
+                    handleDigitChange(digits[i + 1], i + 1);
                 }
             });
+            // Select all text on focus so next keystroke replaces it
+            el.addEventListener('focus', () => { el.select(); });
             // Handle paste
             el.addEventListener('paste', (e) => {
                 e.preventDefault();
@@ -2143,11 +2180,11 @@ function getStaffViewHTML(): string {
                 pasted.split('').forEach((ch, j) => {
                     if (digits[j]) digits[j].value = ch;
                 });
-                const nextEmpty = pasted.length < 4 ? pasted.length : 3;
-                digits[nextEmpty].focus();
+                const focusIdx = Math.min(pasted.length, 3);
+                digits[focusIdx].focus();
                 if (pasted.length === 4 && !loginPending) {
                     loginPending = true;
-                    setTimeout(() => { doLogin(); loginPending = false; }, 200);
+                    setTimeout(() => { doLogin(); loginPending = false; }, 300);
                 }
             });
         });
