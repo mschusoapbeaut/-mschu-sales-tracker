@@ -299,10 +299,16 @@
 - [x] Fixed duplicate check: now uses orderNo + orderDate + netSales + saleType combination instead of just orderNo, so different orders with the same Order Name are no longer skipped during import
 
 ## Shopify POS Staff View (Feb 7, 2026)
-- [ ] Build mobile-optimized staff view page at /staff-view route
-- [ ] Staff PIN login on the staff view page
-- [ ] Show only logged-in staff's own Online Sales for current month
-- [ ] Show only logged-in staff's own POS Sales for current month
-- [ ] Display totals for each category
-- [ ] Mobile-optimized layout for POS device screen
-- [ ] Deploy to Railway and provide test URLs
+- [x] Build mobile-optimized staff view page at /staff-view route
+- [x] Staff PIN login on the staff view page
+- [x] Show only logged-in staff's own Online Sales for current month
+- [x] Show only logged-in staff's own POS Sales for current month
+- [x] Display totals for each category
+- [x] Mobile-optimized layout for POS device screen
+- [x] Deploy to Railway and provide test URLs
+
+## Staff View Bug Fixes (Feb 7, 2026)
+- [x] Fix broken template literal for monthStart calculation (was producing literal string instead of date)
+- [x] Fix broken template literal for yearStart calculation (same issue)
+- [x] Fix staff sales filtering: match by staffName LIKE '%staffId%' since sales table staffId column is NULL but staffName contains the ID
+- [x] Fix staff view API calls to use correct query parameter names (type instead of saleType)

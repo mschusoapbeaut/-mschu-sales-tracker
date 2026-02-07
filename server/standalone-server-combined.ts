@@ -149,12 +149,14 @@ async function startServer() {
       // If not admin, only show user's own sales (current month only)
       if (user.role !== "admin") {
         if (user.staffId) {
-          whereConditions.push("staffId = ?");
-          params.push(user.staffId);
+          // Match by staffId column OR by staffName containing the staffId
+          // Sales records store staff info in staffName as "Name StaffId" (e.g. "Ting Siew 78319386671")
+          whereConditions.push("(staffId = ? OR staffName LIKE ?)");
+          params.push(user.staffId, `%${user.staffId}%`);
         }
         // Staff: current month only
         const now = new Date();
-        const monthStart = `$` + `{now.getFullYear()}-$` + `{String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
         whereConditions.push("orderDate >= ?");
         params.push(monthStart);
       } else {
@@ -162,7 +164,7 @@ async function startServer() {
         if (month && month !== 'all') {
           if (month === 'ytd') {
             const now = new Date();
-            const yearStart = `$` + `{now.getFullYear()}-01-01`;
+            const yearStart = now.getFullYear() + '-01-01';
             whereConditions.push("orderDate >= ?");
             params.push(yearStart);
           } else {
@@ -604,6 +606,11 @@ async function startServer() {
   // Serve web interface at root
   app.get("/", (req, res) => {
     res.send(getAdminHTML());
+  });
+
+  // Staff view for Shopify POS tile
+  app.get("/staff-view", (req, res) => {
+    res.send(getStaffViewHTML());
   });
 
   // Seed staff data on startup
@@ -1481,6 +1488,265 @@ function getAdminHTML(): string {
             } catch (e) {}
         })();
         
+        pins[0].focus();
+    </script>
+</body>
+</html>`;
+}
+
+function getStaffViewHTML(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ms. Chu - My Sales</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; min-height: 100vh; }
+        .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .login-card .logo { font-size: 40px; margin-bottom: 10px; }
+        .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
+        .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+        .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .pin-row input { width: 48px; height: 56px; text-align: center; font-size: 22px; border: 2px solid #ddd; border-radius: 12px; outline: none; -webkit-appearance: none; }
+        .pin-row input:focus { border-color: #667eea; }
+        .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .login-btn:active { opacity: 0.9; transform: scale(0.98); }
+        .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
+
+        .app { display: none; }
+        .app-header { background: white; padding: 16px 20px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; z-index: 10; }
+        .app-header-top { display: flex; justify-content: space-between; align-items: center; }
+        .staff-name { font-size: 17px; font-weight: 600; color: #333; }
+        .staff-badge { font-size: 11px; color: #667eea; background: #eef0ff; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
+        .logout-link { font-size: 14px; color: #999; cursor: pointer; border: none; background: none; }
+        .month-label { font-size: 13px; color: #888; margin-top: 4px; }
+
+        .tab-bar { display: flex; background: white; border-bottom: 1px solid #e5e5e5; padding: 0 20px; position: sticky; top: 57px; z-index: 9; }
+        .tab-item { flex: 1; text-align: center; padding: 12px 0; font-size: 14px; font-weight: 500; color: #999; border-bottom: 2px solid transparent; cursor: pointer; }
+        .tab-item.active { color: #667eea; border-bottom-color: #667eea; }
+
+        .content { padding: 16px 20px 100px; }
+
+        .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 14px; padding: 16px; color: white; text-align: center; }
+        .summary-card .amount { font-size: 22px; font-weight: 700; }
+        .summary-card .label { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+
+        .orders-section { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .orders-header { padding: 14px 16px; font-size: 15px; font-weight: 600; color: #333; border-bottom: 1px solid #f0f0f0; }
+        .order-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f5f5f5; }
+        .order-row:last-child { border-bottom: none; }
+        .order-info { flex: 1; }
+        .order-id { font-size: 14px; font-weight: 500; color: #333; }
+        .order-meta { font-size: 12px; color: #999; margin-top: 2px; }
+        .order-amount { font-size: 15px; font-weight: 600; color: #27ae60; text-align: right; white-space: nowrap; }
+        .no-data { text-align: center; padding: 40px 20px; color: #bbb; font-size: 14px; }
+        .loading { text-align: center; padding: 30px; color: #999; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="logo">\u{1F9FC}</div>
+            <h1>Ms. Chu Sales</h1>
+            <p class="subtitle">Enter your PIN to view your sales</p>
+            <div class="pin-row">
+                <input type="password" maxlength="1" id="p1" inputmode="numeric" pattern="[0-9]*">
+                <input type="password" maxlength="1" id="p2" inputmode="numeric" pattern="[0-9]*">
+                <input type="password" maxlength="1" id="p3" inputmode="numeric" pattern="[0-9]*">
+                <input type="password" maxlength="1" id="p4" inputmode="numeric" pattern="[0-9]*">
+            </div>
+            <button class="login-btn" id="loginBtn">Login</button>
+            <p class="error-msg" id="errMsg"></p>
+        </div>
+    </div>
+
+    <div class="app" id="app">
+        <div class="app-header">
+            <div class="app-header-top">
+                <div><span class="staff-name" id="staffName"></span><span class="staff-badge">STAFF</span></div>
+                <button class="logout-link" onclick="doLogout()">Logout</button>
+            </div>
+            <div class="month-label" id="monthLabel"></div>
+        </div>
+        <div class="tab-bar">
+            <div class="tab-item active" id="tabOnline" onclick="switchTab('online')">Online Sales</div>
+            <div class="tab-item" id="tabPos" onclick="switchTab('pos')">POS Sales</div>
+        </div>
+        <div class="content">
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="amount" id="totalAmount">HK$0</div>
+                    <div class="label" id="totalLabel">Total Online Sales</div>
+                </div>
+                <div class="summary-card">
+                    <div class="amount" id="totalOrders">0</div>
+                    <div class="label">Orders</div>
+                </div>
+            </div>
+            <div class="orders-section">
+                <div class="orders-header" id="ordersHeader">Online Orders</div>
+                <div id="ordersList"><div class="no-data">No orders yet</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _fetch = window.fetch.bind(window);
+        let token = null;
+        let staffUser = null;
+        let onlineData = [];
+        let posData = [];
+        let currentTab = 'online';
+
+        // PIN input auto-jump
+        const pins = [document.getElementById('p1'), document.getElementById('p2'), document.getElementById('p3'), document.getElementById('p4')];
+        pins.forEach((p, i) => {
+            p.addEventListener('input', (e) => {
+                if (e.target.value && i < 3) pins[i + 1].focus();
+                if (i === 3 && e.target.value) doLogin();
+            });
+            p.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && i > 0) pins[i - 1].focus();
+            });
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', doLogin);
+
+        async function doLogin() {
+            const pin = pins.map(p => p.value).join('');
+            if (pin.length < 4) return;
+            const errEl = document.getElementById('errMsg');
+            errEl.style.display = 'none';
+            try {
+                const res = await _fetch('/api/auth/pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin }),
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    errEl.textContent = data.error || 'Invalid PIN';
+                    errEl.style.display = 'block';
+                    pins.forEach(p => p.value = '');
+                    pins[0].focus();
+                    return;
+                }
+                token = data.sessionToken;
+                staffUser = data.user;
+                if (staffUser.role === 'admin') {
+                    // Admin should use the main dashboard
+                    errEl.textContent = 'Please use the main dashboard for admin access';
+                    errEl.style.display = 'block';
+                    pins.forEach(p => p.value = '');
+                    pins[0].focus();
+                    return;
+                }
+                showApp();
+            } catch (e) {
+                errEl.textContent = 'Connection error';
+                errEl.style.display = 'block';
+            }
+        }
+
+        function authFetch(url, opts = {}) {
+            opts.headers = opts.headers || {};
+            if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+            opts.credentials = 'include';
+            return _fetch(url, opts);
+        }
+
+        function showApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            document.getElementById('staffName').textContent = staffUser.name;
+            const now = new Date();
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            document.getElementById('monthLabel').textContent = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+            loadSales();
+        }
+
+        async function loadSales() {
+            // API auto-filters to current month + staff's own data for non-admin users
+            // We just need to pass the sale type
+
+            // Load online sales
+            try {
+                const res = await authFetch('/api/sales?type=online');
+                const data = await res.json();
+                onlineData = data.sales || [];
+            } catch (e) { onlineData = []; }
+
+            // Load POS sales
+            try {
+                const res = await authFetch('/api/sales?type=pos');
+                const data = await res.json();
+                posData = data.sales || [];
+            } catch (e) { posData = []; }
+
+            renderTab();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabOnline').className = 'tab-item' + (tab === 'online' ? ' active' : '');
+            document.getElementById('tabPos').className = 'tab-item' + (tab === 'pos' ? ' active' : '');
+            renderTab();
+        }
+
+        function fmtCurrency(v) {
+            const n = parseFloat(v) || 0;
+            return 'HK$' + n.toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function renderTab() {
+            const sales = currentTab === 'online' ? onlineData : posData;
+            const typeLabel = currentTab === 'online' ? 'Online' : 'POS';
+            const total = sales.reduce((s, r) => s + (parseFloat(r.netSales) || 0), 0);
+
+            document.getElementById('totalAmount').textContent = fmtCurrency(total);
+            document.getElementById('totalOrders').textContent = sales.length;
+            document.getElementById('totalLabel').textContent = 'Total ' + typeLabel + ' Sales';
+            document.getElementById('ordersHeader').textContent = typeLabel + ' Orders';
+
+            const listEl = document.getElementById('ordersList');
+            if (sales.length === 0) {
+                listEl.innerHTML = '<div class="no-data">No ' + typeLabel.toLowerCase() + ' orders this month</div>';
+                return;
+            }
+            let html = '';
+            sales.forEach(r => {
+                const date = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+                const channel = r.salesChannel || '-';
+                const gateway = r.paymentGateway || '';
+                const meta = currentTab === 'pos' ? date + ' \u00B7 ' + channel + (gateway ? ' \u00B7 ' + gateway : '') : date + ' \u00B7 ' + channel;
+                html += '<div class="order-row">';
+                html += '  <div class="order-info">';
+                html += '    <div class="order-id">#' + (r.orderNo || '-') + '</div>';
+                html += '    <div class="order-meta">' + meta + '</div>';
+                html += '  </div>';
+                html += '  <div class="order-amount">' + fmtCurrency(r.netSales) + '</div>';
+                html += '</div>';
+            });
+            listEl.innerHTML = html;
+        }
+
+        function doLogout() {
+            token = null;
+            staffUser = null;
+            onlineData = [];
+            posData = [];
+            currentTab = 'online';
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            pins.forEach(p => p.value = '');
+            pins[0].focus();
+        }
+
         pins[0].focus();
     </script>
 </body>
