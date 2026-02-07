@@ -859,9 +859,10 @@ function getAdminHTML(): string {
         .message { padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: none; }
         .message.success { background: #d4edda; color: #155724; display: block; }
         .message.error { background: #f8d7da; color: #721c24; display: block; }
-        .file-input-btn { display: inline-block; padding: 10px 20px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
-        .file-input-btn:hover { background: #5a6fd6; }
-        #fileInput { display: none; }
+        .file-input-wrapper { display: inline-block; position: relative; overflow: hidden; cursor: pointer; border-radius: 8px; }
+        .file-input-wrapper input[type=file] { position: absolute; top: 0; right: 0; width: 300px; height: 100%; opacity: 0; cursor: pointer; font-size: 100px; z-index: 2; -webkit-appearance: none; -moz-appearance: none; }
+        .file-input-label { display: inline-block; padding: 10px 20px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; pointer-events: none; white-space: nowrap; }
+        .file-input-wrapper:active .file-input-label { background: #5a6fd6; }
         .drive-status, .email-status { padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         .drive-status.connected, .email-status.connected { background: #d4edda; color: #155724; }
         .drive-status.disconnected, .email-status.disconnected { background: #fff3cd; color: #856404; }
@@ -996,9 +997,11 @@ function getAdminHTML(): string {
                             <option value="pos">POS Sales</option>
                         </select>
                     </div>
-                    <div class="form-row">
-                        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
-                        <label for="fileInput" class="file-input-btn">Choose Excel/CSV File</label>
+                    <div class="form-row" style="align-items:center">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
+                            <span class="file-input-label">Choose Excel/CSV File</span>
+                        </div>
                         <span id="fileName" style="margin-left:10px;color:#666;font-size:13px"></span>
                     </div>
                     <div class="form-row" style="margin-top:15px">
@@ -1014,6 +1017,14 @@ function getAdminHTML(): string {
                     <h3 style="color:#e74c3c;margin-bottom:10px">Clear &amp; Re-import</h3>
                     <p class="help-text" style="margin-bottom:15px;color:#666">This will <strong>delete ALL existing records</strong> for the selected month and sale type, then import fresh data from the file above. Use this when you have a corrected or complete report that should replace existing data.</p>
                     <div id="clearMessage" class="message"></div>
+                    <div style="margin-bottom:15px">
+                        <label style="font-weight:600;display:block;margin-bottom:8px">File to import:</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
+                            <span class="file-input-label" style="font-size:13px;padding:8px 16px">Choose File</span>
+                        </div>
+                        <span id="clearFileName" style="margin-left:10px;color:#666;font-size:13px"></span>
+                    </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:15px">
                         <label style="font-weight:600">Month to clear:</label>
                         <input type="month" id="clearMonth" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px" />
@@ -1474,6 +1485,7 @@ function getAdminHTML(): string {
             if (!file) return;
             
             document.getElementById('fileName').textContent = file.name;
+            var cfn = document.getElementById('clearFileName'); if (cfn) cfn.textContent = file.name;
             const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
             
             if (isExcel) {
@@ -1608,6 +1620,8 @@ function getAdminHTML(): string {
                     showMessage('uploadMessage', msg, d.failed > 0 ? 'error' : 'success');
                     document.getElementById('csvPreview').value = '';
                     document.getElementById('fileName').textContent = 'No file selected';
+                    var _cfn1 = document.getElementById('clearFileName'); if (_cfn1) _cfn1.textContent = '';
+                    document.querySelectorAll('input[type=file]').forEach(function(inp) { inp.value = ''; });
                     window._staffMappings = {};
                     window._totalRowsInFile = 0;
                     if (saleType === 'pos') {
@@ -1719,6 +1733,8 @@ function getAdminHTML(): string {
                 hideClearReimport();
                 document.getElementById('csvPreview').value = '';
                 document.getElementById('fileName').textContent = 'No file selected';
+                var _cfn2 = document.getElementById('clearFileName'); if (_cfn2) _cfn2.textContent = '';
+                document.querySelectorAll('input[type=file]').forEach(function(inp) { inp.value = ''; });
                 window._staffMappings = {};
                 window._totalRowsInFile = 0;
                 

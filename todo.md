@@ -360,3 +360,9 @@
 
 ## File Chooser Button Bug (Feb 7, 2026)
 - [x] Fix Choose Excel/CSV File button not opening file picker dialog when clicked — replaced with <label for="fileInput"> pattern
+
+## File Chooser Still Not Working (Feb 7, 2026)
+- [x] Replaced button+hidden-input approach with transparent file input overlay technique (opacity:0 input over styled label) — works reliably on iPad Safari and Shopify POS WebView
+- [x] Added a dedicated file chooser button inside the Clear & Re-import section
+- [x] Both file inputs share the same handleFileSelect handler and update both fileName spans
+- [x] Reset all file inputs and file name displays after successful upload or clear-reimport
