@@ -1997,10 +1997,11 @@ function getStaffViewHTML(): string {
         .login-card .logo img { width: 150px; height: auto; object-fit: contain; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-        .pin-row { display: flex; justify-content: center; margin-bottom: 20px; }
-        .pin-single { width: 220px; height: 56px; text-align: center; font-size: 32px; letter-spacing: 20px; padding-left: 20px; border: 2px solid #ddd; border-radius: 12px; background: white; color: #333; outline: none; -webkit-appearance: none; -moz-appearance: textfield; caret-color: #6B8E6B; -webkit-text-security: disc; }
-        .pin-single:focus { border-color: #6B8E6B; box-shadow: 0 0 0 3px rgba(107,142,107,0.2); }
-        .pin-single::-webkit-outer-spin-button, .pin-single::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; position: relative; }
+        .pin-box { width: 50px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: text; transition: border-color 0.2s; }
+        .pin-box.active { border-color: #6B8E6B; }
+        .pin-box.filled { border-color: #6B8E6B; }
+        .pin-hidden-input { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
@@ -2051,8 +2052,12 @@ function getStaffViewHTML(): string {
             <div class="logo"><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/GeAxiPZgbGUciDuC.png" alt="Ms. Chu Soap &amp; Beaut"></div>
             <h1>Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
-            <div class="pin-row">
-                <input type="tel" inputmode="numeric" maxlength="4" class="pin-single" id="pinField" autocomplete="off" pattern="[0-9]*" placeholder="••••">
+            <div class="pin-input">
+                <input type="tel" maxlength="4" id="pinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-hidden-input">
+                <div class="pin-box" id="box0"></div>
+                <div class="pin-box" id="box1"></div>
+                <div class="pin-box" id="box2"></div>
+                <div class="pin-box" id="box3"></div>
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error-msg" id="errMsg"></p>
@@ -2097,38 +2102,50 @@ function getStaffViewHTML(): string {
     </div>
 
     <script>
-        const _fetch = window.fetch.bind(window);
         let token = null;
         let staffUser = null;
         let onlineData = [];
         let posData = [];
         let currentTab = 'online';
 
-        // Single visible input - simplest and most reliable for all browsers including Shopify POS
-        const pinField = document.getElementById('pinField');
+        // 4-square PIN approach - matching admin dashboard exactly
+        const pinInput = document.getElementById('pinInput');
+        const boxes = [document.getElementById('box0'), document.getElementById('box1'), document.getElementById('box2'), document.getElementById('box3')];
         let loginPending = false;
 
-        function getPin() { return pinField.value; }
+        function getPin() { return pinInput.value; }
 
-        pinField.addEventListener('input', () => {
-            pinField.value = pinField.value.replace(/[^0-9]/g, '').slice(0, 4);
-            if (pinField.value.length === 4 && !loginPending) {
+        function updateBoxes() {
+            const val = pinInput.value;
+            boxes.forEach((box, i) => {
+                box.textContent = val[i] ? '\u2022' : '';
+                box.className = 'pin-box' + (val[i] ? ' filled' : '') + (i === val.length ? ' active' : '');
+            });
+        }
+
+        pinInput.addEventListener('input', () => {
+            pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+            updateBoxes();
+            if (pinInput.value.length === 4 && !loginPending) {
                 loginPending = true;
                 setTimeout(() => {
-                    if (pinField.value.length === 4) doLogin();
+                    if (pinInput.value.length === 4) doLogin();
                     loginPending = false;
-                }, 300);
+                }, 200);
             }
         });
 
-        // Auto-focus
-        setTimeout(() => { pinField.focus(); }, 300);
+        // Clicking any box focuses the hidden input
+        boxes.forEach(box => box.addEventListener('click', () => pinInput.focus()));
+        pinInput.focus();
+        updateBoxes();
 
-        document.getElementById('loginBtn').addEventListener('click', doLogin);
+        document.getElementById('loginBtn').onclick = doLogin;
 
         function clearPin() {
-            pinField.value = '';
-            pinField.focus();
+            pinInput.value = '';
+            updateBoxes();
+            pinInput.focus();
         }
 
         async function doLogin() {
@@ -2137,30 +2154,30 @@ function getStaffViewHTML(): string {
             const errEl = document.getElementById('errMsg');
             errEl.style.display = 'none';
             try {
-                const res = await _fetch('/api/auth/pin', {
+                const res = await fetch('/api/auth/pin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin }),
-                    credentials: 'include'
+                    credentials: 'include',
+                    body: JSON.stringify({ pin })
                 });
                 const data = await res.json();
-                if (!res.ok || !data.success) {
+                if (res.ok && data.success) {
+                    token = data.sessionToken;
+                    staffUser = data.user;
+                    if (staffUser.role === 'admin') {
+                        errEl.textContent = 'Please use the main dashboard for admin access';
+                        errEl.style.display = 'block';
+                        clearPin();
+                        return;
+                    }
+                    showApp();
+                } else {
                     errEl.textContent = data.error || 'Invalid PIN';
                     errEl.style.display = 'block';
                     clearPin();
-                    return;
                 }
-                token = data.sessionToken;
-                staffUser = data.user;
-                if (staffUser.role === 'admin') {
-                    errEl.textContent = 'Please use the main dashboard for admin access';
-                    errEl.style.display = 'block';
-                    clearPin();
-                    return;
-                }
-                showApp();
             } catch (e) {
-                errEl.textContent = 'Connection error';
+                errEl.textContent = 'Connection error: ' + e.message;
                 errEl.style.display = 'block';
             }
         }
@@ -2169,7 +2186,7 @@ function getStaffViewHTML(): string {
             opts.headers = opts.headers || {};
             if (token) opts.headers['Authorization'] = 'Bearer ' + token;
             opts.credentials = 'include';
-            return _fetch(url, opts);
+            return fetch(url, opts);
         }
 
         function showApp() {
@@ -2314,7 +2331,7 @@ function getStaffViewHTML(): string {
             clearPin();
         }
 
-        pinField.focus();
+        pinInput.focus();
     </script>
 </body>
 </html>`;
