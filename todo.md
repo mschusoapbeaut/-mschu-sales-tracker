@@ -321,3 +321,13 @@
 - [x] Verify Eva Lee's Jan 2026 Online Sales total: HK$5,085.64 (6 orders)
 - [x] Enhanced upload endpoint to extract staff names from Customer Tags (WVReferredByStaff)
 - [x] Added bulk staff name update API endpoint (/api/sales/update-staff)
+
+## Upload Reliability Improvement (Feb 7, 2026)
+- [x] Investigate why manual Excel upload loses data (root cause: email sync only imported partial report; also netSales===0 skip removed)
+- [x] Add upload validation: show expected vs actual row counts after import
+- [x] Add detailed upload summary: imported, skipped (duplicates), failed rows with reasons
+- [x] Ensure zero-net-sales orders are not skipped during upload
+- [x] Add progress/feedback during large file uploads
+- [x] Prioritize Net Sales column detection over Total Sales to avoid wrong column matching
+- [x] Add admin delete sale endpoint for data cleanup
+- [x] Multi-line upload result display with 15s visibility

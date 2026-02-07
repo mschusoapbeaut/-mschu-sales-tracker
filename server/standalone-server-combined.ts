@@ -248,7 +248,7 @@ async function startServer() {
         return;
       }
       
-      const { csvData, saleType: uploadSaleType, staffMappings } = req.body;
+      const { csvData, saleType: uploadSaleType, staffMappings, totalRowsInFile } = req.body;
       if (!csvData) {
         res.status(400).json({ error: "No CSV data provided" });
         return;
@@ -265,48 +265,10 @@ async function startServer() {
       }
       
       // Parse header using proper CSV parsing
-      function parseCSVHeader(line: string): string[] {
-        const result: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim().replace(/^"|"$/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''));
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        result.push(current.trim().replace(/^"|"$/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''));
-        return result;
-      }
-      
-      const header = parseCSVHeader(lines[0]);
-      
-      // Find column indices
-      const dateIdx = header.findIndex((h: string) => h.includes("date") || h.includes("orderdate"));
-      const orderIdx = header.findIndex((h: string) => h.includes("orderid") || h.includes("orderno") || h.includes("ordername") || h === "order");
-      const channelIdx = header.findIndex((h: string) => h.includes("channel") || h.includes("saleschannel"));
-      const netSalesIdx = header.findIndex((h: string) => h.includes("netsales") || h.includes("net") || h.includes("amount") || h.includes("total"));
-      
-      if (netSalesIdx === -1) {
-        res.status(400).json({ error: "Could not find Net Sales column in CSV" });
-        return;
-      }
-      
-      let imported = 0;
-      let skipped = 0;
-      
-      // Better CSV parsing function that handles quoted fields
       function parseCSVLine(line: string): string[] {
         const result: string[] = [];
         let current = '';
         let inQuotes = false;
-        
         for (let i = 0; i < line.length; i++) {
           const char = line[i];
           if (char === '"') {
@@ -322,79 +284,164 @@ async function startServer() {
         return result;
       }
       
+      const headerRaw = parseCSVLine(lines[0]);
+      const header = headerRaw.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      
+      // Find column indices - prioritize exact matches to avoid wrong column
+      const dateIdx = header.findIndex((h: string) => h === 'orderdate' || h === 'date');
+      const orderIdx = header.findIndex((h: string) => h === 'ordername' || h === 'orderno' || h === 'orderid' || h === 'order');
+      const channelIdx = header.findIndex((h: string) => h.includes('channel') || h.includes('saleschannel') || h.includes('poslocationname'));
+      // Prioritize "netsales" exact match, then "net", but NOT "total" alone (to avoid matching Total Sales)
+      let netSalesIdx = header.findIndex((h: string) => h === 'netsales');
+      if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('netsales'));
+      if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h === 'net' || h === 'amount');
+      if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('amount'));
+      // Only fall back to "total" if nothing else matched
+      if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('total'));
+      const paymentIdx = header.findIndex((h: string) => h.includes('payment') || h.includes('gateway'));
+      
+      if (netSalesIdx === -1) {
+        res.status(400).json({ error: "Could not find Net Sales column in CSV. Headers found: " + headerRaw.join(', ') });
+        return;
+      }
+      
+      // Tracking counters
+      let imported = 0;
+      let skippedDuplicate = 0;
+      let skippedInvalid = 0;
+      let skippedEmpty = 0;
+      let failed = 0;
+      let totalProcessed = 0;
+      const failedOrders: string[] = [];
+      let importedTotal = 0;
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (!line) continue;
+        if (!line) { skippedEmpty++; continue; }
         
-        // Parse CSV line handling quoted fields
         const values = parseCSVLine(line);
+        totalProcessed++;
         
-        // Parse and convert date to MySQL format (YYYY-MM-DD)
+        // Parse date
         let orderDate: string | null = null;
         if (dateIdx >= 0 && values[dateIdx]) {
           const rawDate = values[dateIdx].trim();
-          // Try different date formats
+          if (rawDate.toLowerCase().includes('grand total') || rawDate.toLowerCase() === 'total') {
+            skippedInvalid++; continue;
+          }
           if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
-            // MM-DD-YYYY format -> YYYY-MM-DD
             const [mm, dd, yyyy] = rawDate.split('-');
-            orderDate = `${yyyy}-${mm}-${dd}`;
-          } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            // Already YYYY-MM-DD format
-            orderDate = rawDate;
-          } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-            // M/D/YYYY or MM/DD/YYYY format -> YYYY-MM-DD
+            orderDate = yyyy + '-' + mm + '-' + dd;
+          } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+            orderDate = rawDate.substring(0, 10);
+          } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
             const parts = rawDate.split('/');
             const mm = parts[0].padStart(2, '0');
             const dd = parts[1].padStart(2, '0');
-            const yyyy = parts[2];
-            orderDate = `${yyyy}-${mm}-${dd}`;
+            let yyyy = parts[2];
+            if (yyyy.length === 2) yyyy = '20' + yyyy;
+            orderDate = yyyy + '-' + mm + '-' + dd;
           } else {
-            // Try to parse as date string
             const parsed = new Date(rawDate);
             if (!isNaN(parsed.getTime())) {
               orderDate = parsed.toISOString().split('T')[0];
             }
           }
         }
-        const orderNo = orderIdx >= 0 ? values[orderIdx] : null;
-        const salesChannel = channelIdx >= 0 ? values[channelIdx] : null;
-        const netSales = parseFloat(values[netSalesIdx]?.replace(/[^0-9.-]/g, "") || "0");
+        
+        const orderNo = orderIdx >= 0 ? (values[orderIdx] || '').trim() : null;
+        const salesChannel = channelIdx >= 0 ? (values[channelIdx] || '').trim() : null;
+        const paymentGateway = paymentIdx >= 0 ? (values[paymentIdx] || '').trim() : null;
+        const rawNetSales = values[netSalesIdx] || '0';
+        const netSales = parseFloat(rawNetSales.replace(/[^0-9.-]/g, '') || '0');
+        
+        // Skip Grand Total / summary rows
+        if (orderNo && (orderNo.toLowerCase().includes('grand total') || orderNo.toLowerCase() === 'total')) {
+          skippedInvalid++; continue;
+        }
         
         if (isNaN(netSales)) {
-          skipped++;
-          continue;
+          skippedInvalid++; continue;
         }
         
-        // Check for duplicate - use orderNo + orderDate + netSales combination
-        // because different orders can share the same Order Name but have different dates/amounts
-        if (orderNo && orderDate) {
-          const [existing] = await db.execute(
-            "SELECT id FROM sales WHERE orderNo = ? AND orderDate = ? AND netSales = ? AND saleType = ?",
-            [orderNo, orderDate, netSales, uploadSaleType || 'online']
-          );
-          if ((existing as any[]).length > 0) {
-            skipped++;
-            continue;
+        // Check for duplicate
+        try {
+          if (orderNo && orderDate) {
+            const [existing] = await db.execute(
+              "SELECT id FROM sales WHERE orderNo = ? AND orderDate = ? AND netSales = ? AND saleType = ?",
+              [orderNo, orderDate, netSales, uploadSaleType || 'online']
+            );
+            if ((existing as any[]).length > 0) { skippedDuplicate++; continue; }
+          } else if (orderNo) {
+            const [existing] = await db.execute(
+              "SELECT id FROM sales WHERE orderNo = ? AND saleType = ?",
+              [orderNo, uploadSaleType || 'online']
+            );
+            if ((existing as any[]).length > 0) { skippedDuplicate++; continue; }
           }
-        } else if (orderNo) {
-          const [existing] = await db.execute("SELECT id FROM sales WHERE orderNo = ? AND saleType = ?", [orderNo, uploadSaleType || 'online']);
-          if ((existing as any[]).length > 0) {
-            skipped++;
-            continue;
-          }
+        } catch (dupErr: any) {
+          console.error('[Upload] Duplicate check error:', dupErr.message);
         }
         
-        // Check if we have a staff name from the Excel Customer Tags
+        // Get staff name from Excel Customer Tags
         const staffName = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
         
-        await db.execute(
-          "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?)",
-          [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName]
-        );
-        imported++;
+        try {
+          if (uploadSaleType === 'pos' && paymentGateway) {
+            await db.execute(
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway]
+            );
+          } else {
+            await db.execute(
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName]
+            );
+          }
+          imported++;
+          importedTotal += netSales;
+        } catch (insertErr: any) {
+          failed++;
+          if (failedOrders.length < 10) failedOrders.push(orderNo || 'row ' + i);
+          console.error('[Upload] Insert error for ' + orderNo + ':', insertErr.message);
+        }
       }
       
-      res.json({ success: true, imported, skipped, message: `Imported ${imported} sales, skipped ${skipped} duplicates/invalid` });
+      // Build detailed summary
+      const totalSkipped = skippedDuplicate + skippedInvalid + skippedEmpty;
+      const summary = {
+        success: failed === 0,
+        imported,
+        importedTotal: Math.round(importedTotal * 100) / 100,
+        skippedDuplicate,
+        skippedInvalid,
+        skippedEmpty,
+        failed,
+        failedOrders: failedOrders.length > 0 ? failedOrders : undefined,
+        totalRowsProcessed: totalProcessed,
+        totalRowsInFile: totalRowsInFile || null,
+        columnsDetected: {
+          date: dateIdx >= 0 ? headerRaw[dateIdx] : 'not found',
+          order: orderIdx >= 0 ? headerRaw[orderIdx] : 'not found',
+          channel: channelIdx >= 0 ? headerRaw[channelIdx] : 'not found',
+          netSales: headerRaw[netSalesIdx],
+          payment: paymentIdx >= 0 ? headerRaw[paymentIdx] : 'not found',
+        },
+        message: 'Imported ' + imported + ' orders (HK$' + importedTotal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')' +
+          (skippedDuplicate > 0 ? ', ' + skippedDuplicate + ' duplicates skipped' : '') +
+          (skippedInvalid > 0 ? ', ' + skippedInvalid + ' invalid rows skipped' : '') +
+          (failed > 0 ? ', ' + failed + ' FAILED' : '') +
+          '. Total rows processed: ' + totalProcessed +
+          (totalRowsInFile ? ' of ' + totalRowsInFile + ' in file' : '') + '.'
+      };
+      
+      // Warn if there's a mismatch between file rows and processed rows
+      if (totalRowsInFile && Math.abs(totalProcessed - totalRowsInFile) > 1) {
+        summary.message += ' WARNING: Row count mismatch - file has ' + totalRowsInFile + ' data rows but only ' + totalProcessed + ' were processed.';
+      }
+      
+      console.log('[Upload] Summary:', JSON.stringify(summary));
+      res.json(summary);
     } catch (error) {
       console.error("[API] Upload sales error:", error);
       res.status(500).json({ error: "Failed to upload sales data" });
@@ -561,6 +608,27 @@ async function startServer() {
     } catch (error) {
       console.error("[API] Delete staff error:", error);
       res.status(500).json({ error: "Failed to delete staff" });
+    }
+  });
+
+  // Delete individual sale record (admin only)
+  app.delete("/api/sales/:id", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user || user.role !== "admin") {
+        res.status(403).json({ error: "Admin access required" });
+        return;
+      }
+      const saleId = parseInt(req.params.id);
+      if (isNaN(saleId)) {
+        res.status(400).json({ error: "Invalid sale ID" });
+        return;
+      }
+      await db.execute("DELETE FROM sales WHERE id = ?", [saleId]);
+      res.json({ success: true, message: "Sale record deleted" });
+    } catch (error) {
+      console.error("[API] Delete sale error:", error);
+      res.status(500).json({ error: "Failed to delete sale" });
     }
   });
 
@@ -1362,8 +1430,9 @@ function getAdminHTML(): string {
             '118809198875': 'Sze 118809198875'
         };
         
-        // Store staff mappings extracted from Excel
+        // Store staff mappings and row count extracted from Excel
         window._staffMappings = {};
+        window._totalRowsInFile = 0;
         
         function parseExcelFile(file) {
             const reader = new FileReader();
@@ -1376,8 +1445,16 @@ function getAdminHTML(): string {
                     // Extract staff mappings from Customer Tags (Column E)
                     window._staffMappings = {};
                     const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    let dataRowCount = 0;
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
+                        if (!row || row.length === 0) continue;
+                        // Skip Grand Total row
+                        const firstCell = row[0] ? String(row[0]).trim().toLowerCase() : '';
+                        const secondCell = row[1] ? String(row[1]).trim().toLowerCase() : '';
+                        if (firstCell === 'grand total' || secondCell === 'grand total') continue;
+                        dataRowCount++;
+                        
                         const orderName = row[1] ? String(row[1]).trim() : null;
                         const customerTags = row[4] ? String(row[4]).trim() : '';
                         if (orderName && customerTags) {
@@ -1387,11 +1464,12 @@ function getAdminHTML(): string {
                             }
                         }
                     }
+                    window._totalRowsInFile = dataRowCount;
                     
                     const csv = XLSX.utils.sheet_to_csv(firstSheet);
                     document.getElementById('csvPreview').value = csv;
                     const staffCount = Object.keys(window._staffMappings).length;
-                    showMessage('uploadMessage', 'Excel file converted. ' + staffCount + ' orders with staff attribution detected.', 'success');
+                    showMessage('uploadMessage', 'Excel parsed: ' + dataRowCount + ' data rows found, ' + staffCount + ' with staff attribution.', 'success');
                 } catch (err) {
                     showMessage('uploadMessage', 'Failed to parse Excel file: ' + err.message, 'error');
                 }
@@ -1407,19 +1485,50 @@ function getAdminHTML(): string {
                 return;
             }
             
+            // Show uploading state
+            showMessage('uploadMessage', 'Uploading and processing... please wait', 'success');
+            
             try {
                 const r = await authFetch('/api/sales/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ csvData, saleType, staffMappings: window._staffMappings || {} })
+                    body: JSON.stringify({
+                        csvData,
+                        saleType,
+                        staffMappings: window._staffMappings || {},
+                        totalRowsInFile: window._totalRowsInFile || 0
+                    })
                 });
                 const d = await r.json();
                 
-                if (r.ok && d.success) {
-                    showMessage('uploadMessage', d.message, 'success');
+                if (r.ok && d.imported !== undefined) {
+                    // Build detailed result message
+                    let msg = 'UPLOAD COMPLETE\n';
+                    msg += '\u2705 Imported: ' + d.imported + ' orders';
+                    if (d.importedTotal) msg += ' (HK$' + Number(d.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
+                    msg += '\n';
+                    if (d.skippedDuplicate > 0) msg += '\u23ED Duplicates skipped: ' + d.skippedDuplicate + '\n';
+                    if (d.skippedInvalid > 0) msg += '\u26A0 Invalid rows skipped: ' + d.skippedInvalid + '\n';
+                    if (d.failed > 0) msg += '\u274C Failed: ' + d.failed + (d.failedOrders ? ' (' + d.failedOrders.join(', ') + ')' : '') + '\n';
+                    msg += '\nRows processed: ' + d.totalRowsProcessed;
+                    if (d.totalRowsInFile) msg += ' of ' + d.totalRowsInFile + ' in file';
+                    
+                    // Check for row count mismatch
+                    if (d.totalRowsInFile && d.totalRowsInFile > 0) {
+                        const accounted = d.imported + d.skippedDuplicate + d.skippedInvalid + (d.failed || 0);
+                        if (accounted < d.totalRowsInFile - 1) {
+                            msg += '\n\n\u26A0 WARNING: ' + (d.totalRowsInFile - accounted) + ' rows unaccounted for!';
+                        } else {
+                            msg += '\n\n\u2705 All rows accounted for.';
+                        }
+                    }
+                    
+                    showMessage('uploadMessage', msg, d.failed > 0 ? 'error' : 'success');
                     document.getElementById('csvPreview').value = '';
                     document.getElementById('fileName').textContent = 'No file selected';
+                    window._staffMappings = {};
+                    window._totalRowsInFile = 0;
                     if (saleType === 'pos') {
                         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                         document.querySelector('.tab:nth-child(2)').classList.add('active');
@@ -1431,7 +1540,7 @@ function getAdminHTML(): string {
                     showMessage('uploadMessage', d.error || 'Failed to upload', 'error');
                 }
             } catch (e) {
-                showMessage('uploadMessage', 'Connection error', 'error');
+                showMessage('uploadMessage', 'Connection error: ' + e.message, 'error');
             }
         }
         
@@ -1511,9 +1620,20 @@ function getAdminHTML(): string {
         
         function showMessage(elementId, text, type) {
             const msg = document.getElementById(elementId);
-            msg.textContent = text;
+            // Support multi-line messages (replace newlines with <br>)
+            if (text.includes('\n')) {
+                msg.innerHTML = text.replace(/\n/g, '<br>');
+                msg.style.whiteSpace = 'pre-line';
+                msg.style.textAlign = 'left';
+            } else {
+                msg.textContent = text;
+                msg.style.whiteSpace = '';
+                msg.style.textAlign = '';
+            }
             msg.className = 'message ' + type;
-            setTimeout(() => { msg.className = 'message'; }, 5000);
+            // Keep upload results visible longer (15s for upload, 5s for others)
+            const timeout = elementId === 'uploadMessage' ? 15000 : 5000;
+            setTimeout(() => { msg.className = 'message'; msg.style.whiteSpace = ''; msg.style.textAlign = ''; }, timeout);
         }
         
         async function logout() {
