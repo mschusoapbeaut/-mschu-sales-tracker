@@ -297,3 +297,12 @@
 
 ## POS Sales Order Name Fix (Feb 7, 2026)
 - [x] Fixed duplicate check: now uses orderNo + orderDate + netSales + saleType combination instead of just orderNo, so different orders with the same Order Name are no longer skipped during import
+
+## Shopify POS Staff View (Feb 7, 2026)
+- [ ] Build mobile-optimized staff view page at /staff-view route
+- [ ] Staff PIN login on the staff view page
+- [ ] Show only logged-in staff's own Online Sales for current month
+- [ ] Show only logged-in staff's own POS Sales for current month
+- [ ] Display totals for each category
+- [ ] Mobile-optimized layout for POS device screen
+- [ ] Deploy to Railway and provide test URLs
