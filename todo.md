@@ -402,3 +402,8 @@
 - [x] Updated all accent colors: buttons, tabs, stat cards, badges, file picker to sage green
 - [x] Updated hover states to match sage green palette
 - [x] Deployed to Railway
+
+## Dashboard Header Logo (Feb 7, 2026)
+- [x] Added Ms. Chu logo (36px height) to admin dashboard header next to user name
+- [x] Added Ms. Chu logo (28px height) to staff-view header next to staff name
+- [x] Deployed to Railway

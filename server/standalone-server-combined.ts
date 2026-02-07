@@ -856,6 +856,8 @@ function getAdminHTML(): string {
         .error { color: #e74c3c; margin-top: 15px; font-size: 14px; display: none; text-align: center; }
         .dashboard { display: none; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
+        .dashboard-header-left { display: flex; align-items: center; gap: 15px; }
+        .dashboard-header-left .header-logo img { height: 36px; width: auto; }
         .user-info { text-align: left; }
         .user-name { font-weight: 600; color: #333; font-size: 20px; }
         .user-role { font-size: 12px; color: #666; text-transform: uppercase; background: #f0f0f0; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
@@ -941,9 +943,12 @@ function getAdminHTML(): string {
         </div>
         <div class="dashboard" id="dashboard">
             <div class="dashboard-header">
-                <div class="user-info">
-                    <div class="user-name" id="userName">Welcome</div>
-                    <div class="user-role" id="userRole">Staff</div>
+                <div class="dashboard-header-left">
+                    <div class="header-logo"><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/GeAxiPZgbGUciDuC.png" alt="Ms. Chu"></div>
+                    <div class="user-info">
+                        <div class="user-name" id="userName">Welcome</div>
+                        <div class="user-role" id="userRole">Staff</div>
+                    </div>
                 </div>
                 <div class="header-buttons">
                     <button class="logout-btn" onclick="logout()">Logout</button>
@@ -1927,6 +1932,8 @@ function getStaffViewHTML(): string {
         .app { display: none; }
         .app-header { background: white; padding: 16px 20px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; z-index: 10; }
         .app-header-top { display: flex; justify-content: space-between; align-items: center; }
+        .app-header-logo { display: flex; align-items: center; gap: 10px; }
+        .app-header-logo img { height: 28px; width: auto; }
         .staff-name { font-size: 17px; font-weight: 600; color: #333; }
         .staff-badge { font-size: 11px; color: #4A6B4A; background: #e8f0e8; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
         .logout-link { font-size: 14px; color: #999; cursor: pointer; border: none; background: none; }
@@ -1976,7 +1983,10 @@ function getStaffViewHTML(): string {
     <div class="app" id="app">
         <div class="app-header">
             <div class="app-header-top">
-                <div><span class="staff-name" id="staffName"></span><span class="staff-badge">STAFF</span></div>
+                <div class="app-header-logo">
+                    <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/GeAxiPZgbGUciDuC.png" alt="Ms. Chu">
+                    <div><span class="staff-name" id="staffName"></span><span class="staff-badge">STAFF</span></div>
+                </div>
                 <button class="logout-link" onclick="doLogout()">Logout</button>
             </div>
             <div class="month-label" id="monthLabel"></div>
