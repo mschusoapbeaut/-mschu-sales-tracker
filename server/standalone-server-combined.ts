@@ -135,7 +135,7 @@ async function startServer() {
       const saleType = req.query.type as string || 'online';
       const month = req.query.month as string || 'all';
       const staffName = req.query.staffName as string || '';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName FROM sales";
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -301,6 +301,11 @@ async function startServer() {
       const paymentIdx = header.findIndex((h: string) => h.includes('payment') || h.includes('gateway'));
       // Find Customer Tags column for server-side staff extraction fallback
       const customerTagsIdx = header.findIndex((h: string) => h === 'customertags' || h.includes('customertag'));
+      // Find Email Marketing and SMS Marketing columns
+      const emailMarketingIdx = header.findIndex((h: string) => h.includes('emailmark') || h === 'emailmarketting' || h === 'emailmarketing');
+      const smsMarketingIdx = header.findIndex((h: string) => h.includes('smsmark') || h === 'smsmarketing');
+      // Find Customer Email column
+      const customerEmailIdx = header.findIndex((h: string) => h === 'email' || h === 'customeremail');
       
       // Build staff ID to name mapping dynamically from the users table
       const KNOWN_STAFF_SERVER: Record<string, string> = {};
@@ -374,6 +379,9 @@ async function startServer() {
         const orderNo = orderIdx >= 0 ? (values[orderIdx] || '').trim() : null;
         const salesChannel = channelIdx >= 0 ? (values[channelIdx] || '').trim() : null;
         const paymentGateway = paymentIdx >= 0 ? (values[paymentIdx] || '').trim() : null;
+        const emailMarketing = emailMarketingIdx >= 0 ? (values[emailMarketingIdx] || '').trim() || null : null;
+        const smsMarketing = smsMarketingIdx >= 0 ? (values[smsMarketingIdx] || '').trim() || null : null;
+        const customerEmail = customerEmailIdx >= 0 ? (values[customerEmailIdx] || '').trim() || null : null;
         const rawNetSales = values[netSalesIdx] || '0';
         const netSales = parseFloat(rawNetSales.replace(/[^0-9.-]/g, '') || '0');
         
@@ -427,13 +435,13 @@ async function startServer() {
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail]
             );
           } else {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName) VALUES (?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail]
             );
           }
           imported++;
@@ -1182,11 +1190,17 @@ function getAdminHTML(): string {
             html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderNo&#39;)">Order</th>';
             html += '<th>Channel</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
+            html += '<th>Customer Email</th>';
+            html += '<th>Email Mkt</th>';
+            html += '<th>SMS Mkt</th>';
             html += '<th>Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
                 const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
                 if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                html += '<td style="font-size:12px">' + (s.customerEmail || '-') + '</td>';
+                html += '<td>' + (s.emailMarketing || '-') + '</td>';
+                html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
@@ -2162,10 +2176,20 @@ function getStaffViewHTML(): string {
                 const channel = r.salesChannel || '-';
                 const gateway = r.paymentGateway || '';
                 const meta = currentTab === 'pos' ? date + ' \u00B7 ' + channel + (gateway ? ' \u00B7 ' + gateway : '') : date + ' \u00B7 ' + channel;
+                // For online orders, show additional marketing fields
+                let extraInfo = '';
+                if (currentTab === 'online') {
+                    const email = r.customerEmail || '-';
+                    const emailMkt = r.emailMarketing || '-';
+                    const smsMkt = r.smsMarketing || '-';
+                    extraInfo = '<div class="order-meta" style="margin-top:2px;font-size:11px">' + email + '</div>';
+                    extraInfo += '<div class="order-meta" style="margin-top:1px;font-size:11px">Email: ' + emailMkt + ' \u00B7 SMS: ' + smsMkt + '</div>';
+                }
                 html += '<div class="order-row">';
                 html += '  <div class="order-info">';
                 html += '    <div class="order-id">#' + (r.orderNo || '-') + '</div>';
                 html += '    <div class="order-meta">' + meta + '</div>';
+                html += extraInfo;
                 html += '  </div>';
                 html += '  <div class="order-amount">' + fmtCurrency(r.netSales) + '</div>';
                 html += '</div>';

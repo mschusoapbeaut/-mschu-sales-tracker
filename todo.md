@@ -407,3 +407,20 @@
 - [x] Added Ms. Chu logo (36px height) to admin dashboard header next to user name
 - [x] Added Ms. Chu logo (28px height) to staff-view header next to staff name
 - [x] Deployed to Railway
+
+## Email Sync Net Sales & Staff Name Fix (Feb 7, 2026)
+- [x] Fixed email sync: replaced hardcoded column indices with header-based dynamic detection
+- [x] Fixed email sync staff name extraction to use dynamic DB lookup like manual upload
+- [x] Email sync now matches manual upload behavior for data consistency
+- [x] Deployed to Railway
+
+## New Online Sales Report Format Mapping (Feb 7, 2026)
+- [x] Examined new report sample — 16 columns: A=Order Date, B=Order Name, C=Sales Channel, D=Customer Created At, E=Customer Tags, F=Payment Method, G=Email Marketting, H=SMS Marketing, I=Order ID, J-L=ShipAny fields, M=Email, N=Gross Sales, O=Net Sales, P=Total Sales
+- [x] Added emailMarketing and smsMarketing columns to the sales database table
+- [x] Updated email sync to parse Email Marketing, SMS Marketing, Customer Email, Net Sales with header-based detection
+- [x] Updated manual upload to also parse Email Marketing, SMS Marketing, Customer Email columns
+- [x] Admin Online Sales table: added Customer Email, Email Mkt, SMS Mkt columns
+- [x] Staff-view Online Sales: added Customer Email, Email Mkt, SMS Mkt in order detail rows
+- [x] Added customerEmail column to sales database table
+- [x] API endpoint updated to return emailMarketing, smsMarketing, customerEmail fields
+- [x] Deployed to Railway — everything else stays the same

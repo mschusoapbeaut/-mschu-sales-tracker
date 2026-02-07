@@ -254,8 +254,12 @@ async function processAttachment(filename: string, content: Buffer): Promise<num
 }
 
 // Import Excel data using direct column mapping
-// Column A = Order Date, Column B = Order Name, Column C = Sales Channel
-// Column E = WVReferredByStaff (Customer Tags), Column H = Net Sales
+// Column A(0) = Order Date, Column B(1) = Order Name, Column C(2) = Sales Channel
+// Column D(3) = Customer Created At, Column E(4) = Customer Tags (WVReferredByStaff)
+// Column F(5) = Payment Method, Column G(6) = Email Marketing, Column H(7) = SMS Marketing
+// Column I(8) = Order ID, Column J(9) = ShipAny Tracking, Column K(10) = ShipAny Order_id
+// Column L(11) = ShipAny Way_bill, Column M(12) = Gross Sales, Column N(13) = Net Sales
+// Column O(14) = Total Sales, Column P(15) = Refund Adjustment Amount
 async function importExcelData(content: Buffer): Promise<number> {
   const workbook = XLSX.read(content, { type: "buffer" });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -273,9 +277,34 @@ async function importExcelData(content: Buffer): Promise<number> {
   
   let imported = 0;
   
-  // Log the header row to verify column positions
-  if (rows.length > 0) {
-    console.log(`[EmailSync] Header row: ${JSON.stringify(rows[0])}`);
+  // Use header-based column detection (same approach as manual upload) for robustness
+  const headerRow = rows[0];
+  console.log(`[EmailSync] Header row: ${JSON.stringify(headerRow)}`);
+  
+  // Normalize headers to lowercase for matching
+  const headers = headerRow.map((h: any) => String(h || '').toLowerCase().replace(/[\s_-]/g, ''));
+  
+  // Detect column indices dynamically
+  const dateIdx = headers.findIndex((h: string) => h.includes('orderdate') || h === 'date');
+  const orderIdx = headers.findIndex((h: string) => h.includes('ordername') || h.includes('orderid') || h === 'order');
+  const channelIdx = headers.findIndex((h: string) => h.includes('channel') || h.includes('saleschannel'));
+  const customerTagsIdx = headers.findIndex((h: string) => h.includes('customertag'));
+  // Detect Email Marketing and SMS Marketing columns
+  const emailMarketingIdx = headers.findIndex((h: string) => h.includes('emailmark') || h === 'emailmarketting' || h === 'emailmarketing');
+  const smsMarketingIdx = headers.findIndex((h: string) => h.includes('smsmark') || h === 'smsmarketing');
+  // Detect Customer Email column
+  const customerEmailIdx = headers.findIndex((h: string) => h === 'email' || h === 'customeremail');
+  // Prioritize exact "netsales" match to avoid matching "Gross Sales" or "Total Sales"
+  let netSalesIdx = headers.findIndex((h: string) => h === 'netsales');
+  if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
+  if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h === 'net' || h === 'amount');
+  
+  console.log(`[EmailSync] Detected columns - date:${dateIdx}, order:${orderIdx}, channel:${channelIdx}, tags:${customerTagsIdx}, emailMkt:${emailMarketingIdx}, smsMkt:${smsMarketingIdx}, netSales:${netSalesIdx}`);
+  console.log(`[EmailSync] Net Sales header: ${netSalesIdx >= 0 ? headerRow[netSalesIdx] : 'NOT FOUND'}`);
+  
+  if (netSalesIdx === -1) {
+    console.error("[EmailSync] Could not find Net Sales column! Headers: " + JSON.stringify(headerRow));
+    return 0;
   }
   
   // Skip header row (row 0), start from row 1
@@ -289,16 +318,14 @@ async function importExcelData(content: Buffer): Promise<number> {
       console.log(`[EmailSync] Row length: ${row.length}`);
     }
     
-    // Column mapping (0-indexed) based on actual Excel format:
-    // A=0: Order Date, B=1: Order Name, C=2: Sales Channel, D=3: Customer Created At
-    // E=4: Customer Tags (WVReferredByStaff), F=5: Payment Method
-    // G=6: Email Marketing, H=7: SMS Marketing
-    // I=8: Gross Sales, J=9: Net Sales, K=10: Total Sales, L=11: Refund Adjustment
-    const orderDateRaw = row[0];
-    const orderName = row[1] ? String(row[1]).trim() : null;
-    const salesChannel = row[2] ? String(row[2]).trim() : null;
-    const customerTags = row[4] ? String(row[4]).trim() : "";
-    const netSalesRaw = row[9]; // Column J = Net Sales (index 9)
+    const orderDateRaw = dateIdx >= 0 ? row[dateIdx] : row[0];
+    const orderName = orderIdx >= 0 ? (row[orderIdx] ? String(row[orderIdx]).trim() : null) : (row[1] ? String(row[1]).trim() : null);
+    const salesChannel = channelIdx >= 0 ? (row[channelIdx] ? String(row[channelIdx]).trim() : null) : (row[2] ? String(row[2]).trim() : null);
+    const customerTags = customerTagsIdx >= 0 ? (row[customerTagsIdx] ? String(row[customerTagsIdx]).trim() : "") : "";
+    const emailMarketing = emailMarketingIdx >= 0 ? (row[emailMarketingIdx] ? String(row[emailMarketingIdx]).trim() : null) : null;
+    const smsMarketing = smsMarketingIdx >= 0 ? (row[smsMarketingIdx] ? String(row[smsMarketingIdx]).trim() : null) : null;
+    const customerEmail = customerEmailIdx >= 0 ? (row[customerEmailIdx] ? String(row[customerEmailIdx]).trim() : null) : null;
+    const netSalesRaw = row[netSalesIdx]; // Dynamically detected Net Sales column
     
     // Log parsed values for first few rows
     if (i <= 3) {
@@ -396,8 +423,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online"]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail]
       );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
