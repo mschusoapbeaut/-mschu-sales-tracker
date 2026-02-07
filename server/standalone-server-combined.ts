@@ -302,20 +302,19 @@ async function startServer() {
       // Find Customer Tags column for server-side staff extraction fallback
       const customerTagsIdx = header.findIndex((h: string) => h === 'customertags' || h.includes('customertag'));
       
-      // Known staff ID to name mappings (server-side fallback)
-      const KNOWN_STAFF_SERVER: Record<string, string> = {
-        '78319321135': 'Egenie Tang 78319321135',
-        '78319255599': 'Eva Lee 78319255599',
-        '78319190063': 'Maggie Liang 78319190063',
-        '79208775727': 'Maggie Wong 79208775727',
-        '78319386671': 'Ting Siew 78319386671',
-        '78319550511': 'Win Lee 78319550511',
-        '78319091759': 'Wing Ho 78319091759',
-        '101232115995': 'Sharon Li 101232115995',
-        '109111279899': 'Hailey Hoi Ling Wong 109111279899',
-        '111913632027': 'Bon Lau 111913632027',
-        '118809198875': 'Sze 118809198875'
-      };
+      // Build staff ID to name mapping dynamically from the users table
+      const KNOWN_STAFF_SERVER: Record<string, string> = {};
+      try {
+        const [staffRows] = await db.execute("SELECT name, staffId FROM users WHERE staffId IS NOT NULL AND staffId != '' AND role = 'staff'");
+        for (const row of (staffRows as any[])) {
+          if (row.staffId && row.name) {
+            KNOWN_STAFF_SERVER[row.staffId] = row.name + ' ' + row.staffId;
+          }
+        }
+        console.log('[Upload] Loaded', Object.keys(KNOWN_STAFF_SERVER).length, 'staff mappings from database');
+      } catch (staffErr: any) {
+        console.error('[Upload] Failed to load staff mappings from DB:', staffErr.message);
+      }
       
       if (netSalesIdx === -1) {
         res.status(400).json({ error: "Could not find Net Sales column in CSV. Headers found: " + headerRaw.join(', ') });
@@ -331,6 +330,12 @@ async function startServer() {
       let totalProcessed = 0;
       const failedOrders: string[] = [];
       let importedTotal = 0;
+      let staffFromClientMap = 0;
+      let staffFromServerCSV = 0;
+      let staffTotal = 0;
+      
+      console.log('[Upload] Column detection - customerTagsIdx:', customerTagsIdx, 'orderIdx:', orderIdx, 'headers:', JSON.stringify(headerRaw));
+      console.log('[Upload] Client staffMappings count:', Object.keys(orderStaffMap).length);
       
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -402,13 +407,22 @@ async function startServer() {
         
         // Get staff name: first try client-side Excel mapping, then try server-side CSV Customer Tags column
         let staffName: string | null = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
+        if (staffName) { staffFromClientMap++; }
         if (!staffName && customerTagsIdx >= 0 && values[customerTagsIdx]) {
           const tagValue = values[customerTagsIdx].trim();
           const staffMatch = tagValue.match(/WVReferredByStaff_(\d+)/);
-          if (staffMatch && KNOWN_STAFF_SERVER[staffMatch[1]]) {
-            staffName = KNOWN_STAFF_SERVER[staffMatch[1]];
+          if (staffMatch) {
+            if (KNOWN_STAFF_SERVER[staffMatch[1]]) {
+              staffName = KNOWN_STAFF_SERVER[staffMatch[1]];
+            } else {
+              // Unknown staff ID - store the raw ID so it's not lost
+              staffName = 'Unknown Staff ' + staffMatch[1];
+              console.log('[Upload] Unknown staff ID found:', staffMatch[1], 'for order:', orderNo);
+            }
+            staffFromServerCSV++;
           }
         }
+        if (staffName) { staffTotal++; }
         
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
@@ -450,6 +464,13 @@ async function startServer() {
           channel: channelIdx >= 0 ? headerRaw[channelIdx] : 'not found',
           netSales: headerRaw[netSalesIdx],
           payment: paymentIdx >= 0 ? headerRaw[paymentIdx] : 'not found',
+          customerTags: customerTagsIdx >= 0 ? headerRaw[customerTagsIdx] : 'not found',
+        },
+        staffAttribution: {
+          fromClientExcel: staffFromClientMap,
+          fromServerCSV: staffFromServerCSV,
+          total: staffTotal,
+          clientMappingsReceived: Object.keys(orderStaffMap).length,
         },
         message: 'Imported ' + imported + ' orders (HK$' + importedTotal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')' +
           (skippedDuplicate > 0 ? ', ' + skippedDuplicate + ' duplicates skipped' : '') +
@@ -1568,8 +1589,13 @@ function getAdminHTML(): string {
                         const customerTags = row[4] ? String(row[4]).trim() : '';
                         if (orderName && customerTags) {
                             const match = customerTags.match(/WVReferredByStaff_(\d+)/);
-                            if (match && KNOWN_STAFF[match[1]]) {
-                                window._staffMappings[orderName] = KNOWN_STAFF[match[1]];
+                            if (match) {
+                                if (KNOWN_STAFF[match[1]]) {
+                                    window._staffMappings[orderName] = KNOWN_STAFF[match[1]];
+                                } else {
+                                    // Unknown staff ID - still store it so server can try to resolve
+                                    window._staffMappings[orderName] = 'Unknown Staff ' + match[1];
+                                }
                             }
                         }
                     }
@@ -1630,6 +1656,17 @@ function getAdminHTML(): string {
                         } else {
                             lines.push('', '\u2705 All rows accounted for.');
                         }
+                    }
+                    // Show staff attribution stats
+                    if (d.staffAttribution) {
+                        var sa = d.staffAttribution;
+                        lines.push('', '\uD83D\uDC64 Staff attribution: ' + sa.total + ' orders assigned to staff');
+                        if (sa.fromClientExcel > 0) lines.push('  \u2022 From Excel Customer Tags (client): ' + sa.fromClientExcel);
+                        if (sa.fromServerCSV > 0) lines.push('  \u2022 From CSV Customer Tags (server): ' + sa.fromServerCSV);
+                        lines.push('  \u2022 Client mappings received: ' + sa.clientMappingsReceived);
+                    }
+                    if (d.columnsDetected) {
+                        lines.push('', 'Columns: customerTags=' + (d.columnsDetected.customerTags || 'not found'));
                     }
                     var msg = lines.join('<br>');
                     

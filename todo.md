@@ -376,3 +376,10 @@
 ## Staff Name Missing After Upload (Feb 7, 2026)
 - [x] Fix upload endpoint to extract staff names from Customer Tags column (WVReferredByStaff_STAFFID)
 - [x] Added server-side fallback: server now parses Customer Tags column directly from CSV in addition to client-side Excel mapping
+
+## Staff Names Only Partially Extracted (Feb 7, 2026)
+- [x] Debugged: 77/236 orders had WVReferredByStaff tags; remaining 159 genuinely have no staff attribution
+- [x] Replaced hardcoded KNOWN_STAFF map with dynamic lookup from users table
+- [x] Unknown staff IDs now stored as 'Unknown Staff ID' instead of being silently dropped
+- [x] Email sync now stores staffName alongside staffId for proper display
+- [x] Upload result message shows detailed staff attribution stats (client vs server extraction counts)

@@ -349,12 +349,27 @@ async function importExcelData(content: Buffer): Promise<number> {
       continue;
     }
     
-    // Try to find user ID from staff mapping using WVReferredByStaff
+    // Try to find user ID and staff name from staff mapping using WVReferredByStaff
     let userId = 1; // Default to admin user
+    let staffName: string | null = null;
     if (customerTags) {
       const staffIdMatch = customerTags.match(/WVReferredByStaff_(\d+)/);
-      if (staffIdMatch && staffMapping[staffIdMatch[1]]) {
-        userId = staffMapping[staffIdMatch[1]];
+      if (staffIdMatch) {
+        const matchedStaffId = staffIdMatch[1];
+        if (staffMapping[matchedStaffId]) {
+          userId = staffMapping[matchedStaffId];
+        }
+        // Also look up staff name from users table for the staffName column
+        try {
+          const [staffRows] = await db.execute("SELECT name FROM users WHERE staffId = ? LIMIT 1", [matchedStaffId]);
+          if ((staffRows as any[]).length > 0) {
+            staffName = (staffRows as any[])[0].name + ' ' + matchedStaffId;
+          } else {
+            staffName = 'Unknown Staff ' + matchedStaffId;
+          }
+        } catch (e) {
+          staffName = 'Unknown Staff ' + matchedStaffId;
+        }
       }
     }
     
@@ -381,8 +396,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, saleType) VALUES (?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, "online"]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online"]
       );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
