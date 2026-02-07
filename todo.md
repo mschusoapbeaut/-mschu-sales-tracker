@@ -395,3 +395,10 @@
 - [x] Replaced generated logo with official logo on admin dashboard and staff-view login pages
 - [x] Adjusted CSS for horizontal logo format (180px admin, 150px staff-view)
 - [x] Deployed to Railway
+
+## Sage Green Background (Feb 7, 2026)
+- [x] Changed login background from purple gradient to sage green on admin dashboard
+- [x] Changed login background from purple gradient to sage green on staff-view
+- [x] Updated all accent colors: buttons, tabs, stat cards, badges, file picker to sage green
+- [x] Updated hover states to match sage green palette
+- [x] Deployed to Railway

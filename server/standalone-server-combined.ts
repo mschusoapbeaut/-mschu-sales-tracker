@@ -840,7 +840,7 @@ function getAdminHTML(): string {
     <title>Ms. Chu Sales Tracker</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #8BAF8B 0%, #5C7F5C 100%); min-height: 100vh; padding: 20px; }
         .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 1000px; margin: 0 auto; }
         .logo { margin-bottom: 10px; text-align: center; }
         .logo img { width: 180px; height: auto; object-fit: contain; }
@@ -848,11 +848,11 @@ function getAdminHTML(): string {
         .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; text-align: center; }
         .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; position: relative; }
         .pin-box { width: 50px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: text; transition: border-color 0.2s; }
-        .pin-box.active { border-color: #667eea; }
-        .pin-box.filled { border-color: #667eea; }
+        .pin-box.active { border-color: #6B8E6B; }
+        .pin-box.filled { border-color: #6B8E6B; }
         .pin-hidden-input { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
-        .login-btn { display: block; width: 200px; margin: 0 auto; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+        .login-btn { display: block; width: 200px; margin: 0 auto; padding: 15px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(107, 142, 107, 0.4); }
         .error { color: #e74c3c; margin-top: 15px; font-size: 14px; display: none; text-align: center; }
         .dashboard { display: none; }
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
@@ -863,7 +863,7 @@ function getAdminHTML(): string {
         .logout-btn { padding: 10px 20px; background: #f1f1f1; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .logout-btn:hover { background: #e5e5e5; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
-        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; }
+        .stat-card { background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); padding: 20px; border-radius: 12px; text-align: center; color: white; }
         .stat-value { font-size: 32px; font-weight: 700; }
         .stat-label { font-size: 13px; opacity: 0.9; margin-top: 5px; }
         .section { margin-bottom: 25px; }
@@ -882,7 +882,7 @@ function getAdminHTML(): string {
         .loading { text-align: center; padding: 20px; color: #666; }
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; }
         .tab { padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 15px; color: #666; border-radius: 8px; }
-        .tab.active { background: #667eea; color: white; }
+        .tab.active { background: #6B8E6B; color: white; }
         .tab:hover:not(.active) { background: #f0f0f0; }
         .admin-panel, .upload-panel, .drive-panel, .email-panel { display: none; }
         .form-section { background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
@@ -892,8 +892,8 @@ function getAdminHTML(): string {
         .form-row input, .form-row select { flex: 1; min-width: 120px; }
         .form-row textarea { width: 100%; min-height: 150px; font-family: monospace; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-primary:hover { background: #5a6fd6; }
+        .btn-primary { background: #6B8E6B; color: white; }
+        .btn-primary:hover { background: #5C7F5C; }
         .btn-success { background: #27ae60; color: white; }
         .btn-success:hover { background: #219a52; }
         .btn-danger { background: #e74c3c; color: white; }
@@ -907,8 +907,8 @@ function getAdminHTML(): string {
         .message.error { background: #f8d7da; color: #721c24; display: block; }
         .file-input-wrapper { display: inline-block; position: relative; overflow: hidden; cursor: pointer; border-radius: 8px; }
         .file-input-wrapper input[type=file] { position: absolute; top: 0; right: 0; width: 300px; height: 100%; opacity: 0; cursor: pointer; font-size: 100px; z-index: 2; -webkit-appearance: none; -moz-appearance: none; }
-        .file-input-label { display: inline-block; padding: 10px 20px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; pointer-events: none; white-space: nowrap; }
-        .file-input-wrapper:active .file-input-label { background: #5a6fd6; }
+        .file-input-label { display: inline-block; padding: 10px 20px; background: #6B8E6B; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; pointer-events: none; white-space: nowrap; }
+        .file-input-wrapper:active .file-input-label { background: #5C7F5C; }
         .drive-status, .email-status { padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         .drive-status.connected, .email-status.connected { background: #d4edda; color: #155724; }
         .drive-status.disconnected, .email-status.disconnected { background: #fff3cd; color: #856404; }
@@ -1909,7 +1909,7 @@ function getStaffViewHTML(): string {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; min-height: 100vh; }
-        .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #8BAF8B 0%, #5C7F5C 100%); }
         .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
         .login-card .logo { margin-bottom: 10px; }
         .login-card .logo img { width: 150px; height: auto; object-fit: contain; }
@@ -1917,10 +1917,10 @@ function getStaffViewHTML(): string {
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
         .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; position: relative; }
         .pin-box { width: 48px; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 26px; border: 2px solid #ddd; border-radius: 12px; background: white; cursor: text; transition: border-color 0.2s; }
-        .pin-box.active { border-color: #667eea; }
-        .pin-box.filled { border-color: #667eea; }
+        .pin-box.active { border-color: #6B8E6B; }
+        .pin-box.filled { border-color: #6B8E6B; }
         .pin-hidden { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
-        .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
 
@@ -1928,18 +1928,18 @@ function getStaffViewHTML(): string {
         .app-header { background: white; padding: 16px 20px; border-bottom: 1px solid #e5e5e5; position: sticky; top: 0; z-index: 10; }
         .app-header-top { display: flex; justify-content: space-between; align-items: center; }
         .staff-name { font-size: 17px; font-weight: 600; color: #333; }
-        .staff-badge { font-size: 11px; color: #667eea; background: #eef0ff; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
+        .staff-badge { font-size: 11px; color: #4A6B4A; background: #e8f0e8; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
         .logout-link { font-size: 14px; color: #999; cursor: pointer; border: none; background: none; }
         .month-label { font-size: 13px; color: #888; margin-top: 4px; }
 
         .tab-bar { display: flex; background: white; border-bottom: 1px solid #e5e5e5; padding: 0 20px; position: sticky; top: 57px; z-index: 9; }
         .tab-item { flex: 1; text-align: center; padding: 12px 0; font-size: 14px; font-weight: 500; color: #999; border-bottom: 2px solid transparent; cursor: pointer; }
-        .tab-item.active { color: #667eea; border-bottom-color: #667eea; }
+        .tab-item.active { color: #4A6B4A; border-bottom-color: #4A6B4A; }
 
         .content { padding: 16px 20px 100px; }
 
         .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 14px; padding: 16px; color: white; text-align: center; }
+        .summary-card { background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); border-radius: 14px; padding: 16px; color: white; text-align: center; }
         .summary-card .amount { font-size: 22px; font-weight: 700; }
         .summary-card .label { font-size: 11px; opacity: 0.85; margin-top: 4px; }
 
