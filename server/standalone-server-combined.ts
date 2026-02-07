@@ -842,7 +842,8 @@ function getAdminHTML(): string {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
         .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 1000px; margin: 0 auto; }
-        .logo { font-size: 36px; margin-bottom: 5px; text-align: center; }
+        .logo { margin-bottom: 5px; text-align: center; }
+        .logo img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
         h1 { color: #333; margin-bottom: 5px; font-size: 22px; text-align: center; }
         .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; text-align: center; }
         .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; position: relative; }
@@ -925,7 +926,7 @@ function getAdminHTML(): string {
 <body>
     <div class="container">
         <div class="login-form" id="loginForm">
-            <div class="logo">🧼</div>
+            <div class="logo"><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/XsoIdoqDywyxcTEk.png" alt="Ms. Chu"></div>
             <h1>Ms. Chu Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to login</p>
             <div class="pin-input">
@@ -1910,7 +1911,8 @@ function getStaffViewHTML(): string {
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f7; min-height: 100vh; }
         .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .login-card .logo { font-size: 40px; margin-bottom: 10px; }
+        .login-card .logo { margin-bottom: 10px; }
+        .login-card .logo img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
         .pin-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; position: relative; }
@@ -1956,7 +1958,7 @@ function getStaffViewHTML(): string {
 <body>
     <div class="login-screen" id="loginScreen">
         <div class="login-card">
-            <div class="logo">\u{1F9FC}</div>
+            <div class="logo"><img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/XsoIdoqDywyxcTEk.png" alt="Ms. Chu"></div>
             <h1>Ms. Chu Sales</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
             <div class="pin-row">

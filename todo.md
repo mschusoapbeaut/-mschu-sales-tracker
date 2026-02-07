@@ -383,3 +383,9 @@
 - [x] Unknown staff IDs now stored as 'Unknown Staff ID' instead of being silently dropped
 - [x] Email sync now stores staffName alongside staffId for proper display
 - [x] Upload result message shows detailed staff attribution stats (client vs server extraction counts)
+
+## Dashboard Logo Update (Feb 7, 2026)
+- [x] Generated Ms. Chu brand logo (sage green leaf + soap circle design)
+- [x] Replaced soap emoji with logo image on admin dashboard login screen
+- [x] Replaced soap emoji with logo image on staff-view login screen
+- [x] Deployed to Railway
