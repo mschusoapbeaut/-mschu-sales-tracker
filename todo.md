@@ -357,3 +357,6 @@
 - [x] Add Sale Type dropdown (Online Sales / POS Sales) inside the Clear & Re-import section
 - [x] Remove dependency on the upload panel's Sale Type dropdown for clear operations
 - [x] Default the clear dropdown to match the upload panel's selection when opening
+
+## File Chooser Button Bug (Feb 7, 2026)
+- [x] Fix Choose Excel/CSV File button not opening file picker dialog when clicked — replaced with <label for="fileInput"> pattern

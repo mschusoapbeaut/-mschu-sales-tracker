@@ -859,10 +859,9 @@ function getAdminHTML(): string {
         .message { padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: none; }
         .message.success { background: #d4edda; color: #155724; display: block; }
         .message.error { background: #f8d7da; color: #721c24; display: block; }
-        .file-input-wrapper { position: relative; }
-        .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-        .file-input-label { display: inline-block; padding: 10px 20px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; }
-        .file-input-label:hover { background: #5a6fd6; }
+        .file-input-btn { display: inline-block; padding: 10px 20px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .file-input-btn:hover { background: #5a6fd6; }
+        #fileInput { display: none; }
         .drive-status, .email-status { padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         .drive-status.connected, .email-status.connected { background: #d4edda; color: #155724; }
         .drive-status.disconnected, .email-status.disconnected { background: #fff3cd; color: #856404; }
@@ -998,10 +997,8 @@ function getAdminHTML(): string {
                         </select>
                     </div>
                     <div class="form-row">
-                        <div class="file-input-wrapper">
-                            <span class="file-input-label">Choose Excel/CSV File</span>
-                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
-                        </div>
+                        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
+                        <label for="fileInput" class="file-input-btn">Choose Excel/CSV File</label>
                         <span id="fileName" style="margin-left:10px;color:#666;font-size:13px"></span>
                     </div>
                     <div class="form-row" style="margin-top:15px">
