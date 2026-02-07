@@ -372,3 +372,7 @@
 - [x] Rename to "Clear Month Data" with just month picker and type selector
 - [x] Simplify the confirm flow: pick month + type, confirm, backend clears data
 - [x] Keep the regular Upload section above for importing new data separately
+
+## Staff Name Missing After Upload (Feb 7, 2026)
+- [x] Fix upload endpoint to extract staff names from Customer Tags column (WVReferredByStaff_STAFFID)
+- [x] Added server-side fallback: server now parses Customer Tags column directly from CSV in addition to client-side Excel mapping

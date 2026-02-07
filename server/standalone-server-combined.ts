@@ -299,6 +299,23 @@ async function startServer() {
       // Only fall back to "total" if nothing else matched
       if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('total'));
       const paymentIdx = header.findIndex((h: string) => h.includes('payment') || h.includes('gateway'));
+      // Find Customer Tags column for server-side staff extraction fallback
+      const customerTagsIdx = header.findIndex((h: string) => h === 'customertags' || h.includes('customertag'));
+      
+      // Known staff ID to name mappings (server-side fallback)
+      const KNOWN_STAFF_SERVER: Record<string, string> = {
+        '78319321135': 'Egenie Tang 78319321135',
+        '78319255599': 'Eva Lee 78319255599',
+        '78319190063': 'Maggie Liang 78319190063',
+        '79208775727': 'Maggie Wong 79208775727',
+        '78319386671': 'Ting Siew 78319386671',
+        '78319550511': 'Win Lee 78319550511',
+        '78319091759': 'Wing Ho 78319091759',
+        '101232115995': 'Sharon Li 101232115995',
+        '109111279899': 'Hailey Hoi Ling Wong 109111279899',
+        '111913632027': 'Bon Lau 111913632027',
+        '118809198875': 'Sze 118809198875'
+      };
       
       if (netSalesIdx === -1) {
         res.status(400).json({ error: "Could not find Net Sales column in CSV. Headers found: " + headerRaw.join(', ') });
@@ -383,8 +400,15 @@ async function startServer() {
           console.error('[Upload] Duplicate check error:', dupErr.message);
         }
         
-        // Get staff name from Excel Customer Tags
-        const staffName = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
+        // Get staff name: first try client-side Excel mapping, then try server-side CSV Customer Tags column
+        let staffName: string | null = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
+        if (!staffName && customerTagsIdx >= 0 && values[customerTagsIdx]) {
+          const tagValue = values[customerTagsIdx].trim();
+          const staffMatch = tagValue.match(/WVReferredByStaff_(\d+)/);
+          if (staffMatch && KNOWN_STAFF_SERVER[staffMatch[1]]) {
+            staffName = KNOWN_STAFF_SERVER[staffMatch[1]];
+          }
+        }
         
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
