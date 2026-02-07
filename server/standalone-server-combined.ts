@@ -1010,21 +1010,13 @@ function getAdminHTML(): string {
                     <div class="form-row" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                         <button class="btn btn-primary" onclick="uploadCSV()">Upload Sales Data</button>
                         <span style="color:#999;font-size:13px">or</span>
-                        <button class="btn" onclick="showClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">Clear &amp; Re-import Month</button>
+                        <button class="btn" onclick="showClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">Clear Month Data</button>
                     </div>
                 </div>
                 <div id="clearReimportSection" style="display:none;margin-top:20px;padding:20px;background:#fff8f0;border:2px solid #e74c3c;border-radius:10px">
-                    <h3 style="color:#e74c3c;margin-bottom:10px">Clear &amp; Re-import</h3>
-                    <p class="help-text" style="margin-bottom:15px;color:#666">This will <strong>delete ALL existing records</strong> for the selected month and sale type, then import fresh data from the file above. Use this when you have a corrected or complete report that should replace existing data.</p>
+                    <h3 style="color:#e74c3c;margin-bottom:10px">Clear Month Data</h3>
+                    <p class="help-text" style="margin-bottom:15px;color:#666">This will <strong>delete ALL existing records</strong> for the selected month and sale type. Use this to clean up incorrect data, then re-upload a corrected file using the upload form above.</p>
                     <div id="clearMessage" class="message"></div>
-                    <div style="margin-bottom:15px">
-                        <label style="font-weight:600;display:block;margin-bottom:8px">File to import:</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)" />
-                            <span class="file-input-label" style="font-size:13px;padding:8px 16px">Choose File</span>
-                        </div>
-                        <span id="clearFileName" style="margin-left:10px;color:#666;font-size:13px"></span>
-                    </div>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:15px">
                         <label style="font-weight:600">Month to clear:</label>
                         <input type="month" id="clearMonth" style="padding:8px 12px;border-radius:6px;border:1px solid #ddd;font-size:14px" />
@@ -1035,7 +1027,7 @@ function getAdminHTML(): string {
                         </select>
                     </div>
                     <div style="display:flex;gap:10px">
-                        <button class="btn" onclick="executeClearReimport()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Confirm: Clear &amp; Re-import</button>
+                        <button class="btn" onclick="executeClearOnly()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Confirm: Clear Data</button>
                         <button class="btn" onclick="hideClearReimport()" style="background:#ccc;color:#333;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px">Cancel</button>
                     </div>
                 </div>
@@ -1655,29 +1647,23 @@ function getAdminHTML(): string {
             document.getElementById('clearReimportSection').style.display = 'none';
         }
         
-        async function executeClearReimport() {
+        async function executeClearOnly() {
             const month = document.getElementById('clearMonth').value;
             const saleType = document.getElementById('clearSaleType').value;
-            const csvData = document.getElementById('csvPreview').value.trim();
             
             if (!month) {
                 showMessage('clearMessage', 'Please select a month', 'error');
                 return;
             }
-            if (!csvData) {
-                showMessage('clearMessage', 'Please select a file first', 'error');
-                return;
-            }
             
             const typeLabel = saleType === 'pos' ? 'POS Sales' : 'Online Sales';
-            var confirmMsg = 'Are you sure you want to DELETE ALL ' + typeLabel + ' records for ' + month + ' and re-import from the uploaded file?' + String.fromCharCode(10,10) + 'This action cannot be undone.';
+            var confirmMsg = 'Are you sure you want to DELETE ALL ' + typeLabel + ' records for ' + month + '?' + String.fromCharCode(10,10) + 'This action cannot be undone. You can re-upload data afterwards using the Upload form above.';
             const confirmed = confirm(confirmMsg);
             if (!confirmed) return;
             
-            showMessage('clearMessage', 'Step 1/2: Clearing existing data...', 'success');
+            showMessage('clearMessage', 'Clearing data...', 'success');
             
             try {
-                // Step 1: Clear existing data
                 const clearRes = await authFetch('/api/sales/clear', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1691,52 +1677,9 @@ function getAdminHTML(): string {
                     return;
                 }
                 
-                showMessage('clearMessage', 'Step 2/2: Importing fresh data... (' + clearData.deleted + ' old records removed)', 'success');
-                
-                // Step 2: Upload fresh data
-                const uploadRes = await authFetch('/api/sales/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        csvData,
-                        saleType,
-                        staffMappings: window._staffMappings || {},
-                        totalRowsInFile: window._totalRowsInFile || 0
-                    })
-                });
-                const uploadData = await uploadRes.json();
-                
-                // Build combined summary using array
-                var clines = ['CLEAR & RE-IMPORT COMPLETE', ''];
-                clines.push('\u274C Cleared: ' + clearData.deleted + ' old records (HK$' + Number(clearData.deletedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')');
-                var cImpLine = '\u2705 Imported: ' + uploadData.imported + ' new records';
-                if (uploadData.importedTotal) cImpLine += ' (HK$' + Number(uploadData.importedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
-                clines.push(cImpLine);
-                if (uploadData.skippedDuplicate > 0) clines.push('\u23ED Duplicates skipped: ' + uploadData.skippedDuplicate);
-                if (uploadData.skippedInvalid > 0) clines.push('\u26A0 Invalid rows skipped: ' + uploadData.skippedInvalid);
-                if (uploadData.failed > 0) clines.push('\u274C Failed: ' + uploadData.failed);
-                var cRowLine = 'Rows processed: ' + uploadData.totalRowsProcessed;
-                if (uploadData.totalRowsInFile) cRowLine += ' of ' + uploadData.totalRowsInFile + ' in file';
-                clines.push(cRowLine);
-                if (uploadData.totalRowsInFile && uploadData.totalRowsInFile > 0) {
-                    var cAccounted = uploadData.imported + (uploadData.skippedDuplicate || 0) + (uploadData.skippedInvalid || 0) + (uploadData.failed || 0);
-                    if (cAccounted < uploadData.totalRowsInFile - 1) {
-                        clines.push('', '\u26A0 WARNING: ' + (uploadData.totalRowsInFile - cAccounted) + ' rows unaccounted for!');
-                    } else {
-                        clines.push('', '\u2705 All rows accounted for.');
-                    }
-                }
-                var msg = clines.join('<br>');
-                
-                showMessage('uploadMessage', msg, uploadData.failed > 0 ? 'error' : 'success');
+                var msg = 'Cleared ' + clearData.deleted + ' ' + typeLabel + ' records for ' + month + ' (HK$' + Number(clearData.deletedTotal).toLocaleString('en-HK', {minimumFractionDigits:2, maximumFractionDigits:2}) + ')';
+                showMessage('uploadMessage', msg, 'success');
                 hideClearReimport();
-                document.getElementById('csvPreview').value = '';
-                document.getElementById('fileName').textContent = 'No file selected';
-                var _cfn2 = document.getElementById('clearFileName'); if (_cfn2) _cfn2.textContent = '';
-                document.querySelectorAll('input[type=file]').forEach(function(inp) { inp.value = ''; });
-                window._staffMappings = {};
-                window._totalRowsInFile = 0;
                 
                 // Refresh the relevant tab
                 if (saleType === 'pos') {

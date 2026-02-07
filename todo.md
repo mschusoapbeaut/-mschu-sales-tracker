@@ -366,3 +366,9 @@
 - [x] Added a dedicated file chooser button inside the Clear & Re-import section
 - [x] Both file inputs share the same handleFileSelect handler and update both fileName spans
 - [x] Reset all file inputs and file name displays after successful upload or clear-reimport
+
+## Simplify Clear & Re-import Section (Feb 7, 2026)
+- [x] Remove file picker from Clear section — no longer needed for clearing data
+- [x] Rename to "Clear Month Data" with just month picker and type selector
+- [x] Simplify the confirm flow: pick month + type, confirm, backend clears data
+- [x] Keep the regular Upload section above for importing new data separately
