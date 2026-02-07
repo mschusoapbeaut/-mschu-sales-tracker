@@ -2114,47 +2114,70 @@ function getStaffViewHTML(): string {
         // Focus the field on load
         setTimeout(function() { pinField.focus(); }, 300);
 
-        document.getElementById('loginBtn').onclick = doLogin;
+        // Determine base URL from current page location
+        var baseUrl = window.location.origin;
 
-        async function doLogin() {
-            const pin = getPin();
-            if (pin.length < 4) return;
-            const errEl = document.getElementById('errMsg');
+        document.getElementById('loginBtn').addEventListener('click', function() { doLogin(); });
+        // Also allow Enter key to submit
+        pinField.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } });
+
+        function doLogin() {
+            var pin = getPin();
+            if (pin.length < 4) {
+                var errEl = document.getElementById('errMsg');
+                errEl.textContent = 'Please enter 4 digits';
+                errEl.style.display = 'block';
+                return;
+            }
+            var errEl = document.getElementById('errMsg');
             errEl.style.display = 'none';
-            try {
-                const res = await fetch('/api/auth/pin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ pin })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    token = data.sessionToken;
-                    staffUser = data.user;
-                    if (staffUser.role === 'admin') {
-                        errEl.textContent = 'Please use the main dashboard for admin access';
+            
+            // Use XMLHttpRequest for maximum browser compatibility
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', baseUrl + '/api/auth/pin', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.withCredentials = true;
+            xhr.onload = function() {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (xhr.status === 200 && data.success) {
+                        token = data.sessionToken;
+                        staffUser = data.user;
+                        if (staffUser.role === 'admin') {
+                            errEl.textContent = 'Please use the main dashboard for admin access';
+                            errEl.style.display = 'block';
+                            clearPin();
+                            return;
+                        }
+                        showApp();
+                    } else {
+                        errEl.textContent = data.error || 'Invalid PIN (status: ' + xhr.status + ')';
                         errEl.style.display = 'block';
                         clearPin();
-                        return;
                     }
-                    showApp();
-                } else {
-                    errEl.textContent = data.error || 'Invalid PIN';
+                } catch (parseErr) {
+                    errEl.textContent = 'Parse error: ' + parseErr.message + ' | Response: ' + xhr.responseText.substring(0, 100);
                     errEl.style.display = 'block';
-                    clearPin();
                 }
-            } catch (e) {
-                errEl.textContent = 'Connection error: ' + e.message;
+            };
+            xhr.onerror = function() {
+                errEl.textContent = 'Network error (XHR). Status: ' + xhr.status + ' | URL: ' + baseUrl + '/api/auth/pin';
                 errEl.style.display = 'block';
-            }
+            };
+            xhr.ontimeout = function() {
+                errEl.textContent = 'Request timed out';
+                errEl.style.display = 'block';
+            };
+            xhr.timeout = 10000;
+            xhr.send(JSON.stringify({ pin: pin }));
         }
 
-        function authFetch(url, opts = {}) {
+        function authFetch(url, opts) {
+            opts = opts || {};
             opts.headers = opts.headers || {};
             if (token) opts.headers['Authorization'] = 'Bearer ' + token;
             opts.credentials = 'include';
-            return fetch(url, opts);
+            return fetch(baseUrl + url, opts);
         }
 
         function showApp() {
