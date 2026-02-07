@@ -1997,11 +1997,10 @@ function getStaffViewHTML(): string {
         .login-card .logo img { width: 150px; height: auto; object-fit: contain; }
         .login-card h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
         .login-card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
-        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; position: relative; }
-        .pin-box { width: 50px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: text; transition: border-color 0.2s; }
-        .pin-box.active { border-color: #6B8E6B; }
-        .pin-box.filled { border-color: #6B8E6B; }
-        .pin-hidden-input { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; font-size: 16px; z-index: 2; }
+        .pin-input { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .pin-box { width: 50px; height: 60px; text-align: center; font-size: 28px; border: 2px solid #ddd; border-radius: 10px; background: white; color: #333; outline: none; -webkit-appearance: none; -moz-appearance: textfield; -webkit-text-security: disc; }
+        .pin-box:focus { border-color: #6B8E6B; box-shadow: 0 0 0 3px rgba(107,142,107,0.2); }
+        .pin-box::-webkit-outer-spin-button, .pin-box::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6B8E6B 0%, #4A6B4A 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .login-btn:active { opacity: 0.9; transform: scale(0.98); }
         .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
@@ -2053,11 +2052,10 @@ function getStaffViewHTML(): string {
             <h1>Sales Tracker</h1>
             <p class="subtitle">Enter your PIN to view your sales</p>
             <div class="pin-input">
-                <input type="tel" maxlength="4" id="pinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-hidden-input">
-                <div class="pin-box" id="box0"></div>
-                <div class="pin-box" id="box1"></div>
-                <div class="pin-box" id="box2"></div>
-                <div class="pin-box" id="box3"></div>
+                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p0" autocomplete="off" pattern="[0-9]*">
+                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p1" autocomplete="off" pattern="[0-9]*">
+                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p2" autocomplete="off" pattern="[0-9]*">
+                <input type="tel" inputmode="numeric" maxlength="1" class="pin-box" id="p3" autocomplete="off" pattern="[0-9]*">
             </div>
             <button class="login-btn" id="loginBtn">Login</button>
             <p class="error-msg" id="errMsg"></p>
@@ -2108,45 +2106,50 @@ function getStaffViewHTML(): string {
         let posData = [];
         let currentTab = 'online';
 
-        // 4-square PIN approach - matching admin dashboard exactly
-        const pinInput = document.getElementById('pinInput');
-        const boxes = [document.getElementById('box0'), document.getElementById('box1'), document.getElementById('box2'), document.getElementById('box3')];
-        let loginPending = false;
+        // 4 visible real input boxes - no hidden inputs, works on Shopify POS
+        const pins = [document.getElementById('p0'), document.getElementById('p1'), document.getElementById('p2'), document.getElementById('p3')];
 
-        function getPin() { return pinInput.value; }
-
-        function updateBoxes() {
-            const val = pinInput.value;
-            boxes.forEach((box, i) => {
-                box.textContent = val[i] ? '\u2022' : '';
-                box.className = 'pin-box' + (val[i] ? ' filled' : '') + (i === val.length ? ' active' : '');
-            });
-        }
-
-        pinInput.addEventListener('input', () => {
-            pinInput.value = pinInput.value.replace(/[^0-9]/g, '').slice(0, 4);
-            updateBoxes();
-            if (pinInput.value.length === 4 && !loginPending) {
-                loginPending = true;
-                setTimeout(() => {
-                    if (pinInput.value.length === 4) doLogin();
-                    loginPending = false;
-                }, 200);
-            }
-        });
-
-        // Clicking any box focuses the hidden input
-        boxes.forEach(box => box.addEventListener('click', () => pinInput.focus()));
-        pinInput.focus();
-        updateBoxes();
-
-        document.getElementById('loginBtn').onclick = doLogin;
+        function getPin() { return pins.map(p => p.value).join(''); }
 
         function clearPin() {
-            pinInput.value = '';
-            updateBoxes();
-            pinInput.focus();
+            pins.forEach(p => { p.value = ''; });
+            pins[0].focus();
         }
+
+        // Simple input handler for each box
+        pins.forEach((el, i) => {
+            el.addEventListener('input', function() {
+                // Only allow digits
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 1);
+                // Move to next box if digit entered
+                if (this.value && i < 3) {
+                    pins[i + 1].focus();
+                }
+                // Auto-submit when all 4 filled
+                if (getPin().length === 4) {
+                    doLogin();
+                }
+            });
+            el.addEventListener('keydown', function(e) {
+                // Backspace: clear and go back
+                if (e.key === 'Backspace') {
+                    if (!this.value && i > 0) {
+                        pins[i - 1].value = '';
+                        pins[i - 1].focus();
+                    } else {
+                        this.value = '';
+                    }
+                    e.preventDefault();
+                }
+            });
+            // Select on focus
+            el.addEventListener('focus', function() { this.select(); });
+        });
+
+        // Focus first box
+        setTimeout(function() { pins[0].focus(); }, 300);
+
+        document.getElementById('loginBtn').onclick = doLogin;
 
         async function doLogin() {
             const pin = getPin();
@@ -2331,7 +2334,7 @@ function getStaffViewHTML(): string {
             clearPin();
         }
 
-        pinInput.focus();
+        pins[0].focus();
     </script>
 </body>
 </html>`;

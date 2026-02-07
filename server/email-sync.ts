@@ -585,16 +585,20 @@ export function startScheduledEmailSync() {
     return;
   }
 
-  // Run initial sync after 1 minute delay
-  setTimeout(async () => {
+  // Run initial sync immediately (async, non-blocking)
+  (async () => {
     console.log("[EmailSync] Running initial email sync...");
-    const result = await fetchAndProcessEmails();
-    if (result.success) {
-      console.log(`[EmailSync] Initial sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
-    } else {
-      console.error("[EmailSync] Initial sync failed:", result.error);
+    try {
+      const result = await fetchAndProcessEmails();
+      if (result.success) {
+        console.log(`[EmailSync] Initial sync complete: ${result.imported} sales from ${result.emailsProcessed} emails`);
+      } else {
+        console.error("[EmailSync] Initial sync failed:", result.error);
+      }
+    } catch (e) {
+      console.error("[EmailSync] Initial sync error:", e);
     }
-  }, 60000);
+  })();
 
   // Schedule recurring sync every 1 hour
   syncInterval = setInterval(async () => {

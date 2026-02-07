@@ -457,3 +457,7 @@
 - [x] Fix PIN digit auto-jump not working on Shopify POS browser — added multiple event listeners (input, keyup, keydown) with setTimeout fallbacks
 - [x] Replace PIN with single visible input field for Shopify POS browser compatibility
 - [x] Fix Login button not working after typing PIN on POS staff view — reverted to 4-square PIN matching admin, fixed _fetch to fetch, fixed pinField to pinInput
+- [x] Replace hidden input overlay with 4 visible tappable input boxes (hidden overlay doesn't work on Shopify POS)
+
+## Email Auto-Sync Not Running (Feb 8, 2026)
+- [x] Fix email auto-sync showing 'Last synced: Never' - removed 1-minute delay, sync runs immediately on startup
