@@ -294,6 +294,10 @@ async function importExcelData(content: Buffer): Promise<number> {
   const smsMarketingIdx = headers.findIndex((h: string) => h.includes('smsmark') || h === 'smsmarketing');
   // Detect Customer Email column
   const customerEmailIdx = headers.findIndex((h: string) => h === 'email' || h === 'customeremail');
+  // Detect Actual Order Date column (Column M in new report format)
+  const actualOrderDateIdx = headers.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorder'));
+  // Detect Whatsapp Marketing column
+  const whatsappMarketingIdx = headers.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
   // Prioritize exact "netsales" match to avoid matching "Gross Sales" or "Total Sales"
   let netSalesIdx = headers.findIndex((h: string) => h === 'netsales');
   if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
@@ -325,6 +329,39 @@ async function importExcelData(content: Buffer): Promise<number> {
     const emailMarketing = emailMarketingIdx >= 0 ? (row[emailMarketingIdx] ? String(row[emailMarketingIdx]).trim() : null) : null;
     const smsMarketing = smsMarketingIdx >= 0 ? (row[smsMarketingIdx] ? String(row[smsMarketingIdx]).trim() : null) : null;
     const customerEmail = customerEmailIdx >= 0 ? (row[customerEmailIdx] ? String(row[customerEmailIdx]).trim() : null) : null;
+    const whatsappMarketing = whatsappMarketingIdx >= 0 ? (row[whatsappMarketingIdx] ? String(row[whatsappMarketingIdx]).trim() : null) : null;
+    
+    // Parse Actual Order Date
+    let actualOrderDate: string | null = null;
+    if (actualOrderDateIdx >= 0 && row[actualOrderDateIdx]) {
+      const rawAOD = row[actualOrderDateIdx];
+      if (typeof rawAOD === 'number') {
+        // Excel serial date number
+        const excelEpoch = new Date(1899, 11, 30);
+        const aodDate = new Date(excelEpoch.getTime() + rawAOD * 24 * 60 * 60 * 1000);
+        actualOrderDate = aodDate.toISOString().split('T')[0];
+      } else {
+        const rawStr = String(rawAOD).trim();
+        if (rawStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+          actualOrderDate = rawStr.substring(0, 10);
+        } else if (rawStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+          const [mm, dd, yyyy] = rawStr.split('-');
+          actualOrderDate = yyyy + '-' + mm + '-' + dd;
+        } else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
+          const parts = rawStr.split('/');
+          const mm = parts[0].padStart(2, '0');
+          const dd = parts[1].padStart(2, '0');
+          let yyyy = parts[2];
+          if (yyyy.length === 2) yyyy = '20' + yyyy;
+          actualOrderDate = yyyy + '-' + mm + '-' + dd;
+        } else {
+          const parsed = new Date(rawStr);
+          if (!isNaN(parsed.getTime())) {
+            actualOrderDate = parsed.toISOString().split('T')[0];
+          }
+        }
+      }
+    }
     const netSalesRaw = row[netSalesIdx]; // Dynamically detected Net Sales column
     
     // Log parsed values for first few rows
@@ -430,8 +467,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
       );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);

@@ -102,6 +102,8 @@ async function startServer() {
       { name: 'emailMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
       { name: 'smsMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
       { name: 'customerEmail', def: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'actualOrderDate', def: 'DATE DEFAULT NULL' },
+      { name: 'whatsappMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
     ];
     for (const col of columnsToAdd) {
       try {
@@ -192,7 +194,7 @@ async function startServer() {
       const saleType = req.query.type as string || 'online';
       const month = req.query.month as string || 'all';
       const staffName = req.query.staffName as string || '';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail FROM sales";
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -363,6 +365,10 @@ async function startServer() {
       const smsMarketingIdx = header.findIndex((h: string) => h.includes('smsmark') || h === 'smsmarketing');
       // Find Customer Email column
       const customerEmailIdx = header.findIndex((h: string) => h === 'email' || h === 'customeremail');
+      // Find Actual Order Date column (Column M in new report format)
+      const actualOrderDateIdx = header.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorder'));
+      // Find Whatsapp Marketing column
+      const whatsappMarketingIdx = header.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
       
       // Build staff ID to name mapping dynamically from the users table
       const KNOWN_STAFF_SERVER: Record<string, string> = {};
@@ -439,6 +445,30 @@ async function startServer() {
         const emailMarketing = emailMarketingIdx >= 0 ? (values[emailMarketingIdx] || '').trim() || null : null;
         const smsMarketing = smsMarketingIdx >= 0 ? (values[smsMarketingIdx] || '').trim() || null : null;
         const customerEmail = customerEmailIdx >= 0 ? (values[customerEmailIdx] || '').trim() || null : null;
+        const whatsappMarketing = whatsappMarketingIdx >= 0 ? (values[whatsappMarketingIdx] || '').trim() || null : null;
+        // Parse Actual Order Date
+        let actualOrderDate: string | null = null;
+        if (actualOrderDateIdx >= 0 && values[actualOrderDateIdx]) {
+          const rawAOD = values[actualOrderDateIdx].trim();
+          if (rawAOD.match(/^\d{4}-\d{2}-\d{2}/)) {
+            actualOrderDate = rawAOD.substring(0, 10);
+          } else if (rawAOD.match(/^\d{2}-\d{2}-\d{4}$/)) {
+            const [mm, dd, yyyy] = rawAOD.split('-');
+            actualOrderDate = yyyy + '-' + mm + '-' + dd;
+          } else if (rawAOD.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
+            const parts = rawAOD.split('/');
+            const mm = parts[0].padStart(2, '0');
+            const dd = parts[1].padStart(2, '0');
+            let yyyy = parts[2];
+            if (yyyy.length === 2) yyyy = '20' + yyyy;
+            actualOrderDate = yyyy + '-' + mm + '-' + dd;
+          } else {
+            const parsed = new Date(rawAOD);
+            if (!isNaN(parsed.getTime())) {
+              actualOrderDate = parsed.toISOString().split('T')[0];
+            }
+          }
+        }
         const rawNetSales = values[netSalesIdx] || '0';
         const netSales = parseFloat(rawNetSales.replace(/[^0-9.-]/g, '') || '0');
         
@@ -498,13 +528,13 @@ async function startServer() {
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
             );
           } else {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
             );
           }
           imported++;
@@ -1203,9 +1233,18 @@ function getAdminHTML(): string {
             return [...data].sort((a, b) => {
                 let va = a[col] || '';
                 let vb = b[col] || '';
-                if (col === 'orderDate') {
+                if (col === 'orderDate' || col === 'actualOrderDate') {
+                    if (col === 'actualOrderDate') {
+                        va = a.actualOrderDate || a.orderDate || '';
+                        vb = b.actualOrderDate || b.orderDate || '';
+                    }
                     va = va ? new Date(va).getTime() : 0;
                     vb = vb ? new Date(vb).getTime() : 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                if (col === 'netSales') {
+                    va = parseFloat(va) || 0;
+                    vb = parseFloat(vb) || 0;
                     return dir === 'asc' ? va - vb : vb - va;
                 }
                 va = String(va).toLowerCase();
@@ -1249,21 +1288,23 @@ function getAdminHTML(): string {
                 return;
             }
             let html = '<table class="sales-table"><thead><tr>';
-            html += '<th class="' + sortClass('orderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderDate&#39;)">Order Date</th>';
-            html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderNo&#39;)">Order</th>';
-            html += '<th>Channel</th>';
+            html += '<th class="' + sortClass('actualOrderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;actualOrderDate&#39;)">Actual Order Date</th>';
+            html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderNo&#39;)">Order Name</th>';
+            html += '<th class="' + sortClass('salesChannel', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;salesChannel&#39;)">Sales Channel</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
             html += '<th>Customer Email</th>';
             html += '<th class="' + sortClass('emailMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;emailMarketing&#39;)">Email Mkt</th>';
             html += '<th class="' + sortClass('smsMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;smsMarketing&#39;)">SMS Mkt</th>';
-            html += '<th>Net Sales</th></tr></thead><tbody>';
+            html += '<th class="' + sortClass('whatsappMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;whatsappMarketing&#39;)">Whatsapp Mkt</th>';
+            html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
-                const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
-                html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
+                const actualDate = s.actualOrderDate ? new Date(s.actualOrderDate).toLocaleDateString() : (s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-');
+                html += '<tr><td>' + actualDate + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
                 if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
                 html += '<td style="font-size:12px">' + (s.customerEmail || '-') + '</td>';
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
+                html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
@@ -2232,9 +2273,18 @@ function getStaffViewHTML(): string {
             return [...data].sort((a, b) => {
                 let va = a[col] || '';
                 let vb = b[col] || '';
-                if (col === 'orderDate') {
+                if (col === 'orderDate' || col === 'actualOrderDate') {
+                    if (col === 'actualOrderDate') {
+                        va = a.actualOrderDate || a.orderDate || '';
+                        vb = b.actualOrderDate || b.orderDate || '';
+                    }
                     va = va ? new Date(va).getTime() : 0;
                     vb = vb ? new Date(vb).getTime() : 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                if (col === 'netSales') {
+                    va = parseFloat(va) || 0;
+                    vb = parseFloat(vb) || 0;
                     return dir === 'asc' ? va - vb : vb - va;
                 }
                 va = String(va).toLowerCase();
@@ -2278,30 +2328,39 @@ function getStaffViewHTML(): string {
             }
 
             let html = '<table class="sales-table"><thead><tr>';
-            html += '<th class="' + sortClass('orderDate') + '" onclick="handleSort(\'orderDate\')">Order Date</th>';
-            html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order</th>';
-            html += '<th>Channel</th>';
             if (currentTab === 'online') {
+                html += '<th class="' + sortClass('actualOrderDate') + '" onclick="handleSort(\'actualOrderDate\')">Actual Order Date</th>';
+                html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order Name</th>';
+                html += '<th class="' + sortClass('salesChannel') + '" onclick="handleSort(\'salesChannel\')">Sales Channel</th>';
                 html += '<th>Customer Email</th>';
                 html += '<th class="' + sortClass('emailMarketing') + '" onclick="handleSort(\'emailMarketing\')">Email Mkt</th>';
                 html += '<th class="' + sortClass('smsMarketing') + '" onclick="handleSort(\'smsMarketing\')">SMS Mkt</th>';
+                html += '<th class="' + sortClass('whatsappMarketing') + '" onclick="handleSort(\'whatsappMarketing\')">Whatsapp Mkt</th>';
             } else {
+                html += '<th class="' + sortClass('orderDate') + '" onclick="handleSort(\'orderDate\')">Order Date</th>';
+                html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order</th>';
+                html += '<th>Channel</th>';
                 html += '<th>Payment</th>';
             }
-            html += '<th>Net Sales</th>';
+            html += '<th class="' + sortClass('netSales') + '" onclick="handleSort(\'netSales\')">Net Sales</th>';
             html += '</tr></thead><tbody>';
 
             sales.forEach(r => {
-                const date = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
                 html += '<tr>';
-                html += '<td>' + date + '</td>';
-                html += '<td>' + (r.orderNo || '-') + '</td>';
-                html += '<td>' + (r.salesChannel || '-') + '</td>';
                 if (currentTab === 'online') {
+                    const actualDate = r.actualOrderDate ? new Date(r.actualOrderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : (r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-');
+                    html += '<td>' + actualDate + '</td>';
+                    html += '<td>' + (r.orderNo || '-') + '</td>';
+                    html += '<td>' + (r.salesChannel || '-') + '</td>';
                     html += '<td style="font-size:12px">' + (r.customerEmail || '-') + '</td>';
                     html += '<td>' + (r.emailMarketing || '-') + '</td>';
                     html += '<td>' + (r.smsMarketing || '-') + '</td>';
+                    html += '<td>' + (r.whatsappMarketing || '-') + '</td>';
                 } else {
+                    const date = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+                    html += '<td>' + date + '</td>';
+                    html += '<td>' + (r.orderNo || '-') + '</td>';
+                    html += '<td>' + (r.salesChannel || '-') + '</td>';
                     html += '<td>' + (r.paymentGateway || '-') + '</td>';
                 }
                 html += '<td class="amount">' + fmtCurrency(r.netSales) + '</td>';

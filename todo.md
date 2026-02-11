@@ -461,5 +461,18 @@
 - [x] Use simplest possible single password input + Login button for POS staff view (all fancy approaches fail on Shopify POS browser)
 - [x] Fix Login API call not working on Shopify POS browser — switched to XMLHttpRequest with absolute URL and detailed error debugging
 
+## Online Sales Page Column Updates (Feb 11, 2026)
+- [x] Replace "Order Date" with "Actual Order Date" (Column M from report)
+- [x] Rename "Order" to "Order Name"
+- [x] Rename "Channel" to "Sales Channel"
+- [x] Add "Whatsapp Mkt" column next to SMS Mkt
+- [x] Update database schema to store actualOrderDate and whatsappMarketing
+- [x] Update email sync import logic for new columns
+- [x] Update manual upload import logic for new columns
+- [x] Update admin dashboard HTML display
+- [x] Update POS staff view display
+- [x] Add Net Sales sorting to Online Sales table
+- [x] Sorting falls back to orderDate when actualOrderDate is null (backward compatibility)
+
 ## Email Auto-Sync Not Running (Feb 8, 2026)
 - [x] Fix email auto-sync showing 'Last synced: Never' - removed 1-minute delay, sync runs immediately on startup
