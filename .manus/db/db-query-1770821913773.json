@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, openId, name, email, role, pin, loginMethod FROM users WHERE pin = '9999' OR role = 'admin' ORDER BY id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, openId, name, email, role, pin, loginMethod FROM users WHERE pin = '9999' OR role = 'admin' ORDER BY id",
+  "rows": [
+    {
+      "id": "60002",
+      "openId": "4eG9BS27WYGAuRi9fSoaeE",
+      "name": "cindchu",
+      "email": "cindchu@hotmail.com",
+      "role": "admin",
+      "pin": "9999",
+      "loginMethod": "email"
+    },
+    {
+      "id": "60027",
+      "openId": "admin-cindy",
+      "name": "Cindy Chu",
+      "email": "cindychu@mschusoapandbeaut.com",
+      "role": "admin",
+      "pin": "9999",
+      "loginMethod": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\trole\tpin\tloginMethod\n60002\t4eG9BS27WYGAuRi9fSoaeE\tcindchu\tcindchu@hotmail.com\tadmin\t9999\temail\n60027\tadmin-cindy\tCindy Chu\tcindychu@mschusoapandbeaut.com\tadmin\t9999\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1573
+}

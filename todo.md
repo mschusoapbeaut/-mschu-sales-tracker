@@ -476,3 +476,13 @@
 
 ## Email Auto-Sync Not Running (Feb 8, 2026)
 - [x] Fix email auto-sync showing 'Last synced: Never' - removed 1-minute delay, sync runs immediately on startup
+
+## Admin Login Bug (Feb 11, 2026)
+- [x] Fix admin PIN login (9999) not working on admin dashboard — caused by Railway MySQL outage, resolved by restarting database service
+
+## Admin Login Bug - Railway Back Online (Feb 12, 2026)
+- [x] Fix admin PIN login (9999) still failing on Railway production after outage resolved — MySQL service needed restart
+- [x] Deploy column updates to Railway via GitHub push (Railway CLI was timing out)
+
+## Net Sales Color Fix (Feb 12, 2026)
+- [x] Change Net Sales text color to darker color (#1a6b3c) for better visibility against sage green background

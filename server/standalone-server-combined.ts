@@ -980,7 +980,7 @@ function getAdminHTML(): string {
         .sales-table th.sortable.sort-desc::after { content: '\u25BC'; color: #5b6abf; }
         .sales-table td, .staff-table td { padding: 12px 10px; border-bottom: 1px solid #eee; color: #333; }
         .sales-table tr:hover, .staff-table tr:hover { background: #f8f9fa; }
-        .sales-table .amount { font-weight: 600; color: #27ae60; }
+        .sales-table .amount { font-weight: 600; color: #1a6b3c; }
         .no-data { text-align: center; padding: 40px; color: #999; }
         .loading { text-align: center; padding: 20px; color: #666; }
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; }
@@ -2079,7 +2079,7 @@ function getStaffViewHTML(): string {
         .sales-table th.sortable.sort-desc::after { content: '\u25BC'; color: #5b6abf; }
         .sales-table td { padding: 10px 8px; border-bottom: 1px solid #eee; color: #333; }
         .sales-table tr:hover { background: #f8f9fa; }
-        .sales-table .amount { font-weight: 600; color: #27ae60; white-space: nowrap; }
+        .sales-table .amount { font-weight: 600; color: #1a6b3c; white-space: nowrap; }
         .no-data { text-align: center; padding: 40px 20px; color: #bbb; font-size: 14px; }
         .loading { text-align: center; padding: 30px; color: #999; font-size: 14px; }
     </style>
