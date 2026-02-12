@@ -2353,22 +2353,25 @@ function getStaffViewHTML(): string {
                 return;
             }
 
+            function sortTh(col, label) {
+                return '<th class="' + sortClass(col) + '" onclick="handleSort(' + String.fromCharCode(39) + col + String.fromCharCode(39) + ')">' + label + '</th>';
+            }
             let html = '<table class="sales-table"><thead><tr>';
             if (currentTab === 'online') {
-                html += '<th class="' + sortClass('actualOrderDate') + '" onclick="handleSort(\'actualOrderDate\')">Actual Order Date</th>';
-                html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order Name</th>';
-                html += '<th class="' + sortClass('salesChannel') + '" onclick="handleSort(\'salesChannel\')">Sales Channel</th>';
+                html += sortTh('actualOrderDate', 'Actual Order Date');
+                html += sortTh('orderNo', 'Order Name');
+                html += sortTh('salesChannel', 'Sales Channel');
                 html += '<th>Customer Email</th>';
-                html += '<th class="' + sortClass('emailMarketing') + '" onclick="handleSort(\'emailMarketing\')">Email Mkt</th>';
-                html += '<th class="' + sortClass('smsMarketing') + '" onclick="handleSort(\'smsMarketing\')">SMS Mkt</th>';
-                html += '<th class="' + sortClass('whatsappMarketing') + '" onclick="handleSort(\'whatsappMarketing\')">Whatsapp Mkt</th>';
+                html += sortTh('emailMarketing', 'Email Mkt');
+                html += sortTh('smsMarketing', 'SMS Mkt');
+                html += sortTh('whatsappMarketing', 'Whatsapp Mkt');
             } else {
-                html += '<th class="' + sortClass('orderDate') + '" onclick="handleSort(\'orderDate\')">Order Date</th>';
-                html += '<th class="' + sortClass('orderNo') + '" onclick="handleSort(\'orderNo\')">Order</th>';
+                html += sortTh('orderDate', 'Order Date');
+                html += sortTh('orderNo', 'Order');
                 html += '<th>Channel</th>';
                 html += '<th>Payment</th>';
             }
-            html += '<th class="' + sortClass('netSales') + '" onclick="handleSort(\'netSales\')">Net Sales</th>';
+            html += sortTh('netSales', 'Net Sales');
             html += '</tr></thead><tbody>';
 
             sales.forEach(r => {

@@ -488,4 +488,4 @@
 - [x] Change Net Sales text color to darker color (#1a6b3c) for better visibility against sage green background
 
 ## POS Staff View Login Not Working (Feb 12, 2026)
-- [ ] Fix staff PIN login on POS staff view page when accessed from Shopify POS browser
+- [x] Fix staff PIN login on POS staff view page when accessed from Shopify POS browser — added inline onclick/ontouchend, touchstart listener, auto-submit on 4 digits, visual login feedback
