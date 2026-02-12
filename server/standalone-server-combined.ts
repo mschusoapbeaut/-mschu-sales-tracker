@@ -2093,7 +2093,7 @@ function getStaffViewHTML(): string {
             <div class="pin-input">
                 <input type="password" inputmode="numeric" maxlength="4" class="pin-field" id="pinField" autocomplete="off" placeholder="••••">
             </div>
-            <button class="login-btn" id="loginBtn">Login</button>
+            <button class="login-btn" id="loginBtn" onclick="doLogin()" ontouchend="this.blur();doLogin();">Login</button>
             <p class="error-msg" id="errMsg"></p>
         </div>
     </div>
@@ -2158,20 +2158,36 @@ function getStaffViewHTML(): string {
         // Determine base URL from current page location
         var baseUrl = window.location.origin;
 
-        document.getElementById('loginBtn').addEventListener('click', function() { doLogin(); });
+        // Multiple event binding for maximum POS browser compatibility
+        var loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', function(e) { e.preventDefault(); doLogin(); }, false);
+            loginBtn.addEventListener('touchstart', function(e) { e.preventDefault(); doLogin(); }, {passive: false});
+        }
         // Also allow Enter key to submit
-        pinField.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } });
+        pinField.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); doLogin(); } });
+        // Auto-submit when 4 digits entered
+        pinField.addEventListener('input', function() {
+            var val = pinField.value.replace(/[^0-9]/g, '');
+            if (val.length === 4) { setTimeout(function() { doLogin(); }, 200); }
+        });
 
+        var loginInProgress = false;
         function doLogin() {
+            if (loginInProgress) return;
             var pin = getPin();
             if (pin.length < 4) {
                 var errEl = document.getElementById('errMsg');
                 errEl.textContent = 'Please enter 4 digits';
                 errEl.style.display = 'block';
+                errEl.style.color = '#c00';
                 return;
             }
+            loginInProgress = true;
             var errEl = document.getElementById('errMsg');
-            errEl.style.display = 'none';
+            errEl.textContent = 'Logging in...';
+            errEl.style.display = 'block';
+            errEl.style.color = '#6B8E6B';
             
             // Use XMLHttpRequest for maximum browser compatibility
             var xhr = new XMLHttpRequest();
@@ -2187,27 +2203,37 @@ function getStaffViewHTML(): string {
                         if (staffUser.role === 'admin') {
                             errEl.textContent = 'Please use the main dashboard for admin access';
                             errEl.style.display = 'block';
+                            errEl.style.color = '#c00';
                             clearPin();
+                            loginInProgress = false;
                             return;
                         }
                         showApp();
                     } else {
-                        errEl.textContent = data.error || 'Invalid PIN (status: ' + xhr.status + ')';
+                        errEl.textContent = data.error || 'Invalid PIN';
                         errEl.style.display = 'block';
+                        errEl.style.color = '#c00';
                         clearPin();
+                        loginInProgress = false;
                     }
                 } catch (parseErr) {
-                    errEl.textContent = 'Parse error: ' + parseErr.message + ' | Response: ' + xhr.responseText.substring(0, 100);
+                    errEl.textContent = 'Error: ' + parseErr.message;
                     errEl.style.display = 'block';
+                    errEl.style.color = '#c00';
+                    loginInProgress = false;
                 }
             };
             xhr.onerror = function() {
-                errEl.textContent = 'Network error (XHR). Status: ' + xhr.status + ' | URL: ' + baseUrl + '/api/auth/pin';
+                errEl.textContent = 'Network error. Please try again.';
                 errEl.style.display = 'block';
+                errEl.style.color = '#c00';
+                loginInProgress = false;
             };
             xhr.ontimeout = function() {
-                errEl.textContent = 'Request timed out';
+                errEl.textContent = 'Request timed out. Please try again.';
                 errEl.style.display = 'block';
+                errEl.style.color = '#c00';
+                loginInProgress = false;
             };
             xhr.timeout = 10000;
             xhr.send(JSON.stringify({ pin: pin }));
