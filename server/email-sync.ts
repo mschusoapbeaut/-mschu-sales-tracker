@@ -298,6 +298,8 @@ async function importExcelData(content: Buffer): Promise<number> {
   const actualOrderDateIdx = headers.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorder'));
   // Detect Whatsapp Marketing column
   const whatsappMarketingIdx = headers.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
+  // Detect Shipping Price column (Column R)
+  const shippingPriceIdx = headers.findIndex((h: string) => h === 'shippingprice' || h === 'shipping' || h.includes('shippingprice') || h.includes('shipping price'));
   // Prioritize exact "netsales" match to avoid matching "Gross Sales" or "Total Sales"
   let netSalesIdx = headers.findIndex((h: string) => h === 'netsales');
   if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
@@ -330,6 +332,16 @@ async function importExcelData(content: Buffer): Promise<number> {
     const smsMarketing = smsMarketingIdx >= 0 ? (row[smsMarketingIdx] ? String(row[smsMarketingIdx]).trim() : null) : null;
     const customerEmail = customerEmailIdx >= 0 ? (row[customerEmailIdx] ? String(row[customerEmailIdx]).trim() : null) : null;
     const whatsappMarketing = whatsappMarketingIdx >= 0 ? (row[whatsappMarketingIdx] ? String(row[whatsappMarketingIdx]).trim() : null) : null;
+    // Parse Shipping Price
+    let shippingPrice: number | null = null;
+    if (shippingPriceIdx >= 0 && row[shippingPriceIdx] != null) {
+      if (typeof row[shippingPriceIdx] === 'number') {
+        shippingPrice = row[shippingPriceIdx];
+      } else {
+        const rawSP = String(row[shippingPriceIdx]).replace(/[^0-9.-]/g, '');
+        if (rawSP) shippingPrice = parseFloat(rawSP) || null;
+      }
+    }
     
     // Parse Actual Order Date
     let actualOrderDate: string | null = null;
@@ -467,8 +479,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
       );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);

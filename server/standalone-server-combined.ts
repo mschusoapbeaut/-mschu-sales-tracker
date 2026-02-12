@@ -104,6 +104,7 @@ async function startServer() {
       { name: 'customerEmail', def: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'actualOrderDate', def: 'DATE DEFAULT NULL' },
       { name: 'whatsappMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
+      { name: 'shippingPrice', def: 'DECIMAL(10,2) DEFAULT NULL' },
     ];
     for (const col of columnsToAdd) {
       try {
@@ -194,7 +195,7 @@ async function startServer() {
       const saleType = req.query.type as string || 'online';
       const month = req.query.month as string || 'all';
       const staffName = req.query.staffName as string || '';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing FROM sales";
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -369,6 +370,8 @@ async function startServer() {
       const actualOrderDateIdx = header.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorder'));
       // Find Whatsapp Marketing column
       const whatsappMarketingIdx = header.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
+      // Find Shipping Price column (Column R)
+      const shippingPriceIdx = header.findIndex((h: string) => h === 'shippingprice' || h === 'shipping' || h.includes('shippingprice') || h.includes('shipping price'));
       
       // Build staff ID to name mapping dynamically from the users table
       const KNOWN_STAFF_SERVER: Record<string, string> = {};
@@ -446,6 +449,12 @@ async function startServer() {
         const smsMarketing = smsMarketingIdx >= 0 ? (values[smsMarketingIdx] || '').trim() || null : null;
         const customerEmail = customerEmailIdx >= 0 ? (values[customerEmailIdx] || '').trim() || null : null;
         const whatsappMarketing = whatsappMarketingIdx >= 0 ? (values[whatsappMarketingIdx] || '').trim() || null : null;
+        // Parse Shipping Price
+        let shippingPrice: number | null = null;
+        if (shippingPriceIdx >= 0 && values[shippingPriceIdx]) {
+          const rawSP = values[shippingPriceIdx].replace(/[^0-9.-]/g, '');
+          if (rawSP) shippingPrice = parseFloat(rawSP) || null;
+        }
         // Parse Actual Order Date
         let actualOrderDate: string | null = null;
         if (actualOrderDateIdx >= 0 && values[actualOrderDateIdx]) {
@@ -528,13 +537,13 @@ async function startServer() {
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
             );
           } else {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
             );
           }
           imported++;
@@ -1242,7 +1251,7 @@ function getAdminHTML(): string {
                     vb = vb ? new Date(vb).getTime() : 0;
                     return dir === 'asc' ? va - vb : vb - va;
                 }
-                if (col === 'netSales') {
+                if (col === 'netSales' || col === 'shippingPrice') {
                     va = parseFloat(va) || 0;
                     vb = parseFloat(vb) || 0;
                     return dir === 'asc' ? va - vb : vb - va;
@@ -1296,6 +1305,7 @@ function getAdminHTML(): string {
             html += '<th class="' + sortClass('emailMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;emailMarketing&#39;)">Email Mkt</th>';
             html += '<th class="' + sortClass('smsMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;smsMarketing&#39;)">SMS Mkt</th>';
             html += '<th class="' + sortClass('whatsappMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;whatsappMarketing&#39;)">Whatsapp Mkt</th>';
+            if (isAdmin) html += '<th class="' + sortClass('shippingPrice', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;shippingPrice&#39;)">Shipping Price</th>';
             html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
                 const actualDate = s.actualOrderDate ? new Date(s.actualOrderDate).toLocaleDateString() : (s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-');
@@ -1305,6 +1315,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
+                if (isAdmin) html += '<td class="amount">HK$' + (parseFloat(s.shippingPrice) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
@@ -2308,7 +2319,7 @@ function getStaffViewHTML(): string {
                     vb = vb ? new Date(vb).getTime() : 0;
                     return dir === 'asc' ? va - vb : vb - va;
                 }
-                if (col === 'netSales') {
+                if (col === 'netSales' || col === 'shippingPrice') {
                     va = parseFloat(va) || 0;
                     vb = parseFloat(vb) || 0;
                     return dir === 'asc' ? va - vb : vb - va;

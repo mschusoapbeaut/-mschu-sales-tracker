@@ -489,3 +489,10 @@
 
 ## POS Staff View Login Not Working (Feb 12, 2026)
 - [x] Fix staff PIN login on POS staff view page when accessed from Shopify POS browser — added inline onclick/ontouchend, touchstart listener, auto-submit on 4 digits, visual login feedback
+
+## Add Shipping Price Column - Admin Only (Feb 12, 2026)
+- [x] Add shippingPrice column to database schema (auto-migration)
+- [x] Update upload endpoint to parse Shipping Price from Column R
+- [x] Update email sync to parse Shipping Price from Column R
+- [x] Add Shipping Price column to admin dashboard Online Sales table (before Net Sales)
+- [x] Do NOT add to staff view — confirmed staff view unchanged
