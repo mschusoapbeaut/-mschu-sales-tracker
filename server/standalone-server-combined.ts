@@ -351,9 +351,13 @@ async function startServer() {
       // Find column indices - prioritize exact matches to avoid wrong column
       const dateIdx = header.findIndex((h: string) => h === 'orderdate' || h === 'date');
       const orderIdx = header.findIndex((h: string) => h === 'ordername' || h === 'orderno' || h === 'orderid' || h === 'order');
-      const channelIdx = header.findIndex((h: string) => h.includes('channel') || h.includes('saleschannel') || h.includes('poslocationname'));
-      // Prioritize "netsales" exact match, then "net", but NOT "total" alone (to avoid matching Total Sales)
-      let netSalesIdx = header.findIndex((h: string) => h === 'netsales');
+      // For POS reports: prioritize "Location Name" (Column F) over "Sales Channel" (Column E = always "Point of Sale")
+      let channelIdx = header.findIndex((h: string) => h === 'locationname' || h.includes('locationname'));
+      if (channelIdx === -1) channelIdx = header.findIndex((h: string) => h.includes('channel') || h.includes('saleschannel') || h.includes('poslocationname'));
+      // For POS reports: prioritize "Net sales exclude GC Payment" (Column N) over regular "Net Sales" (Column J)
+      let netSalesIdx = header.findIndex((h: string) => h.includes('netsalesexcludegcpayment') || h.includes('netsalesexcludegc') || h.includes('excludegc'));
+      // Fallback to regular net sales columns
+      if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h === 'netsales');
       if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('netsales'));
       if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h === 'net' || h === 'amount');
       if (netSalesIdx === -1) netSalesIdx = header.findIndex((h: string) => h.includes('amount'));
@@ -1354,7 +1358,7 @@ function getAdminHTML(): string {
             html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;salesChannel&#39;)">Location Name</th>';
             html += '<th class="' + sortClass('paymentGateway', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;paymentGateway&#39;)">Payment Gateway</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
-            html += '<th>Net Sales excl Gift Card</th></tr></thead><tbody>';
+            html += '<th>Net sales exclude GC Payment</th></tr></thead><tbody>';
             data.forEach(s => {
                 const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td>';
@@ -2415,7 +2419,7 @@ function getStaffViewHTML(): string {
             if (currentTab === 'online') {
                 html += '<th>Net Sales**</th>';
             } else {
-                html += sortTh('netSales', 'Net Sales');
+                html += sortTh('netSales', 'Net sales exclude GC Payment');
             }
             html += '</tr></thead><tbody>';
 

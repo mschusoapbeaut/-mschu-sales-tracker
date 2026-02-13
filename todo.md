@@ -549,7 +549,12 @@
 - [x] Update email sync to also fetch POS sales reports with subject/attachment "POS_Sales_Attribution"
 
 ## Bug: POS email sync not importing (Feb 13, 2026)
-- [ ] Debug and fix POS email sync not importing POS sales data after manual fetch
-- [ ] Fix email sync to only fetch the LATEST email per report type (not all 145)
-- [ ] POS email sync: clear existing POS data and re-import from latest email report
-- [ ] Trigger email fetch and verify POS data is updated
+- [x] Debug and fix POS email sync not importing POS sales data after manual fetch
+- [x] Fix email sync to only fetch the LATEST email per report type (not all 145)
+- [x] POS email sync: upsert existing POS records with richer data from email report
+- [x] Trigger email fetch and verify POS data is updated — 79 records imported/updated, 78 with totalSales+actualOrderDate
+
+## POS Location Name Mapping Fix (Feb 13, 2026)
+- [x] Fix POS Location Name to map from Column F (Location Name) instead of Column E (Sales Channel)
+- [x] Use Column N (Net sales exclude GC Payment) as the POS net sales value instead of Column J (Net Sales)
+- [x] Rename POS Sales column from "Net Sales" to "Net sales exclude GC Payment" in admin/staff/staff-view
