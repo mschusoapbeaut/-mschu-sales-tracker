@@ -525,3 +525,7 @@
 - [ ] Fix: $0 shipping orders not being overridden to $30 — investigate totalSales column detection
 
 - [ ] Fix Shipping Price showing "-" instead of HK$30.00 for January orders with $0 shipping and non-zero Total Sales — ensure code is deployed to Railway
+
+## New Columns for Admin Online Sales (Feb 13, 2026)
+- [ ] Add Total Sales column (from Column P) before Net Sales in admin Online Sales table
+- [ ] Add Net Sales** column (calculated: Total Sales - Shipping Price) before Net Sales in admin Online Sales table

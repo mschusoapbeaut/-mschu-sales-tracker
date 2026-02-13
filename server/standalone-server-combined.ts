@@ -1317,6 +1317,8 @@ function getAdminHTML(): string {
             html += '<th class="' + sortClass('smsMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;smsMarketing&#39;)">SMS Mkt</th>';
             html += '<th class="' + sortClass('whatsappMarketing', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;whatsappMarketing&#39;)">Whatsapp Mkt</th>';
             if (isAdmin) html += '<th class="' + sortClass('shippingPrice', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;shippingPrice&#39;)">Shipping Price</th>';
+            if (isAdmin) html += '<th class="' + sortClass('totalSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;totalSales&#39;)">Total Sales</th>';
+            if (isAdmin) html += '<th>Net Sales**</th>';
             html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
                 const orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
@@ -1327,6 +1329,8 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
                 if (isAdmin) { var spRaw = s.shippingPrice; var ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0 && ts !== null && ts !== 0) sp = 30; var spDisplay = (sp !== null && sp !== 0) ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (sp === 0 ? '-' : '-'); var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
+                if (isAdmin) { var tsVal = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var tsDisplay = (tsVal !== null) ? 'HK$' + tsVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + tsDisplay + '</td>'; }
+                if (isAdmin) { var tsVal2 = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var spRaw2 = s.shippingPrice; var spVal2 = (spRaw2 !== null && spRaw2 !== undefined && spRaw2 !== '') ? parseFloat(spRaw2) : null; if (spVal2 !== null && spVal2 === 0 && tsVal2 !== null && tsVal2 !== 0) spVal2 = 30; var netStarVal = (tsVal2 !== null && spVal2 !== null) ? (tsVal2 - spVal2) : null; var netStarDisplay = (netStarVal !== null) ? 'HK$' + netStarVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + netStarDisplay + '</td>'; }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
