@@ -503,3 +503,9 @@
 
 ## Shipping Price Red Color for High Values (Feb 13, 2026)
 - [x] Change Shipping Price font color to red when value exceeds $100 in admin Online Sales tab
+
+## Shipping Price $30 Default Bug (Feb 13, 2026)
+- [x] Fix: Shipping Price $30 default is overwriting non-zero values — should only apply when actual value is 0
+- [x] Fix upload parsing: store 0 as 0 (not null) so we can distinguish "no data" from "$0 shipping"
+- [x] Fix email-sync parsing: same fix for email auto-import
+- [x] Fix display: show "-" when no shipping data, $30 when explicitly 0, actual value otherwise

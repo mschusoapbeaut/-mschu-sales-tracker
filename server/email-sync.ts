@@ -339,7 +339,7 @@ async function importExcelData(content: Buffer): Promise<number> {
         shippingPrice = row[shippingPriceIdx];
       } else {
         const rawSP = String(row[shippingPriceIdx]).replace(/[^0-9.-]/g, '');
-        if (rawSP) shippingPrice = parseFloat(rawSP) || null;
+        if (rawSP !== '') { const parsed = parseFloat(rawSP); shippingPrice = isNaN(parsed) ? null : parsed; }
       }
     }
     

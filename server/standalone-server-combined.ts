@@ -453,7 +453,7 @@ async function startServer() {
         let shippingPrice: number | null = null;
         if (shippingPriceIdx >= 0 && values[shippingPriceIdx]) {
           const rawSP = values[shippingPriceIdx].replace(/[^0-9.-]/g, '');
-          if (rawSP) shippingPrice = parseFloat(rawSP) || null;
+          if (rawSP !== '') { const parsed = parseFloat(rawSP); shippingPrice = isNaN(parsed) ? null : parsed; }
         }
         // Parse Actual Order Date
         let actualOrderDate: string | null = null;
@@ -1311,7 +1311,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
-                if (isAdmin) { var sp = parseFloat(s.shippingPrice) || 0; if (sp === 0) sp = 30; var spColor = sp > 100 ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>'; }
+                if (isAdmin) { var spRaw = s.shippingPrice; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0) sp = 30; var spDisplay = sp !== null ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
