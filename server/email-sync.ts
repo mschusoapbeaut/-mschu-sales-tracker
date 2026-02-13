@@ -35,8 +35,9 @@ function getImapConfig(email: string) {
   }
 }
 
-// Email subject filter
-const EMAIL_SUBJECT_FILTER = "Online Orders by customer";
+// Email subject filters
+const ONLINE_SUBJECT_FILTER = "Online Orders by customer";
+const POS_SUBJECT_FILTER = "POS_Sales_Attribution";
 
 // Track last sync time
 let lastSyncTime: Date | null = null;
@@ -141,9 +142,9 @@ export async function fetchAndProcessEmails(): Promise<{
           return;
         }
 
-        // Search for all emails with matching subject (including read ones)
-        // Using ALL instead of UNSEEN to catch emails that may have been read
-        imap.search([["SUBJECT", EMAIL_SUBJECT_FILTER]], async (err, results) => {
+        // Search for BOTH Online and POS report emails
+        // Use OR to match either subject
+        imap.search([['OR', ['SUBJECT', ONLINE_SUBJECT_FILTER], ['SUBJECT', POS_SUBJECT_FILTER]]], async (err, results) => {
           if (err) {
             clearTimeout(timeout);
             imap.end();
@@ -159,11 +160,7 @@ export async function fetchAndProcessEmails(): Promise<{
             return;
           }
 
-          console.log(`[EmailSync] Found ${results.length} emails matching subject filter`);
-          
-          // Process ALL matching emails to ensure complete data coverage
-          // Duplicate check in importExcelData prevents double-importing
-          console.log(`[EmailSync] Processing all ${results.length} matching emails`);
+          console.log(`[EmailSync] Found ${results.length} emails matching subject filters (Online + POS)`);
           
           const processPromises: Promise<number>[] = [];
 
@@ -180,16 +177,22 @@ export async function fetchAndProcessEmails(): Promise<{
                   try {
                     const parsed = await simpleParser(buffer);
                     let imported = 0;
+                    
+                    // Determine report type from email subject
+                    const subject = parsed.subject || "";
+                    const isPosReport = subject.toLowerCase().includes("pos_sales_attribution") || subject.toLowerCase().includes("pos sales attribution");
+                    const reportType: "online" | "pos" = isPosReport ? "pos" : "online";
+                    console.log(`[EmailSync] Email subject: "${subject}" → type: ${reportType}`);
 
                     if (parsed.attachments && parsed.attachments.length > 0) {
-                      console.log(`[EmailSync] Processing email with ${parsed.attachments.length} attachments`);
+                      console.log(`[EmailSync] Processing ${reportType} email with ${parsed.attachments.length} attachments`);
                       
                       for (const attachment of parsed.attachments) {
                         const filename = attachment.filename || "";
                         if (filename.endsWith(".csv") || filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
-                          console.log(`[EmailSync] Processing attachment: ${filename}`);
+                          console.log(`[EmailSync] Processing attachment: ${filename} (type: ${reportType})`);
                           const content = attachment.content;
-                          imported += await processAttachment(filename, content);
+                          imported += await processAttachment(filename, content, reportType);
                         }
                       }
                     }
@@ -237,10 +240,12 @@ export async function fetchAndProcessEmails(): Promise<{
 }
 
 // Process attachment (CSV or Excel)
-async function processAttachment(filename: string, content: Buffer): Promise<number> {
+async function processAttachment(filename: string, content: Buffer, reportType: "online" | "pos" = "online"): Promise<number> {
   try {
     if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
-      // For Excel files, use direct column mapping
+      if (reportType === "pos") {
+        return await importPosExcelData(content);
+      }
       return await importExcelData(content);
     } else {
       // For CSV files, convert to string and parse
@@ -503,6 +508,152 @@ async function importExcelData(content: Buffer): Promise<number> {
   }
   
   console.log(`[EmailSync] Excel import complete: ${imported} records`);
+  return imported;
+}
+
+// Import POS Excel data from POS_Sales_Attribution report
+// Column A: Actual Order Date, Column B: Order Name, Column C: Payment Gateways
+// Column D: Staff_Name, Column E: Sales Channel, Column F: Location Name
+// Column G: Order Date, Column H: Net Quantity, Column I: Purchase of GC
+// Column J: Net Sales, Column K: Returns, Column L: Total Sales
+// Column M: Amount paid with GC, Column N: Net sales exclude GC Payment
+async function importPosExcelData(content: Buffer): Promise<number> {
+  const workbook = XLSX.read(content, { type: "buffer" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+  
+  if (rows.length < 2) {
+    console.log("[EmailSync-POS] Excel file has no data rows");
+    return 0;
+  }
+  
+  let imported = 0;
+  
+  // Header-based column detection using original report column names
+  const headerRow = rows[0];
+  console.log(`[EmailSync-POS] Header row: ${JSON.stringify(headerRow)}`);
+  const headers = headerRow.map((h: any) => String(h || '').toLowerCase().replace(/[\s_-]/g, ''));
+  
+  // Map columns by their original names in the POS_Sales_Attribution report
+  const actualOrderDateIdx = headers.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorderdate'));
+  const orderNameIdx = headers.findIndex((h: string) => h === 'ordername' || h.includes('ordername'));
+  const paymentGatewaysIdx = headers.findIndex((h: string) => h === 'paymentgateways' || h.includes('paymentgateway'));
+  const staffNameIdx = headers.findIndex((h: string) => h === 'staffname' || h.includes('staffname'));
+  const locationNameIdx = headers.findIndex((h: string) => h === 'locationname' || h.includes('locationname'));
+  const orderDateIdx = headers.findIndex((h: string) => h === 'orderdate' || h.includes('orderdate'));
+  const totalSalesIdx = headers.findIndex((h: string) => h === 'totalsales' || h.includes('totalsales'));
+  // "Net sales exclude GC Payment" → this is what we display as net sales for POS
+  const netSalesExclGCIdx = headers.findIndex((h: string) => h.includes('netsalesexcludegcpayment') || h.includes('netsalesexcludegc') || h.includes('excludegc'));
+  // Fallback to regular "Net Sales" column if exclude GC column not found
+  let netSalesIdx = netSalesExclGCIdx;
+  if (netSalesIdx === -1) {
+    netSalesIdx = headers.findIndex((h: string) => h === 'netsales');
+    if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
+  }
+  
+  console.log(`[EmailSync-POS] Detected columns - actualOrderDate:${actualOrderDateIdx}, orderName:${orderNameIdx}, paymentGateways:${paymentGatewaysIdx}, staffName:${staffNameIdx}, locationName:${locationNameIdx}, orderDate:${orderDateIdx}, totalSales:${totalSalesIdx}, netSales:${netSalesIdx}`);
+  
+  if (netSalesIdx === -1) {
+    console.error("[EmailSync-POS] Could not find Net Sales column! Headers: " + JSON.stringify(headerRow));
+    return 0;
+  }
+  
+  // Helper: parse date from Excel (serial number or string)
+  function parseExcelDate(raw: any): string | null {
+    if (!raw) return null;
+    if (typeof raw === 'number') {
+      const excelEpoch = new Date(1899, 11, 30);
+      const d = new Date(excelEpoch.getTime() + raw * 24 * 60 * 60 * 1000);
+      return d.toISOString().split('T')[0];
+    }
+    const s = String(raw).trim();
+    if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substring(0, 10);
+    if (s.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const [mm, dd, yyyy] = s.split('-');
+      return yyyy + '-' + mm + '-' + dd;
+    }
+    if (s.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
+      const parts = s.split('/');
+      const mm = parts[0].padStart(2, '0');
+      const dd = parts[1].padStart(2, '0');
+      let yyyy = parts[2];
+      if (yyyy.length === 2) yyyy = '20' + yyyy;
+      return yyyy + '-' + mm + '-' + dd;
+    }
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+    return null;
+  }
+  
+  // Helper: parse number
+  function parseNum(raw: any): number | null {
+    if (raw == null) return null;
+    if (typeof raw === 'number') return raw;
+    const cleaned = String(raw).replace(/[^0-9.-]/g, '');
+    if (cleaned === '') return null;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+  
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+    
+    if (i <= 3) {
+      console.log(`[EmailSync-POS] Row ${i}: ${JSON.stringify(row)}`);
+    }
+    
+    // Get Order Name
+    const orderName = orderNameIdx >= 0 ? (row[orderNameIdx] ? String(row[orderNameIdx]).trim() : null) : null;
+    
+    // Skip Grand Total / summary rows
+    if (!orderName || orderName.toLowerCase().includes('grand total') || orderName.toLowerCase() === 'total') {
+      console.log(`[EmailSync-POS] Skipping invalid row: ${orderName}`);
+      continue;
+    }
+    
+    // Parse fields using original column names
+    const actualOrderDate = actualOrderDateIdx >= 0 ? parseExcelDate(row[actualOrderDateIdx]) : null;
+    const paymentGateway = paymentGatewaysIdx >= 0 ? (row[paymentGatewaysIdx] ? String(row[paymentGatewaysIdx]).trim() : null) : null;
+    const staffName = staffNameIdx >= 0 ? (row[staffNameIdx] ? String(row[staffNameIdx]).trim() : null) : null;
+    const locationName = locationNameIdx >= 0 ? (row[locationNameIdx] ? String(row[locationNameIdx]).trim() : null) : null;
+    const orderDate = orderDateIdx >= 0 ? parseExcelDate(row[orderDateIdx]) : null;
+    const totalSales = totalSalesIdx >= 0 ? parseNum(row[totalSalesIdx]) : null;
+    const netSalesRaw = parseNum(row[netSalesIdx]);
+    const netSales = netSalesRaw !== null ? netSalesRaw : 0;
+    
+    if (isNaN(netSales)) continue;
+    
+    // Check for duplicate order
+    try {
+      const existingOrder = await db.execute(
+        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' LIMIT 1",
+        [orderName]
+      );
+      const existingRows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
+      const hasExisting = existingRows && (Array.isArray(existingRows) ? existingRows.length > 0 : Object.keys(existingRows).length > 0);
+      if (hasExisting) {
+        console.log(`[EmailSync-POS] Skipping duplicate POS order: ${orderName}`);
+        continue;
+      }
+    } catch (dupErr: any) {
+      console.log(`[EmailSync-POS] Duplicate check error for ${orderName}: ${dupErr.message}`);
+    }
+    
+    try {
+      console.log(`[EmailSync-POS] Inserting: order=${orderName}, location=${locationName}, payment=${paymentGateway}, staff=${staffName}, netSales=${netSales}`);
+      await db.execute(
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderDate || null, orderName || null, locationName || null, netSales, 'pos', staffName, paymentGateway, actualOrderDate || null, totalSales]
+      );
+      imported++;
+      console.log(`[EmailSync-POS] Imported: ${orderName} - ${locationName} - $${netSales}`);
+    } catch (error: any) {
+      console.error(`[EmailSync-POS] Error inserting ${orderName}:`, error.message || error);
+    }
+  }
+  
+  console.log(`[EmailSync-POS] POS Excel import complete: ${imported} records`);
   return imported;
 }
 

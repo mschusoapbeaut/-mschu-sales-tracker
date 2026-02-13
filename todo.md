@@ -544,3 +544,6 @@
 - [x] Rename "Order" to "Order Name" in POS Sales tab (Admin + Staff dashboard)
 - [x] Rename "Channel" to "Location Name" in POS Sales tab (Admin + Staff dashboard)
 - [x] Rename columns in staff-view page POS Sales table
+
+## Email Sync POS Report Fetch (Feb 13, 2026)
+- [x] Update email sync to also fetch POS sales reports with subject/attachment "POS_Sales_Attribution"
