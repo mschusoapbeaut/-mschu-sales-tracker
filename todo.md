@@ -611,3 +611,7 @@
 - [x] Sync correctly fetches latest email and uses upsert logic (updates existing + inserts new)
 - [x] Confirmed: email report is cumulative snapshot — new orders only appear in the NEXT report
 - [x] Improved logging: sync now tracks inserted vs updated counts separately
+
+## Bug: Today Filter Not Showing in Production (Feb 13, 2026)
+- [ ] Investigate why Today filter is not in the production dropdown
+- [ ] Fix and redeploy
