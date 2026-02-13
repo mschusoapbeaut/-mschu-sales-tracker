@@ -153,16 +153,42 @@ export async function fetchAndProcessEmails(): Promise<{
         let searchesCompleted = 0;
         
         function doSearch(filterObj: { filter: string; type: "online" | "pos" }) {
-          imap.search([["SUBJECT", filterObj.filter]], (err, results) => {
+          // Search for emails from today (SINCE filter uses date only, not time)
+          const today = new Date();
+          const sinceDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          imap.search([["SUBJECT", filterObj.filter], ["SINCE", sinceDate]], (err, results) => {
             if (err) {
               console.error(`[EmailSync] Search error for ${filterObj.type}: ${err.message}`);
-            } else if (results && results.length > 0) {
-              // Only keep the LATEST email (highest UID = most recent)
-              const latestUid = Math.max(...results);
-              console.log(`[EmailSync] Found ${results.length} emails for ${filterObj.type}, using latest UID: ${latestUid}`);
-              allResults.push({ uid: latestUid, type: filterObj.type });
+              // Fallback: try without date filter, use latest only
+              imap.search([["SUBJECT", filterObj.filter]], (err2, results2) => {
+                if (!err2 && results2 && results2.length > 0) {
+                  const latestUid = Math.max(...results2);
+                  console.log(`[EmailSync] Fallback: Found ${results2.length} emails for ${filterObj.type}, using latest UID: ${latestUid}`);
+                  allResults.push({ uid: latestUid, type: filterObj.type });
+                }
+                searchesCompleted++;
+                if (searchesCompleted === subjectFilters.length) processAllResults();
+              });
+              return;
+            }
+            if (results && results.length > 0) {
+              // Process ALL emails from today (each may contain different order ranges)
+              console.log(`[EmailSync] Found ${results.length} emails from today for ${filterObj.type}, processing ALL: UIDs ${results.join(', ')}`);
+              results.forEach(uid => allResults.push({ uid, type: filterObj.type }));
             } else {
-              console.log(`[EmailSync] No emails found for ${filterObj.type} (subject: "${filterObj.filter}")`);
+              // No emails from today - fall back to latest email overall
+              imap.search([["SUBJECT", filterObj.filter]], (err2, results2) => {
+                if (!err2 && results2 && results2.length > 0) {
+                  const latestUid = Math.max(...results2);
+                  console.log(`[EmailSync] No today emails for ${filterObj.type}, using latest overall UID: ${latestUid}`);
+                  allResults.push({ uid: latestUid, type: filterObj.type });
+                } else {
+                  console.log(`[EmailSync] No emails found for ${filterObj.type} (subject: "${filterObj.filter}")`);
+                }
+                searchesCompleted++;
+                if (searchesCompleted === subjectFilters.length) processAllResults();
+              });
+              return;
             }
             searchesCompleted++;
             if (searchesCompleted === subjectFilters.length) {
