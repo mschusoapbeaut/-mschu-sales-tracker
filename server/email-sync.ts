@@ -300,6 +300,8 @@ async function importExcelData(content: Buffer): Promise<number> {
   const whatsappMarketingIdx = headers.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
   // Detect Shipping Price column (Column R)
   const shippingPriceIdx = headers.findIndex((h: string) => h === 'shippingprice' || h === 'shipping' || h.includes('shippingprice') || h.includes('shipping price'));
+  // Detect Total Sales column (Column P)
+  const totalSalesIdx = headers.findIndex((h: string) => h === 'totalsales' || h === 'total sales' || h.includes('totalsales') || h.includes('total sales'));
   // Prioritize exact "netsales" match to avoid matching "Gross Sales" or "Total Sales"
   let netSalesIdx = headers.findIndex((h: string) => h === 'netsales');
   if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
@@ -340,6 +342,16 @@ async function importExcelData(content: Buffer): Promise<number> {
       } else {
         const rawSP = String(row[shippingPriceIdx]).replace(/[^0-9.-]/g, '');
         if (rawSP !== '') { const parsed = parseFloat(rawSP); shippingPrice = isNaN(parsed) ? null : parsed; }
+      }
+    }
+    // Parse Total Sales
+    let totalSales: number | null = null;
+    if (totalSalesIdx >= 0 && row[totalSalesIdx] != null) {
+      if (typeof row[totalSalesIdx] === 'number') {
+        totalSales = row[totalSalesIdx];
+      } else {
+        const rawTS = String(row[totalSalesIdx]).replace(/[^0-9.-]/g, '');
+        if (rawTS !== '') { const parsed = parseFloat(rawTS); totalSales = isNaN(parsed) ? null : parsed; }
       }
     }
     
@@ -479,8 +491,8 @@ async function importExcelData(content: Buffer): Promise<number> {
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
       );
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);

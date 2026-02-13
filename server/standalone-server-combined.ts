@@ -105,6 +105,7 @@ async function startServer() {
       { name: 'actualOrderDate', def: 'DATE DEFAULT NULL' },
       { name: 'whatsappMarketing', def: 'VARCHAR(50) DEFAULT NULL' },
       { name: 'shippingPrice', def: 'DECIMAL(10,2) DEFAULT NULL' },
+      { name: 'totalSales', def: 'DECIMAL(10,2) DEFAULT NULL' },
     ];
     for (const col of columnsToAdd) {
       try {
@@ -195,7 +196,7 @@ async function startServer() {
       const saleType = req.query.type as string || 'online';
       const month = req.query.month as string || 'all';
       const staffName = req.query.staffName as string || '';
-      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice FROM sales";
+      let query = "SELECT id, orderDate, orderNo, salesChannel, netSales, paymentGateway, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales FROM sales";
       let params: any[] = [];
       let whereConditions: string[] = [];
       
@@ -372,6 +373,8 @@ async function startServer() {
       const whatsappMarketingIdx = header.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
       // Find Shipping Price column (Column R)
       const shippingPriceIdx = header.findIndex((h: string) => h === 'shippingprice' || h === 'shipping' || h.includes('shippingprice') || h.includes('shipping price'));
+      // Find Total Sales column (Column P)
+      const totalSalesIdx = header.findIndex((h: string) => h === 'totalsales' || h === 'total sales' || h.includes('totalsales') || h.includes('total sales'));
       
       // Build staff ID to name mapping dynamically from the users table
       const KNOWN_STAFF_SERVER: Record<string, string> = {};
@@ -455,6 +458,12 @@ async function startServer() {
           const rawSP = values[shippingPriceIdx].replace(/[^0-9.-]/g, '');
           if (rawSP !== '') { const parsed = parseFloat(rawSP); shippingPrice = isNaN(parsed) ? null : parsed; }
         }
+        // Parse Total Sales
+        let totalSales: number | null = null;
+        if (totalSalesIdx >= 0 && values[totalSalesIdx]) {
+          const rawTS = values[totalSalesIdx].replace(/[^0-9.-]/g, '');
+          if (rawTS !== '') { const parsed = parseFloat(rawTS); totalSales = isNaN(parsed) ? null : parsed; }
+        }
         // Parse Actual Order Date
         let actualOrderDate: string | null = null;
         if (actualOrderDateIdx >= 0 && values[actualOrderDateIdx]) {
@@ -537,13 +546,13 @@ async function startServer() {
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
             );
           } else {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
             );
           }
           imported++;
@@ -1311,7 +1320,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
-                if (isAdmin) { var spRaw = s.shippingPrice; var ns = parseFloat(s.netSales) || 0; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0 && ns !== 0) sp = 30; var spDisplay = (sp !== null && sp !== 0) ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (sp === 0 ? '-' : '-'); var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
+                if (isAdmin) { var spRaw = s.shippingPrice; var ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0 && ts !== null && ts !== 0) sp = 30; var spDisplay = (sp !== null && sp !== 0) ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (sp === 0 ? '-' : '-'); var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';

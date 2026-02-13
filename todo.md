@@ -513,3 +513,10 @@
 ## Shipping Price $30 Default — Add Total Sales Condition (Feb 13, 2026)
 - [x] Only default Shipping Price to $30 when shipping is $0 AND Net Sales (Total Sales) is non-zero
 - [x] Show "-" when no shipping data OR when Net Sales is 0
+
+## Import Total Sales (Column P) for Shipping Price Logic (Feb 13, 2026)
+- [x] Add totalSales column to database schema (auto-migration)
+- [x] Parse Total Sales (Column P) in upload endpoint
+- [x] Parse Total Sales (Column P) in email sync
+- [x] Include totalSales in SELECT query
+- [x] Update Shipping Price display: default $30 only when shipping is $0 AND totalSales is non-zero
