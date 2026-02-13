@@ -1242,11 +1242,7 @@ function getAdminHTML(): string {
             return [...data].sort((a, b) => {
                 let va = a[col] || '';
                 let vb = b[col] || '';
-                if (col === 'orderDate' || col === 'actualOrderDate') {
-                    if (col === 'actualOrderDate') {
-                        va = a.actualOrderDate || a.orderDate || '';
-                        vb = b.actualOrderDate || b.orderDate || '';
-                    }
+                if (col === 'orderDate') {
                     va = va ? new Date(va).getTime() : 0;
                     vb = vb ? new Date(vb).getTime() : 0;
                     return dir === 'asc' ? va - vb : vb - va;
@@ -1297,7 +1293,7 @@ function getAdminHTML(): string {
                 return;
             }
             let html = '<table class="sales-table"><thead><tr>';
-            html += '<th class="' + sortClass('actualOrderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;actualOrderDate&#39;)">Actual Order Date</th>';
+            html += '<th class="' + sortClass('orderDate', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderDate&#39;)">Order Date</th>';
             html += '<th class="' + sortClass('orderNo', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;orderNo&#39;)">Order Name</th>';
             html += '<th class="' + sortClass('salesChannel', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;salesChannel&#39;)">Sales Channel</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
@@ -1308,14 +1304,14 @@ function getAdminHTML(): string {
             if (isAdmin) html += '<th class="' + sortClass('shippingPrice', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;shippingPrice&#39;)">Shipping Price</th>';
             html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th></tr></thead><tbody>';
             data.forEach(s => {
-                const actualDate = s.actualOrderDate ? new Date(s.actualOrderDate).toLocaleDateString() : (s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-');
-                html += '<tr><td>' + actualDate + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
+                const orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
+                html += '<tr><td>' + orderDateStr + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
                 if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
                 html += '<td style="font-size:12px">' + (s.customerEmail || '-') + '</td>';
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
-                if (isAdmin) html += '<td class="amount">HK$' + (parseFloat(s.shippingPrice) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+                if (isAdmin) { var sp = parseFloat(s.shippingPrice) || 0; if (sp === 0) sp = 30; html += '<td class="amount">HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>'; }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
@@ -2310,11 +2306,7 @@ function getStaffViewHTML(): string {
             return [...data].sort((a, b) => {
                 let va = a[col] || '';
                 let vb = b[col] || '';
-                if (col === 'orderDate' || col === 'actualOrderDate') {
-                    if (col === 'actualOrderDate') {
-                        va = a.actualOrderDate || a.orderDate || '';
-                        vb = b.actualOrderDate || b.orderDate || '';
-                    }
+                if (col === 'orderDate') {
                     va = va ? new Date(va).getTime() : 0;
                     vb = vb ? new Date(vb).getTime() : 0;
                     return dir === 'asc' ? va - vb : vb - va;
@@ -2369,7 +2361,7 @@ function getStaffViewHTML(): string {
             }
             let html = '<table class="sales-table"><thead><tr>';
             if (currentTab === 'online') {
-                html += sortTh('actualOrderDate', 'Actual Order Date');
+                html += sortTh('orderDate', 'Order Date');
                 html += sortTh('orderNo', 'Order Name');
                 html += sortTh('salesChannel', 'Sales Channel');
                 html += '<th>Customer Email</th>';
@@ -2388,8 +2380,8 @@ function getStaffViewHTML(): string {
             sales.forEach(r => {
                 html += '<tr>';
                 if (currentTab === 'online') {
-                    const actualDate = r.actualOrderDate ? new Date(r.actualOrderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : (r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-');
-                    html += '<td>' + actualDate + '</td>';
+                    const orderDateStr = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+                    html += '<td>' + orderDateStr + '</td>';
                     html += '<td>' + (r.orderNo || '-') + '</td>';
                     html += '<td>' + (r.salesChannel || '-') + '</td>';
                     html += '<td style="font-size:12px">' + (r.customerEmail || '-') + '</td>';

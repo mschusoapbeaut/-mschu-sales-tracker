@@ -496,3 +496,7 @@
 - [x] Update email sync to parse Shipping Price from Column R
 - [x] Add Shipping Price column to admin dashboard Online Sales table (before Net Sales)
 - [x] Do NOT add to staff view — confirmed staff view unchanged
+
+## Order Date & Shipping Price Changes (Feb 13, 2026)
+- [x] Change Online Sales display from "Actual Order Date" back to "Order Date" (Column A) in admin and staff views
+- [x] Show Shipping Price as $30 for orders where Column R value is 0
