@@ -254,7 +254,7 @@ async function startServer() {
         query += " WHERE " + whereConditions.join(" AND ");
       }
       
-      query += " ORDER BY orderDate DESC";
+      query += " ORDER BY orderDate DESC, CAST(orderNo AS UNSIGNED) DESC";
       
       const [rows] = await db.execute(query, params);
       const sales = rows as any[];
@@ -1552,21 +1552,22 @@ function getAdminHTML(): string {
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
-            sel.innerHTML = '<option value="all">All</option>';
-            sel.innerHTML += '<option value="today">Today</option>';
-            sel.innerHTML += '<option value="ytd">Year to Date</option>';
+            let options = '<option value="all">All</option>';
+            options += '<option value="today">Today</option>';
+            options += '<option value="ytd">Year to Date</option>';
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             for (let m = currentMonth; m >= 0; m--) {
                 const val = currentYear + '-' + String(m + 1).padStart(2, '0');
                 const label = monthNames[m] + ' ' + currentYear;
                 const selected = m === currentMonth ? ' selected' : '';
-                sel.innerHTML += '<option value="' + val + '"' + selected + '>' + label + '</option>';
+                options += '<option value="' + val + '"' + selected + '>' + label + '</option>';
             }
             for (let m = 11; m >= 0; m--) {
                 const val = (currentYear - 1) + '-' + String(m + 1).padStart(2, '0');
                 const label = monthNames[m] + ' ' + (currentYear - 1);
-                sel.innerHTML += '<option value="' + val + '">' + label + '</option>';
+                options += '<option value="' + val + '">' + label + '</option>';
             }
+            sel.innerHTML = options;
         }
         
         async function loadOnlineSales() {
