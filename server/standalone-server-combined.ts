@@ -1311,7 +1311,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
-                if (isAdmin) { var sp = parseFloat(s.shippingPrice) || 0; if (sp === 0) sp = 30; html += '<td class="amount">HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>'; }
+                if (isAdmin) { var sp = parseFloat(s.shippingPrice) || 0; if (sp === 0) sp = 30; var spColor = sp > 100 ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>'; }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';

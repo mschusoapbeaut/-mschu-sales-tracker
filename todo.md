@@ -500,3 +500,6 @@
 ## Order Date & Shipping Price Changes (Feb 13, 2026)
 - [x] Change Online Sales display from "Actual Order Date" back to "Order Date" (Column A) in admin and staff views
 - [x] Show Shipping Price as $30 for orders where Column R value is 0
+
+## Shipping Price Red Color for High Values (Feb 13, 2026)
+- [x] Change Shipping Price font color to red when value exceeds $100 in admin Online Sales tab
