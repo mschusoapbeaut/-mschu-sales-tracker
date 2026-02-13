@@ -577,4 +577,10 @@
 - [x] "All" time range works correctly — bug was specific to NULL-date records from old import
 - [x] Clear all 405 NULL-date POS records from production database (old Jan imports + garbage Grand Total rows)
 - [x] Verify Feb 2026 POS data (717 records, HK$501,802.10) is intact after cleanup
-- [ ] User to re-upload January POS file with fixed parser
+- [x] User to re-upload January POS file with fixed parser — completed with pos_sales_attribution_final(6).xlsx
+
+## Re-upload January POS Sales Data (Feb 13, 2026)
+- [x] Examine uploaded file pos_sales_attribution_final(6).xlsx
+- [x] Clear existing Jan 2026 POS data from production (1,646 records cleared)
+- [x] Upload new Jan POS data via production API (1,646 records imported)
+- [x] Verify import results: 1,646 records, HK$1,103,870.40, all 13 staff members, 0 NULL dates
