@@ -597,9 +597,9 @@
 - [x] Deliver document to user
 
 ## Bug: POS Email Auto-Sync Not Running Hourly (Feb 13, 2026)
-- [ ] Investigate why POS auto-sync stopped — latest synced order is #75254 from 10:56am
-- [ ] Check email sync scheduling logic and IMAP POS subject filter
-- [ ] Fix the issue and verify auto-sync resumes
+- [x] Investigate why POS auto-sync stopped — root cause: sync only fetched latest single email, missing earlier reports with different order ranges
+- [x] Check email sync scheduling logic and IMAP POS subject filter
+- [x] Fix: sync now processes ALL emails from today instead of just the latest one
 
 ## Feature: Add "Today" Filter to Admin View (Feb 13, 2026)
 - [x] Add "Today" option to time range dropdown in POS Sales tab (Admin)
@@ -613,5 +613,5 @@
 - [x] Improved logging: sync now tracks inserted vs updated counts separately
 
 ## Bug: Today Filter Not Showing in Production (Feb 13, 2026)
-- [ ] Investigate why Today filter is not in the production dropdown
-- [ ] Fix and redeploy
+- [x] Investigate why Today filter is not in the production dropdown — Railway deployment was delayed
+- [x] Fix and redeploy — deployed successfully, Today filter and sort fix live
