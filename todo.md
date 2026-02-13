@@ -520,3 +520,8 @@
 - [x] Parse Total Sales (Column P) in email sync
 - [x] Include totalSales in SELECT query
 - [x] Update Shipping Price display: default $30 only when shipping is $0 AND totalSales is non-zero
+
+## Shipping Price $30 Override Not Working (Feb 13, 2026)
+- [ ] Fix: $0 shipping orders not being overridden to $30 — investigate totalSales column detection
+
+- [ ] Fix Shipping Price showing "-" instead of HK$30.00 for January orders with $0 shipping and non-zero Total Sales — ensure code is deployed to Railway

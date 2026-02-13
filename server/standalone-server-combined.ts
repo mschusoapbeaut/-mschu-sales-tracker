@@ -930,11 +930,17 @@ async function startServer() {
 
   // Serve web interface at root
   app.get("/", (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(getAdminHTML());
   });
 
   // Staff view for Shopify POS tile
   app.get("/staff-view", (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(getStaffViewHTML());
   });
 
