@@ -547,3 +547,6 @@
 
 ## Email Sync POS Report Fetch (Feb 13, 2026)
 - [x] Update email sync to also fetch POS sales reports with subject/attachment "POS_Sales_Attribution"
+
+## Bug: POS email sync not importing (Feb 13, 2026)
+- [ ] Debug and fix POS email sync not importing POS sales data after manual fetch

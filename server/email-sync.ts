@@ -142,33 +142,60 @@ export async function fetchAndProcessEmails(): Promise<{
           return;
         }
 
-        // Search for BOTH Online and POS report emails
-        // Use OR to match either subject
-        imap.search([['OR', ['SUBJECT', ONLINE_SUBJECT_FILTER], ['SUBJECT', POS_SUBJECT_FILTER]]], async (err, results) => {
-          if (err) {
+        // Search for Online report emails first, then POS report emails
+        // Using two separate searches to avoid IMAP OR syntax compatibility issues
+        const subjectFilters = [
+          { filter: ONLINE_SUBJECT_FILTER, type: "online" as const },
+          { filter: POS_SUBJECT_FILTER, type: "pos" as const }
+        ];
+        
+        let allResults: { uid: number; type: "online" | "pos" }[] = [];
+        let searchesCompleted = 0;
+        
+        function doSearch(filterObj: { filter: string; type: "online" | "pos" }) {
+          imap.search([["SUBJECT", filterObj.filter]], (err, results) => {
+            if (err) {
+              console.error(`[EmailSync] Search error for ${filterObj.type}: ${err.message}`);
+            } else if (results && results.length > 0) {
+              console.log(`[EmailSync] Found ${results.length} emails for ${filterObj.type} (subject: "${filterObj.filter}")`);
+              results.forEach(uid => allResults.push({ uid, type: filterObj.type }));
+            } else {
+              console.log(`[EmailSync] No emails found for ${filterObj.type} (subject: "${filterObj.filter}")`);
+            }
+            searchesCompleted++;
+            if (searchesCompleted === subjectFilters.length) {
+              processAllResults();
+            }
+          });
+        }
+        
+        async function processAllResults() {
+          if (allResults.length === 0) {
             clearTimeout(timeout);
             imap.end();
-            resolve({ success: false, error: "Search failed: " + err.message });
-            return;
-          }
-
-          if (!results || results.length === 0) {
-            clearTimeout(timeout);
-            imap.end();
-            console.log("[EmailSync] No new emails to process");
+            console.log("[EmailSync] No emails to process from either search");
             resolve({ success: true, imported: 0, emailsProcessed: 0 });
             return;
           }
-
-          console.log(`[EmailSync] Found ${results.length} emails matching subject filters (Online + POS)`);
+          
+          console.log(`[EmailSync] Total emails to process: ${allResults.length}`);
+          
+          // Build a map of uid -> type for quick lookup
+          const uidTypeMap = new Map<number, "online" | "pos">();
+          allResults.forEach(r => uidTypeMap.set(r.uid, r.type));
+          const allUids = allResults.map(r => r.uid);
           
           const processPromises: Promise<number>[] = [];
-
-          const f = imap.fetch(results, { bodies: "", markSeen: true });
-
-          f.on("message", (msg) => {
+          
+          const f = imap.fetch(allUids, { bodies: "", markSeen: true });
+          
+          f.on("message", (msg, seqno) => {
             const processPromise = new Promise<number>((resolveMsg) => {
               let buffer = "";
+              let msgUid: number | null = null;
+              msg.on("attributes", (attrs) => {
+                msgUid = attrs.uid;
+              });
               msg.on("body", (stream) => {
                 stream.on("data", (chunk) => {
                   buffer += chunk.toString("utf8");
@@ -178,7 +205,7 @@ export async function fetchAndProcessEmails(): Promise<{
                     const parsed = await simpleParser(buffer);
                     let imported = 0;
                     
-                    // Determine report type from email subject
+                    // Determine report type from email subject (more reliable than UID map)
                     const subject = parsed.subject || "";
                     const isPosReport = subject.toLowerCase().includes("pos_sales_attribution") || subject.toLowerCase().includes("pos sales attribution");
                     const reportType: "online" | "pos" = isPosReport ? "pos" : "online";
@@ -226,7 +253,10 @@ export async function fetchAndProcessEmails(): Promise<{
             
             resolve({ success: true, imported: totalImported, emailsProcessed });
           });
-        });
+        }
+        
+        // Start both searches
+        subjectFilters.forEach(f => doSearch(f));
       });
     });
 
