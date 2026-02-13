@@ -1440,10 +1440,20 @@ function getAdminHTML(): string {
                 document.getElementById('uploadTab').style.display = 'block';
                 document.getElementById('emailTab').style.display = 'block';
             } else {
-                // Staff: explicitly hide all admin tabs and panels
-                document.getElementById('adminTab').style.display = 'none';
-                document.getElementById('uploadTab').style.display = 'none';
-                document.getElementById('emailTab').style.display = 'none';
+                // Staff: COMPLETELY REMOVE admin tabs and panels from DOM (not just hide)
+                var adminTabEl = document.getElementById('adminTab');
+                if (adminTabEl) adminTabEl.parentNode.removeChild(adminTabEl);
+                var uploadTabEl = document.getElementById('uploadTab');
+                if (uploadTabEl) uploadTabEl.parentNode.removeChild(uploadTabEl);
+                var emailTabEl = document.getElementById('emailTab');
+                if (emailTabEl) emailTabEl.parentNode.removeChild(emailTabEl);
+                // Remove admin panels entirely from DOM
+                var adminPanelEl = document.getElementById('adminPanel');
+                if (adminPanelEl) adminPanelEl.parentNode.removeChild(adminPanelEl);
+                var uploadPanelEl = document.getElementById('uploadPanel');
+                if (uploadPanelEl) uploadPanelEl.parentNode.removeChild(uploadPanelEl);
+                var emailPanelEl = document.getElementById('emailPanel');
+                if (emailPanelEl) emailPanelEl.parentNode.removeChild(emailPanelEl);
                 // Hide month and staff filters for staff
                 document.getElementById('onlineMonthFilter').style.display = 'none';
                 document.getElementById('posMonthFilter').style.display = 'none';
@@ -1454,9 +1464,9 @@ function getAdminHTML(): string {
             // Ensure correct default panel visibility - always start on Online Sales
             document.getElementById('onlineSalesPanel').style.display = 'block';
             document.getElementById('posSalesPanel').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'none';
-            document.getElementById('uploadPanel').style.display = 'none';
-            document.getElementById('emailPanel').style.display = 'none';
+            var ap = document.getElementById('adminPanel'); if (ap) ap.style.display = 'none';
+            var up = document.getElementById('uploadPanel'); if (up) up.style.display = 'none';
+            var ep = document.getElementById('emailPanel'); if (ep) ep.style.display = 'none';
             
             // Set Online Sales tab as active
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1478,11 +1488,16 @@ function getAdminHTML(): string {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             if (event && event.target) { event.target.classList.add('active'); }
             
-            document.getElementById('onlineSalesPanel').style.display = tab === 'online-sales' ? 'block' : 'none';
-            document.getElementById('posSalesPanel').style.display = tab === 'pos-sales' ? 'block' : 'none';
-            document.getElementById('adminPanel').style.display = tab === 'admin' ? 'block' : 'none';
-            document.getElementById('uploadPanel').style.display = tab === 'upload' ? 'block' : 'none';
-            document.getElementById('emailPanel').style.display = tab === 'email' ? 'block' : 'none';
+            var onlinePanel = document.getElementById('onlineSalesPanel');
+            var posPanel = document.getElementById('posSalesPanel');
+            var admPanel = document.getElementById('adminPanel');
+            var uplPanel = document.getElementById('uploadPanel');
+            var emlPanel = document.getElementById('emailPanel');
+            if (onlinePanel) onlinePanel.style.display = tab === 'online-sales' ? 'block' : 'none';
+            if (posPanel) posPanel.style.display = tab === 'pos-sales' ? 'block' : 'none';
+            if (admPanel) admPanel.style.display = tab === 'admin' ? 'block' : 'none';
+            if (uplPanel) uplPanel.style.display = tab === 'upload' ? 'block' : 'none';
+            if (emlPanel) emlPanel.style.display = tab === 'email' ? 'block' : 'none';
             
             if (tab === 'online-sales') loadOnlineSales();
             if (tab === 'pos-sales') loadPosSales();

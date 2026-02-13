@@ -533,3 +533,9 @@
 ## Staff Interface Net Sales** Update (Feb 13, 2026)
 - [x] Replace Net Sales with Net Sales** (Total Sales - Shipping Price) in staff Online Sales view on web dashboard
 - [x] Replace Net Sales with Net Sales** in staff-view page (POS device view)
+
+## Security Audit - Staff vs Admin Access (Feb 13, 2026)
+- [x] Audit all API endpoints for admin-only protection
+- [x] Audit client-side tab/panel visibility for admin-only content
+- [x] Audit HTML rendering to ensure admin-only data never sent to staff
+- [x] Fix any security gaps found — admin panels now removed from DOM for staff (not just hidden)
