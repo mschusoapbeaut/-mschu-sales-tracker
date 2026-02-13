@@ -561,3 +561,9 @@
 
 ## POS Staff Name Mapping Fix (Feb 13, 2026)
 - [x] Fix POS Staff Name mapping to properly import from POS report — now reads Staff_Name column (Column D) directly for POS reports
+
+## POS Sales Total Discrepancy Bug (Feb 13, 2026)
+- [ ] Debug why POS sales total doesn't match expected $496,292.10 from Excel Net sales exclude GC Payment column
+
+## Bug: POS Upload Missing Feb 1-4 Data (Feb 13, 2026)
+- [x] Fix API query LIMIT 500 that was truncating results — removed limit so all records are returned

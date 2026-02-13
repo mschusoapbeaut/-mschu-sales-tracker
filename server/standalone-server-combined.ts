@@ -245,7 +245,7 @@ async function startServer() {
         query += " WHERE " + whereConditions.join(" AND ");
       }
       
-      query += " ORDER BY orderDate DESC LIMIT 500";
+      query += " ORDER BY orderDate DESC";
       
       const [rows] = await db.execute(query, params);
       const sales = rows as any[];
