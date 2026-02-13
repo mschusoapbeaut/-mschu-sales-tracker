@@ -1,0 +1,28 @@
+{
+  "query": "SELECT * FROM sales LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT * FROM sales LIMIT 1;",
+  "rows": [
+    {
+      "id": "68",
+      "userId": "6",
+      "productName": "Online Sale",
+      "productCategory": "Online Store",
+      "quantity": "1",
+      "unitPrice": "387.00",
+      "totalAmount": "387.00",
+      "saleDate": "2026-01-02 05:00:00",
+      "customerName": "NULL",
+      "orderReference": "72551",
+      "createdAt": "2026-02-05 02:05:24",
+      "saleType": "online",
+      "paymentGateway": "NULL",
+      "emailMarketing": "NULL",
+      "smsMarketing": "NULL",
+      "customerEmail": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tproductName\tproductCategory\tquantity\tunitPrice\ttotalAmount\tsaleDate\tcustomerName\torderReference\tcreatedAt\tsaleType\tpaymentGateway\temailMarketing\tsmsMarketing\tcustomerEmail\n68\t6\tOnline Sale\tOnline Store\t1\t387.00\t387.00\t2026-01-02 05:00:00\tNULL\t72551\t2026-02-05 02:05:24\tonline\tNULL\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

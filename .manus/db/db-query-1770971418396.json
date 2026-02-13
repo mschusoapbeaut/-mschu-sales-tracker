@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total, saleType FROM sales GROUP BY saleType",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT COUNT(*) as total, saleType FROM sales GROUP BY saleType",
+  "rows": [
+    {
+      "total": "67",
+      "saleType": "online"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\tsaleType\n67\tonline\n",
+  "stderr": "",
+  "execution_time_ms": 155
+}

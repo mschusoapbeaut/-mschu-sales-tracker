@@ -1,0 +1,13 @@
+{
+  "query": "SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position) as cols FROM information_schema.columns WHERE table_name = 'sales';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position) as cols FROM information_schema.columns WHERE table_name = 'sales';",
+  "rows": [
+    {
+      "cols": "id,userId,productName,productCategory,quantity,unitPrice,totalAmount,saleDate,customerName,orderReference,createdAt,saleType,paymentGateway,emailMarketing,smsMarketing,customerEmail"
+    }
+  ],
+  "messages": [],
+  "stdout": "cols\nid,userId,productName,productCategory,quantity,unitPrice,totalAmount,saleDate,customerName,orderReference,createdAt,saleType,paymentGateway,emailMarketing,smsMarketing,customerEmail\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

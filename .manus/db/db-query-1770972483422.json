@@ -1,0 +1,74 @@
+{
+  "query": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'sales' ORDER BY ordinal_position;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'sales' ORDER BY ordinal_position;",
+  "rows": [
+    {
+      "column_name": "id",
+      "data_type": "int"
+    },
+    {
+      "column_name": "userId",
+      "data_type": "int"
+    },
+    {
+      "column_name": "productName",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "productCategory",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "quantity",
+      "data_type": "int"
+    },
+    {
+      "column_name": "unitPrice",
+      "data_type": "decimal"
+    },
+    {
+      "column_name": "totalAmount",
+      "data_type": "decimal"
+    },
+    {
+      "column_name": "saleDate",
+      "data_type": "timestamp"
+    },
+    {
+      "column_name": "customerName",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "orderReference",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "createdAt",
+      "data_type": "timestamp"
+    },
+    {
+      "column_name": "saleType",
+      "data_type": "enum"
+    },
+    {
+      "column_name": "paymentGateway",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "emailMarketing",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "smsMarketing",
+      "data_type": "varchar"
+    },
+    {
+      "column_name": "customerEmail",
+      "data_type": "varchar"
+    }
+  ],
+  "messages": [],
+  "stdout": "column_name\tdata_type\nid\tint\nuserId\tint\nproductName\tvarchar\nproductCategory\tvarchar\nquantity\tint\nunitPrice\tdecimal\ntotalAmount\tdecimal\nsaleDate\ttimestamp\ncustomerName\tvarchar\norderReference\tvarchar\ncreatedAt\ttimestamp\nsaleType\tenum\npaymentGateway\tvarchar\nemailMarketing\tvarchar\nsmsMarketing\tvarchar\ncustomerEmail\tvarchar\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

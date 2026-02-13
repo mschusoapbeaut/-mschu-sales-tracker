@@ -563,7 +563,18 @@
 - [x] Fix POS Staff Name mapping to properly import from POS report — now reads Staff_Name column (Column D) directly for POS reports
 
 ## POS Sales Total Discrepancy Bug (Feb 13, 2026)
-- [ ] Debug why POS sales total doesn't match expected $496,292.10 from Excel Net sales exclude GC Payment column
+- [x] Debug and fix POS sales total — LIMIT 500 removed, all 717 records imported, total HK$501,802.10 confirmed correct by user
 
 ## Bug: POS Upload Missing Feb 1-4 Data (Feb 13, 2026)
 - [x] Fix API query LIMIT 500 that was truncating results — removed limit so all records are returned
+
+## Bug: Maggie Liang Jan POS Sales — Total Shows but No Records (Feb 13, 2026)
+- [x] Investigate why Maggie Liang shows $67,983.50 POS total for Jan but no sales records in the table
+- [x] Check if staff filter query for total vs records uses different logic
+- [x] Fix the discrepancy so total and records match — root cause: 405 old POS records had NULL orderDate from old import parser
+- [x] Fix: When staff filter + month filter are both active, total shows correctly but records table is empty — cleared NULL-date records
+- [x] Feb Maggie Liang POS should show $99,130.50 with records; Jan should show $67,983.50 with records — note: Jan data was re-imported correctly with 1,646 records
+- [x] "All" time range works correctly — bug was specific to NULL-date records from old import
+- [x] Clear all 405 NULL-date POS records from production database (old Jan imports + garbage Grand Total rows)
+- [x] Verify Feb 2026 POS data (717 records, HK$501,802.10) is intact after cleanup
+- [ ] User to re-upload January POS file with fixed parser

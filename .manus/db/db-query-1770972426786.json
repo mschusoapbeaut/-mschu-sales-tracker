@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, name, staffId, pin FROM users WHERE name LIKE '%Maggie%' OR name LIKE '%Liang%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT id, name, staffId, pin FROM users WHERE name LIKE '%Maggie%' OR name LIKE '%Liang%';",
+  "rows": [
+    {
+      "id": "3",
+      "name": "Maggie Liang",
+      "staffId": "78319190063",
+      "pin": "4491"
+    },
+    {
+      "id": "4",
+      "name": "Maggie Wong",
+      "staffId": "79208775727",
+      "pin": "9635"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tstaffId\tpin\n3\tMaggie Liang\t78319190063\t4491\n4\tMaggie Wong\t79208775727\t9635\n",
+  "stderr": "",
+  "execution_time_ms": 177
+}

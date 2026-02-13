@@ -1,0 +1,58 @@
+{
+  "query": "SELECT column_name FROM information_schema.columns WHERE table_name = 'sales' AND table_schema = DATABASE() ORDER BY ordinal_position;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT column_name FROM information_schema.columns WHERE table_name = 'sales' AND table_schema = DATABASE() ORDER BY ordinal_position;",
+  "rows": [
+    {
+      "column_name": "id"
+    },
+    {
+      "column_name": "userId"
+    },
+    {
+      "column_name": "productName"
+    },
+    {
+      "column_name": "productCategory"
+    },
+    {
+      "column_name": "quantity"
+    },
+    {
+      "column_name": "unitPrice"
+    },
+    {
+      "column_name": "totalAmount"
+    },
+    {
+      "column_name": "saleDate"
+    },
+    {
+      "column_name": "customerName"
+    },
+    {
+      "column_name": "orderReference"
+    },
+    {
+      "column_name": "createdAt"
+    },
+    {
+      "column_name": "saleType"
+    },
+    {
+      "column_name": "paymentGateway"
+    },
+    {
+      "column_name": "emailMarketing"
+    },
+    {
+      "column_name": "smsMarketing"
+    },
+    {
+      "column_name": "customerEmail"
+    }
+  ],
+  "messages": [],
+  "stdout": "column_name\nid\nuserId\nproductName\nproductCategory\nquantity\nunitPrice\ntotalAmount\nsaleDate\ncustomerName\norderReference\ncreatedAt\nsaleType\npaymentGateway\nemailMarketing\nsmsMarketing\ncustomerEmail\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

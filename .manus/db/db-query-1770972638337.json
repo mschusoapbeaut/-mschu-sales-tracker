@@ -1,0 +1,74 @@
+{
+  "query": "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'sales';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'sales';",
+  "rows": [
+    {
+      "column_name": "id",
+      "column_type": "int(11)"
+    },
+    {
+      "column_name": "userId",
+      "column_type": "int(11)"
+    },
+    {
+      "column_name": "productName",
+      "column_type": "varchar(255)"
+    },
+    {
+      "column_name": "productCategory",
+      "column_type": "varchar(100)"
+    },
+    {
+      "column_name": "quantity",
+      "column_type": "int(11)"
+    },
+    {
+      "column_name": "unitPrice",
+      "column_type": "decimal(10,2)"
+    },
+    {
+      "column_name": "totalAmount",
+      "column_type": "decimal(12,2)"
+    },
+    {
+      "column_name": "saleDate",
+      "column_type": "timestamp"
+    },
+    {
+      "column_name": "customerName",
+      "column_type": "varchar(255)"
+    },
+    {
+      "column_name": "orderReference",
+      "column_type": "varchar(100)"
+    },
+    {
+      "column_name": "createdAt",
+      "column_type": "timestamp"
+    },
+    {
+      "column_name": "saleType",
+      "column_type": "enum('online','pos')"
+    },
+    {
+      "column_name": "paymentGateway",
+      "column_type": "varchar(100)"
+    },
+    {
+      "column_name": "emailMarketing",
+      "column_type": "varchar(50)"
+    },
+    {
+      "column_name": "smsMarketing",
+      "column_type": "varchar(50)"
+    },
+    {
+      "column_name": "customerEmail",
+      "column_type": "varchar(255)"
+    }
+  ],
+  "messages": [],
+  "stdout": "column_name\tcolumn_type\nid\tint(11)\nuserId\tint(11)\nproductName\tvarchar(255)\nproductCategory\tvarchar(100)\nquantity\tint(11)\nunitPrice\tdecimal(10,2)\ntotalAmount\tdecimal(12,2)\nsaleDate\ttimestamp\ncustomerName\tvarchar(255)\norderReference\tvarchar(100)\ncreatedAt\ttimestamp\nsaleType\tenum('online','pos')\npaymentGateway\tvarchar(100)\nemailMarketing\tvarchar(50)\nsmsMarketing\tvarchar(50)\ncustomerEmail\tvarchar(255)\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

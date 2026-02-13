@@ -1,0 +1,8 @@
+{
+  "query": "SELECT DISTINCT staffName, COUNT(*) as cnt, SUM(CAST(netSales AS DECIMAL(10,2))) as total FROM sales WHERE saleType = 'pos' AND staffName LIKE '%Maggie Liang%' GROUP BY staffName;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3p9fhY9wEnC59QX.root --database kez2oyxfSHFekZFiUAQt4p --execute SELECT DISTINCT staffName, COUNT(*) as cnt, SUM(CAST(netSales AS DECIMAL(10,2))) as total FROM sales WHERE saleType = 'pos' AND staffName LIKE '%Maggie Liang%' GROUP BY staffName;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'staffname' in 'group statement'"
+  ]
+}
