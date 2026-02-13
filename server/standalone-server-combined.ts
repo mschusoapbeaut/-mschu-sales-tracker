@@ -375,6 +375,8 @@ async function startServer() {
       const actualOrderDateIdx = header.findIndex((h: string) => h === 'actualorderdate' || h.includes('actualorder'));
       // Find Whatsapp Marketing column
       const whatsappMarketingIdx = header.findIndex((h: string) => h.includes('whatsapp') || h === 'whatsappmarketing' || h === 'whatsappmkt');
+      // Find Staff_Name column (Column D in POS reports - direct staff name, not from Customer Tags)
+      const staffNameDirectIdx = header.findIndex((h: string) => h === 'staffname' || h === 'staff_name' || h.includes('staffname'));
       // Find Shipping Price column (Column R)
       const shippingPriceIdx = header.findIndex((h: string) => h === 'shippingprice' || h === 'shipping' || h.includes('shippingprice') || h.includes('shipping price'));
       // Find Total Sales column (Column P)
@@ -528,9 +530,14 @@ async function startServer() {
           console.error('[Upload] Duplicate check error:', dupErr.message);
         }
         
-        // Get staff name: first try client-side Excel mapping, then try server-side CSV Customer Tags column
-        let staffName: string | null = (orderNo && orderStaffMap[orderNo]) ? orderStaffMap[orderNo] : null;
-        if (staffName) { staffFromClientMap++; }
+        // Get staff name: first try direct Staff_Name column (POS reports), then client-side Excel mapping, then server-side CSV Customer Tags column
+        let staffName: string | null = null;
+        // For POS reports: use Staff_Name column directly (Column D)
+        if (!staffName && staffNameDirectIdx >= 0 && values[staffNameDirectIdx]) {
+          staffName = values[staffNameDirectIdx].trim() || null;
+          if (staffName) { staffFromServerCSV++; }
+        }
+        if (!staffName && orderNo && orderStaffMap[orderNo]) { staffName = orderStaffMap[orderNo]; staffFromClientMap++; }
         if (!staffName && customerTagsIdx >= 0 && values[customerTagsIdx]) {
           const tagValue = values[customerTagsIdx].trim();
           const staffMatch = tagValue.match(/WVReferredByStaff_(\d+)/);

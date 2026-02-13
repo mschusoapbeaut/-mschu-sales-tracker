@@ -558,3 +558,6 @@
 - [x] Fix POS Location Name to map from Column F (Location Name) instead of Column E (Sales Channel)
 - [x] Use Column N (Net sales exclude GC Payment) as the POS net sales value instead of Column J (Net Sales)
 - [x] Rename POS Sales column from "Net Sales" to "Net sales exclude GC Payment" in admin/staff/staff-view
+
+## POS Staff Name Mapping Fix (Feb 13, 2026)
+- [x] Fix POS Staff Name mapping to properly import from POS report — now reads Staff_Name column (Column D) directly for POS reports
