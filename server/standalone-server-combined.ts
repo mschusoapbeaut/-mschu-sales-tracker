@@ -1319,7 +1319,9 @@ function getAdminHTML(): string {
             if (isAdmin) html += '<th class="' + sortClass('shippingPrice', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;shippingPrice&#39;)">Shipping Price</th>';
             if (isAdmin) html += '<th class="' + sortClass('totalSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;totalSales&#39;)">Total Sales</th>';
             if (isAdmin) html += '<th>Net Sales**</th>';
-            html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th></tr></thead><tbody>';
+            if (isAdmin) html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th>';
+            if (!isAdmin) html += '<th>Net Sales**</th>';
+            html += '</tr></thead><tbody>';
             data.forEach(s => {
                 const orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + orderDateStr + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
@@ -1331,7 +1333,9 @@ function getAdminHTML(): string {
                 if (isAdmin) { var spRaw = s.shippingPrice; var ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0 && ts !== null && ts !== 0) sp = 30; var spDisplay = (sp !== null && sp !== 0) ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (sp === 0 ? '-' : '-'); var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
                 if (isAdmin) { var tsVal = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var tsDisplay = (tsVal !== null) ? 'HK$' + tsVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + tsDisplay + '</td>'; }
                 if (isAdmin) { var tsVal2 = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var spRaw2 = s.shippingPrice; var spVal2 = (spRaw2 !== null && spRaw2 !== undefined && spRaw2 !== '') ? parseFloat(spRaw2) : null; if (spVal2 !== null && spVal2 === 0 && tsVal2 !== null && tsVal2 !== 0) spVal2 = 30; var netStarVal = (tsVal2 !== null && spVal2 !== null) ? (tsVal2 - spVal2) : null; var netStarDisplay = (netStarVal !== null) ? 'HK$' + netStarVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + netStarDisplay + '</td>'; }
-                html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
+                if (isAdmin) { html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>'; }
+                if (!isAdmin) { var tsValS = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var spRawS = s.shippingPrice; var spValS = (spRawS !== null && spRawS !== undefined && spRawS !== '') ? parseFloat(spRawS) : null; if (spValS !== null && spValS === 0 && tsValS !== null && tsValS !== 0) spValS = 30; var netStarS = (tsValS !== null && spValS !== null) ? (tsValS - spValS) : null; var netStarDispS = (netStarS !== null) ? 'HK$' + netStarS.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}); html += '<td class="amount">' + netStarDispS + '</td>'; }
+                html += '</tr>';
             });
             html += '</tbody></table>';
             document.getElementById('onlineSalesTableContainer').innerHTML = html;
@@ -2393,7 +2397,11 @@ function getStaffViewHTML(): string {
                 html += '<th>Channel</th>';
                 html += '<th>Payment</th>';
             }
-            html += sortTh('netSales', 'Net Sales');
+            if (currentTab === 'online') {
+                html += '<th>Net Sales**</th>';
+            } else {
+                html += sortTh('netSales', 'Net Sales');
+            }
             html += '</tr></thead><tbody>';
 
             sales.forEach(r => {
@@ -2407,14 +2415,21 @@ function getStaffViewHTML(): string {
                     html += '<td>' + (r.emailMarketing || '-') + '</td>';
                     html += '<td>' + (r.smsMarketing || '-') + '</td>';
                     html += '<td>' + (r.whatsappMarketing || '-') + '</td>';
+                    var tsValSV = (r.totalSales !== null && r.totalSales !== undefined && r.totalSales !== '') ? parseFloat(r.totalSales) : null;
+                    var spRawSV = r.shippingPrice;
+                    var spValSV = (spRawSV !== null && spRawSV !== undefined && spRawSV !== '') ? parseFloat(spRawSV) : null;
+                    if (spValSV !== null && spValSV === 0 && tsValSV !== null && tsValSV !== 0) spValSV = 30;
+                    var netStarSV = (tsValSV !== null && spValSV !== null) ? (tsValSV - spValSV) : null;
+                    var netStarDispSV = (netStarSV !== null) ? fmtCurrency(netStarSV) : fmtCurrency(r.netSales);
+                    html += '<td class="amount">' + netStarDispSV + '</td>';
                 } else {
                     const date = r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
                     html += '<td>' + date + '</td>';
                     html += '<td>' + (r.orderNo || '-') + '</td>';
                     html += '<td>' + (r.salesChannel || '-') + '</td>';
                     html += '<td>' + (r.paymentGateway || '-') + '</td>';
+                    html += '<td class="amount">' + fmtCurrency(r.netSales) + '</td>';
                 }
-                html += '<td class="amount">' + fmtCurrency(r.netSales) + '</td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
