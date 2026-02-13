@@ -157,8 +157,10 @@ export async function fetchAndProcessEmails(): Promise<{
             if (err) {
               console.error(`[EmailSync] Search error for ${filterObj.type}: ${err.message}`);
             } else if (results && results.length > 0) {
-              console.log(`[EmailSync] Found ${results.length} emails for ${filterObj.type} (subject: "${filterObj.filter}")`);
-              results.forEach(uid => allResults.push({ uid, type: filterObj.type }));
+              // Only keep the LATEST email (highest UID = most recent)
+              const latestUid = Math.max(...results);
+              console.log(`[EmailSync] Found ${results.length} emails for ${filterObj.type}, using latest UID: ${latestUid}`);
+              allResults.push({ uid: latestUid, type: filterObj.type });
             } else {
               console.log(`[EmailSync] No emails found for ${filterObj.type} (subject: "${filterObj.filter}")`);
             }
@@ -178,7 +180,7 @@ export async function fetchAndProcessEmails(): Promise<{
             return;
           }
           
-          console.log(`[EmailSync] Total emails to process: ${allResults.length}`);
+          console.log(`[EmailSync] Processing ${allResults.length} latest email(s): ${allResults.map(r => r.type + ':' + r.uid).join(', ')}`);
           
           // Build a map of uid -> type for quick lookup
           const uidTypeMap = new Map<number, "online" | "pos">();
@@ -654,7 +656,7 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     
     if (isNaN(netSales)) continue;
     
-    // Check for duplicate order
+    // Upsert: update existing POS records with richer data, or insert new ones
     try {
       const existingOrder = await db.execute(
         "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' LIMIT 1",
@@ -663,21 +665,29 @@ async function importPosExcelData(content: Buffer): Promise<number> {
       const existingRows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
       const hasExisting = existingRows && (Array.isArray(existingRows) ? existingRows.length > 0 : Object.keys(existingRows).length > 0);
       if (hasExisting) {
-        console.log(`[EmailSync-POS] Skipping duplicate POS order: ${orderName}`);
+        // Update existing record with richer data from email report
+        const existingId = (existingRows as any[])[0].id;
+        console.log(`[EmailSync-POS] Updating existing POS order: ${orderName} (id: ${existingId})`);
+        await db.execute(
+          `UPDATE sales SET orderDate = COALESCE(?, orderDate), salesChannel = COALESCE(?, salesChannel), netSales = ?, staffName = COALESCE(?, staffName), paymentGateway = COALESCE(?, paymentGateway), actualOrderDate = COALESCE(?, actualOrderDate), totalSales = COALESCE(?, totalSales) WHERE id = ?`,
+          [orderDate || null, locationName || null, netSales, staffName, paymentGateway, actualOrderDate || null, totalSales, existingId]
+        );
+        imported++;
+        console.log(`[EmailSync-POS] Updated: ${orderName} - ${locationName} - $${netSales}`);
         continue;
       }
     } catch (dupErr: any) {
-      console.log(`[EmailSync-POS] Duplicate check error for ${orderName}: ${dupErr.message}`);
+      console.log(`[EmailSync-POS] Duplicate check/update error for ${orderName}: ${dupErr.message}`);
     }
     
     try {
-      console.log(`[EmailSync-POS] Inserting: order=${orderName}, location=${locationName}, payment=${paymentGateway}, staff=${staffName}, netSales=${netSales}`);
+      console.log(`[EmailSync-POS] Inserting new: order=${orderName}, location=${locationName}, payment=${paymentGateway}, staff=${staffName}, netSales=${netSales}`);
       await db.execute(
         `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [orderDate || null, orderName || null, locationName || null, netSales, 'pos', staffName, paymentGateway, actualOrderDate || null, totalSales]
       );
       imported++;
-      console.log(`[EmailSync-POS] Imported: ${orderName} - ${locationName} - $${netSales}`);
+      console.log(`[EmailSync-POS] Inserted: ${orderName} - ${locationName} - $${netSales}`);
     } catch (error: any) {
       console.error(`[EmailSync-POS] Error inserting ${orderName}:`, error.message || error);
     }

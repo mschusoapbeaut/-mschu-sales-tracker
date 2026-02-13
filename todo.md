@@ -550,3 +550,6 @@
 
 ## Bug: POS email sync not importing (Feb 13, 2026)
 - [ ] Debug and fix POS email sync not importing POS sales data after manual fetch
+- [ ] Fix email sync to only fetch the LATEST email per report type (not all 145)
+- [ ] POS email sync: clear existing POS data and re-import from latest email report
+- [ ] Trigger email fetch and verify POS data is updated
