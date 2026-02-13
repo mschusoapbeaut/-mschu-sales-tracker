@@ -224,9 +224,13 @@ async function startServer() {
         // Admin: apply month filter
         if (month && month !== 'all') {
           if (month === 'today') {
+            // Use Hong Kong timezone (UTC+8) for "today" calculation
             const now = new Date();
-            const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-            whereConditions.push("orderDate = ?");
+            const hkOffset = 8 * 60; // UTC+8 in minutes
+            const hkTime = new Date(now.getTime() + (hkOffset + now.getTimezoneOffset()) * 60000);
+            const todayStr = hkTime.getFullYear() + '-' + String(hkTime.getMonth() + 1).padStart(2, '0') + '-' + String(hkTime.getDate()).padStart(2, '0');
+            console.log(`[API] Today filter: HK date = ${todayStr}`);
+            whereConditions.push("DATE(orderDate) = ?");
             params.push(todayStr);
           } else if (month === 'ytd') {
             const now = new Date();

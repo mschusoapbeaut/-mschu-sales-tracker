@@ -560,6 +560,8 @@ async function importPosExcelData(content: Buffer): Promise<number> {
   }
   
   let imported = 0;
+  let updated = 0;
+  let inserted = 0;
   
   // Header-based column detection using original report column names
   const headerRow = rows[0];
@@ -673,7 +675,7 @@ async function importPosExcelData(content: Buffer): Promise<number> {
           [orderDate || null, locationName || null, netSales, staffName, paymentGateway, actualOrderDate || null, totalSales, existingId]
         );
         imported++;
-        console.log(`[EmailSync-POS] Updated: ${orderName} - ${locationName} - $${netSales}`);
+        updated++;
         continue;
       }
     } catch (dupErr: any) {
@@ -687,13 +689,14 @@ async function importPosExcelData(content: Buffer): Promise<number> {
         [orderDate || null, orderName || null, locationName || null, netSales, 'pos', staffName, paymentGateway, actualOrderDate || null, totalSales]
       );
       imported++;
-      console.log(`[EmailSync-POS] Inserted: ${orderName} - ${locationName} - $${netSales}`);
+      inserted++;
+      console.log(`[EmailSync-POS] NEW: ${orderName} - ${locationName} - $${netSales}`);
     } catch (error: any) {
       console.error(`[EmailSync-POS] Error inserting ${orderName}:`, error.message || error);
     }
   }
   
-  console.log(`[EmailSync-POS] POS Excel import complete: ${imported} records`);
+  console.log(`[EmailSync-POS] POS Excel import complete: ${imported} total (${inserted} new, ${updated} updated) from ${rows.length - 1} data rows`);
   return imported;
 }
 

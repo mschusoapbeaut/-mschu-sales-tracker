@@ -605,3 +605,9 @@
 - [x] Add "Today" option to time range dropdown in POS Sales tab (Admin)
 - [x] Add "Today" option to time range dropdown in Online Sales tab (Admin)
 - [x] Update API to handle "today" month parameter
+
+## Bug: Email Sync Not Importing Latest Orders (Feb 13, 2026)
+- [x] Investigate why sync runs but doesn't import new orders — root cause: POS email report is a snapshot, doesn't contain orders placed after report generation time
+- [x] Sync correctly fetches latest email and uses upsert logic (updates existing + inserts new)
+- [x] Confirmed: email report is cumulative snapshot — new orders only appear in the NEXT report
+- [x] Improved logging: sync now tracks inserted vs updated counts separately
