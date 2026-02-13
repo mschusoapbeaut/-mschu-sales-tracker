@@ -1350,8 +1350,8 @@ function getAdminHTML(): string {
             }
             let html = '<table class="sales-table"><thead><tr>';
             html += '<th class="' + sortClass('orderDate', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;orderDate&#39;)">Order Date</th>';
-            html += '<th class="' + sortClass('orderNo', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;orderNo&#39;)">Order</th>';
-            html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;salesChannel&#39;)">Channel</th>';
+            html += '<th class="' + sortClass('orderNo', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;orderNo&#39;)">Order Name</th>';
+            html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;salesChannel&#39;)">Location Name</th>';
             html += '<th class="' + sortClass('paymentGateway', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;paymentGateway&#39;)">Payment Gateway</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
             html += '<th>Net Sales excl Gift Card</th></tr></thead><tbody>';
@@ -2408,8 +2408,8 @@ function getStaffViewHTML(): string {
                 html += sortTh('whatsappMarketing', 'Whatsapp Mkt');
             } else {
                 html += sortTh('orderDate', 'Order Date');
-                html += sortTh('orderNo', 'Order');
-                html += '<th>Channel</th>';
+                html += sortTh('orderNo', 'Order Name');
+                html += '<th>Location Name</th>';
                 html += '<th>Payment</th>';
             }
             if (currentTab === 'online') {

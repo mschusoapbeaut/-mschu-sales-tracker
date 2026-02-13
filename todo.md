@@ -539,3 +539,8 @@
 - [x] Audit client-side tab/panel visibility for admin-only content
 - [x] Audit HTML rendering to ensure admin-only data never sent to staff
 - [x] Fix any security gaps found — admin panels now removed from DOM for staff (not just hidden)
+
+## POS Sales Column Rename (Feb 13, 2026)
+- [x] Rename "Order" to "Order Name" in POS Sales tab (Admin + Staff dashboard)
+- [x] Rename "Channel" to "Location Name" in POS Sales tab (Admin + Staff dashboard)
+- [x] Rename columns in staff-view page POS Sales table
