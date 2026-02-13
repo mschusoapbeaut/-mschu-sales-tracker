@@ -223,7 +223,12 @@ async function startServer() {
       } else {
         // Admin: apply month filter
         if (month && month !== 'all') {
-          if (month === 'ytd') {
+          if (month === 'today') {
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            whereConditions.push("orderDate = ?");
+            params.push(todayStr);
+          } else if (month === 'ytd') {
             const now = new Date();
             const yearStart = now.getFullYear() + '-01-01';
             whereConditions.push("orderDate >= ?");
@@ -1544,6 +1549,7 @@ function getAdminHTML(): string {
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
             sel.innerHTML = '<option value="all">All</option>';
+            sel.innerHTML += '<option value="today">Today</option>';
             sel.innerHTML += '<option value="ytd">Year to Date</option>';
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             for (let m = currentMonth; m >= 0; m--) {

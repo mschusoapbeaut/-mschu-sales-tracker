@@ -584,3 +584,24 @@
 - [x] Clear existing Jan 2026 POS data from production (1,646 records cleared)
 - [x] Upload new Jan POS data via production API (1,646 records imported)
 - [x] Verify import results: 1,646 records, HK$1,103,870.40, all 13 staff members, 0 NULL dates
+
+## Upload Updated February POS Sales Data (Feb 13, 2026)
+- [x] Examine uploaded file pos_sales_attribution_final(7).xlsx — 717 data rows, Feb 1-13, HK$501,802.10
+- [x] Clear existing Feb 2026 POS data from production (717 records cleared)
+- [x] Upload new Feb POS data via production API (717 records imported)
+- [x] Verify import results: 717 records, HK$501,802.10, all 13 staff, Jan data intact (1,646 records)
+
+## Handover & Maintenance Document (Feb 13, 2026)
+- [x] Review codebase, architecture, and configuration
+- [x] Write comprehensive handover and maintenance document
+- [x] Deliver document to user
+
+## Bug: POS Email Auto-Sync Not Running Hourly (Feb 13, 2026)
+- [ ] Investigate why POS auto-sync stopped — latest synced order is #75254 from 10:56am
+- [ ] Check email sync scheduling logic and IMAP POS subject filter
+- [ ] Fix the issue and verify auto-sync resumes
+
+## Feature: Add "Today" Filter to Admin View (Feb 13, 2026)
+- [x] Add "Today" option to time range dropdown in POS Sales tab (Admin)
+- [x] Add "Today" option to time range dropdown in Online Sales tab (Admin)
+- [x] Update API to handle "today" month parameter
