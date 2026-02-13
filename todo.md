@@ -509,3 +509,7 @@
 - [x] Fix upload parsing: store 0 as 0 (not null) so we can distinguish "no data" from "$0 shipping"
 - [x] Fix email-sync parsing: same fix for email auto-import
 - [x] Fix display: show "-" when no shipping data, $30 when explicitly 0, actual value otherwise
+
+## Shipping Price $30 Default — Add Total Sales Condition (Feb 13, 2026)
+- [x] Only default Shipping Price to $30 when shipping is $0 AND Net Sales (Total Sales) is non-zero
+- [x] Show "-" when no shipping data OR when Net Sales is 0
