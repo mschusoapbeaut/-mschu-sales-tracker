@@ -1342,6 +1342,33 @@ function getAdminHTML(): string {
             if (isAdmin) html += '<th class="' + sortClass('netSales', onlineSortCol, onlineSortDir) + '" onclick="handleOnlineSort(&#39;netSales&#39;)">Net Sales</th>';
             if (!isAdmin) html += '<th>Net Sales**</th>';
             html += '</tr></thead><tbody>';
+            // Calculate subtotals for Total Sales, Net Sales**, and Net Sales
+            var subtotalTotalSales = 0, subtotalNetSalesStar = 0, subtotalNetSales = 0;
+            data.forEach(s => {
+                var _ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : 0;
+                var _ns = parseFloat(s.netSales) || 0;
+                var _spRaw = s.shippingPrice;
+                var _sp = (_spRaw !== null && _spRaw !== undefined && _spRaw !== '') ? parseFloat(_spRaw) : null;
+                if (_sp !== null && _sp === 0 && _ts !== 0) _sp = 30;
+                var _nsStar = (_ts && _sp !== null) ? (_ts - _sp) : _ns;
+                subtotalTotalSales += _ts;
+                subtotalNetSalesStar += _nsStar;
+                subtotalNetSales += _ns;
+            });
+            // Render subtotal row in bold at the top
+            html += '<tr style="font-weight:bold;background-color:#f0f7f0;">';
+            html += '<td>SUBTOTAL</td><td></td><td></td>';
+            if (isAdmin) html += '<td></td>'; // Staff Name
+            html += '<td></td>'; // Customer Email
+            html += '<td></td>'; // Email Mkt
+            html += '<td></td>'; // SMS Mkt
+            html += '<td></td>'; // Whatsapp Mkt
+            if (isAdmin) html += '<td></td>'; // Shipping Price
+            if (isAdmin) html += '<td class="amount">HK$' + subtotalTotalSales.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+            if (isAdmin) html += '<td class="amount">HK$' + subtotalNetSalesStar.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+            if (isAdmin) html += '<td class="amount">HK$' + subtotalNetSales.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+            if (!isAdmin) html += '<td class="amount">HK$' + subtotalNetSalesStar.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+            html += '</tr>';
             data.forEach(s => {
                 const orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + orderDateStr + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';

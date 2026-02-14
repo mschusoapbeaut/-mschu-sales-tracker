@@ -615,3 +615,6 @@
 ## Bug: Today Filter Not Showing in Production (Feb 13, 2026)
 - [x] Investigate why Today filter is not in the production dropdown — Railway deployment was delayed
 - [x] Fix and redeploy — deployed successfully, Today filter and sort fix live
+
+## Feature: Online Sales Subtotal Row (Feb 14, 2026)
+- [ ] Add bold subtotal row at the top of Online Sales table showing Total Sales, Net Sales**, and Net Sales totals
