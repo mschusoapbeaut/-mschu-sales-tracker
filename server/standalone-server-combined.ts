@@ -157,6 +157,22 @@ async function startServer() {
     console.error('[Cleanup] Error clearing Feb 2026 data:', e.message);
   }
 
+  // One-time cleanup: remove any Grand Total / summary rows that were accidentally imported
+  try {
+    const [grandTotalRows] = await db.execute(
+      "SELECT COUNT(*) as cnt FROM sales WHERE orderNo LIKE '%Grand Total%' OR orderNo LIKE '%grand total%' OR orderNo = 'Total' OR orderNo = 'total' OR salesChannel LIKE '%Grand Total%' OR staffName LIKE '%Grand Total%'"
+    );
+    const gtCount = (grandTotalRows as any[])[0]?.cnt || 0;
+    if (gtCount > 0) {
+      await db.execute(
+        "DELETE FROM sales WHERE orderNo LIKE '%Grand Total%' OR orderNo LIKE '%grand total%' OR orderNo = 'Total' OR orderNo = 'total' OR salesChannel LIKE '%Grand Total%' OR staffName LIKE '%Grand Total%'"
+      );
+      console.log(`[Cleanup] Removed ${gtCount} Grand Total / summary rows from sales`);
+    }
+  } catch (e: any) {
+    console.error('[Cleanup] Error removing Grand Total rows:', e.message);
+  }
+
   // Enable CORS for all routes
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -505,7 +521,16 @@ async function startServer() {
         const rawNetSales = values[netSalesIdx] || '0';
         const netSales = parseFloat(rawNetSales.replace(/[^0-9.-]/g, '') || '0');
         
-        // Skip Grand Total / summary rows
+        // Skip Grand Total / summary rows — check ALL columns for 'grand total' or 'total' text
+        // POS Excel Row 2 often has "Grand Total" in a column that isn't orderNo
+        const isGrandTotalRow = values.some((v: string) => {
+          const lower = (v || '').trim().toLowerCase();
+          return lower === 'grand total' || lower === 'total';
+        });
+        if (isGrandTotalRow) {
+          console.log('[Upload] Skipping Grand Total row at line', i + 1);
+          skippedInvalid++; continue;
+        }
         if (orderNo && (orderNo.toLowerCase().includes('grand total') || orderNo.toLowerCase() === 'total')) {
           skippedInvalid++; continue;
         }
@@ -1798,10 +1823,13 @@ function getAdminHTML(): string {
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
                         if (!row || row.length === 0) continue;
-                        // Skip Grand Total row
-                        const firstCell = row[0] ? String(row[0]).trim().toLowerCase() : '';
-                        const secondCell = row[1] ? String(row[1]).trim().toLowerCase() : '';
-                        if (firstCell === 'grand total' || secondCell === 'grand total') continue;
+                        // Skip Grand Total row — check ALL cells in the row
+                        var isGrandTotal = false;
+                        for (var c = 0; c < row.length; c++) {
+                            var cellVal = row[c] ? String(row[c]).trim().toLowerCase() : '';
+                            if (cellVal === 'grand total' || cellVal === 'total') { isGrandTotal = true; break; }
+                        }
+                        if (isGrandTotal) continue;
                         dataRowCount++;
                         
                         const orderName = row[1] ? String(row[1]).trim() : null;

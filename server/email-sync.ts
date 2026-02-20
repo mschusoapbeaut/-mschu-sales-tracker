@@ -495,9 +495,13 @@ async function importExcelData(content: Buffer): Promise<number> {
     if (isNaN(netSales)) continue;
     // Note: We no longer skip netSales === 0, as these are valid orders (e.g., exchanges, gift orders)
     
-    // Skip invalid rows (Grand Total, empty order names, etc.)
-    if (!orderName || orderName.toLowerCase().includes("grand total") || orderName.toLowerCase().includes("total")) {
-      console.log(`[EmailSync] Skipping invalid row: ${orderName}`);
+    // Skip Grand Total / summary rows — check ALL cells in the row
+    const isGrandTotalRow = row.some((cell: any) => {
+      const lower = (cell != null ? String(cell).trim().toLowerCase() : '');
+      return lower === 'grand total' || lower === 'total';
+    });
+    if (isGrandTotalRow || !orderName) {
+      console.log(`[EmailSync] Skipping invalid/Grand Total row: ${orderName}`);
       continue;
     }
     
@@ -671,9 +675,13 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     // Get Order Name
     const orderName = orderNameIdx >= 0 ? (row[orderNameIdx] ? String(row[orderNameIdx]).trim() : null) : null;
     
-    // Skip Grand Total / summary rows
-    if (!orderName || orderName.toLowerCase().includes('grand total') || orderName.toLowerCase() === 'total') {
-      console.log(`[EmailSync-POS] Skipping invalid row: ${orderName}`);
+    // Skip Grand Total / summary rows — check ALL cells in the row
+    const isPosGrandTotalRow = row.some((cell: any) => {
+      const lower = (cell != null ? String(cell).trim().toLowerCase() : '');
+      return lower === 'grand total' || lower === 'total';
+    });
+    if (isPosGrandTotalRow || !orderName) {
+      console.log(`[EmailSync-POS] Skipping invalid/Grand Total row: ${orderName}`);
       continue;
     }
     
