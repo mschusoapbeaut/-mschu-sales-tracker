@@ -619,8 +619,9 @@
 ## Feature: Online Sales Subtotal Row (Feb 14, 2026)
 - [x] Add bold subtotal row at the top of Online Sales table showing Total Sales, Net Sales**, and Net Sales totals — deployed to production
 
-## Bug: Duplicate Online Sales Records (Feb 14, 2026)
-- [ ] Investigate duplicate online sales records in staff interface and online sales history
-- [ ] Identify root cause (email sync importing duplicates, or display issue)
-- [ ] Fix the duplicates in the database
-- [ ] Prevent future duplicates from being created
+## Bug: Duplicate Online Sales Records (Feb 20, 2026)
+- [x] Investigate duplicate online sales records — 222 duplicates across 40 orders (779 total, should be 557)
+- [x] Root cause: email sync duplicate check used broken MySQL2 result parsing (existingOrder[0] was [rows,fields] not rows)
+- [x] Cleaned up all 222 duplicate records from production database (779 → 557 records, HK$740,300.74)
+- [x] Fixed duplicate detection: proper MySQL2 destructuring + upsert logic (UPDATE existing, INSERT new)
+- [x] Deployed fix to Railway via GitHub push
