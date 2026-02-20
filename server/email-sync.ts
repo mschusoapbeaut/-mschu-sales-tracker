@@ -562,10 +562,14 @@ async function importExcelData(content: Buffer): Promise<number> {
       console.log(`[EmailSync] Inserting: order=${orderName}, channel=${salesChannel}, amount=${netSales}, date=${orderDate}`);
       // Use raw SQL to match production database schema (orderNo, not orderReference)
       const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      const [insertResult] = await db.execute(
+        `INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
       );
+      if ((insertResult as any).affectedRows === 0) {
+        console.log(`[EmailSync] SKIPPED duplicate: ${orderName} - $${netSales}`);
+        continue;
+      }
       imported++;
       console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
     } catch (error: any) {
@@ -723,10 +727,14 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     
     try {
       console.log(`[EmailSync-POS] Inserting new: order=${orderName}, location=${locationName}, payment=${paymentGateway}, staff=${staffName}, netSales=${netSales}`);
-      await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      const [insertResult] = await db.execute(
+        `INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [orderDate || null, orderName || null, locationName || null, netSales, 'pos', staffName, paymentGateway, actualOrderDate || null, totalSales]
       );
+      if ((insertResult as any).affectedRows === 0) {
+        console.log(`[EmailSync-POS] SKIPPED duplicate: ${orderName} - $${netSales}`);
+        continue;
+      }
       imported++;
       inserted++;
       console.log(`[EmailSync-POS] NEW: ${orderName} - ${locationName} - $${netSales}`);

@@ -157,6 +157,48 @@ async function startServer() {
     console.error('[Cleanup] Error clearing Feb 2026 data:', e.message);
   }
 
+  // Auto-dedup: remove duplicate sales records (keep highest ID for each orderNo+netSales+saleType)
+  try {
+    const [dupRows] = await db.execute(
+      `SELECT orderNo, netSales, saleType, COUNT(*) as cnt, MIN(id) as minId, MAX(id) as maxId
+       FROM sales
+       WHERE orderNo IS NOT NULL
+       GROUP BY orderNo, netSales, saleType
+       HAVING COUNT(*) > 1`
+    );
+    const dupsArr = dupRows as any[];
+    if (dupsArr.length > 0) {
+      let totalDeleted = 0;
+      for (const dup of dupsArr) {
+        // Keep the record with the highest ID, delete all others
+        const [delResult] = await db.execute(
+          `DELETE FROM sales WHERE orderNo = ? AND netSales = ? AND saleType = ? AND id != ?`,
+          [dup.orderNo, dup.netSales, dup.saleType, dup.maxId]
+        );
+        totalDeleted += (delResult as any).affectedRows || 0;
+      }
+      console.log(`[Dedup] Removed ${totalDeleted} duplicate records across ${dupsArr.length} order groups`);
+    }
+  } catch (e: any) {
+    console.error('[Dedup] Error removing duplicates:', e.message);
+  }
+
+  // Add unique index to prevent future duplicates at the database level
+  try {
+    await db.execute(
+      `CREATE UNIQUE INDEX idx_sales_unique_order ON sales (orderNo, netSales, saleType)`
+    );
+    console.log('[Migration] Created unique index idx_sales_unique_order');
+  } catch (e: any) {
+    if (e.code === 'ER_DUP_KEYNAME' || e.errno === 1061) {
+      // Index already exists, skip
+    } else if (e.code === 'ER_DUP_ENTRY' || e.errno === 1062) {
+      console.log('[Migration] Cannot create unique index - duplicates still exist, will retry next restart');
+    } else {
+      console.error('[Migration] Error creating unique index:', e.message);
+    }
+  }
+
   // One-time cleanup: remove any Grand Total / summary rows that were accidentally imported
   try {
     const [grandTotalRows] = await db.execute(
@@ -591,12 +633,12 @@ async function startServer() {
         try {
           if (uploadSaleType === 'pos' && paymentGateway) {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              "INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
             );
           } else {
             await db.execute(
-              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              "INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
               [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
             );
           }

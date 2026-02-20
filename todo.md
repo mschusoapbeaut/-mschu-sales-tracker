@@ -637,3 +637,4 @@
 - [x] Fix: cleared 2,125 duplicate POS records, re-imported 1,055 clean records from Excel
 - [x] Clear all Feb 2026 POS data from production and re-import from pos_sales_attribution_final(9).xlsx (1,055 records, HK$759,719.70)
 - [x] Fix email sync POS duplicate detection: match by orderNo+netSales+saleType instead of just orderNo
+- [ ] Bug: Still many repeated POS orders (e.g., 75561, 75563) — email sync likely re-imported after cleanup
