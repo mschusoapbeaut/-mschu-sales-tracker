@@ -262,21 +262,7 @@ async function startServer() {
       // Calculate total
       const total = sales.reduce((sum, s) => sum + (parseFloat(s.netSales) || 0), 0);
       
-      // Calculate Net Sales** total for online sales — same formula as SUBTOTAL row
-      let totalNetSalesStar = total; // default to netSales total
-      if (saleType === 'online') {
-        totalNetSalesStar = sales.reduce((sum, s) => {
-          const _ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : 0;
-          const _ns = parseFloat(s.netSales) || 0;
-          const _spRaw = s.shippingPrice;
-          let _sp = (_spRaw !== null && _spRaw !== undefined && _spRaw !== '') ? parseFloat(_spRaw) : null;
-          if (_sp !== null && _sp === 0 && _ts !== 0) _sp = 30;
-          const _nsStar = (_ts && _sp !== null) ? (_ts - _sp) : _ns;
-          return sum + _nsStar;
-        }, 0);
-      }
-      
-      res.json({ sales, total, totalNetSalesStar, count: sales.length });
+      res.json({ sales, total, count: sales.length });
     } catch (error) {
       console.error("[API] Get sales error:", error);
       res.status(500).json({ error: "Failed to get sales" });
@@ -1383,6 +1369,8 @@ function getAdminHTML(): string {
             if (isAdmin) html += '<td class="amount">HK$' + subtotalNetSales.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
             if (!isAdmin) html += '<td class="amount">HK$' + subtotalNetSalesStar.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
             html += '</tr>';
+            // Update the Total Online Sales card with Net Sales** subtotal
+            document.getElementById('totalOnlineSales').textContent = 'HK$' + subtotalNetSalesStar.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             data.forEach(s => {
                 const orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + orderDateStr + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td>';
@@ -1629,8 +1617,6 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok) {
-                    var onlineTotal = (d.totalNetSalesStar !== undefined) ? d.totalNetSalesStar : d.total;
-                    document.getElementById('totalOnlineSales').textContent = 'HK$' + onlineTotal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('onlineOrderCount').textContent = d.count;
                     onlineSalesData = d.sales || [];
                     onlineSortCol = null;

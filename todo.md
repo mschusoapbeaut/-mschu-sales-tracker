@@ -627,4 +627,5 @@
 - [x] Deployed fix to Railway via GitHub push
 
 ## Staff Interface: Total Online Sales = Net Sales** (Feb 20, 2026)
-- [ ] Change staff interface "Total Online Sales" to display the same Subtotal Net Sales** value already used in SUBTOTAL row
+- [x] Change staff interface "Total Online Sales" to display the same Subtotal Net Sales** value already used in SUBTOTAL row
+- [ ] Bug: Staff Total Online Sales still doesn't match SUBTOTAL Net Sales** — investigate and fix
