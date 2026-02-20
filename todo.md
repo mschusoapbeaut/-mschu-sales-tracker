@@ -629,4 +629,4 @@
 ## Staff Interface: Total Online Sales = Net Sales** (Feb 20, 2026)
 - [x] Change staff interface "Total Online Sales" to display the same Subtotal Net Sales** value already used in SUBTOTAL row
 - [x] Bug: Staff Total Online Sales now matches SUBTOTAL Net Sales** — card updated inside renderOnlineTable using subtotalNetSalesStar
-- [ ] Add current month display underneath logo on Sales Staff dashboard (staff-view page)
+- [x] Add current month display underneath logo on Sales Staff dashboard (staff-view page)
