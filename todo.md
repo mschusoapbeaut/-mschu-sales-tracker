@@ -617,4 +617,10 @@
 - [x] Fix and redeploy — deployed successfully, Today filter and sort fix live
 
 ## Feature: Online Sales Subtotal Row (Feb 14, 2026)
-- [ ] Add bold subtotal row at the top of Online Sales table showing Total Sales, Net Sales**, and Net Sales totals
+- [x] Add bold subtotal row at the top of Online Sales table showing Total Sales, Net Sales**, and Net Sales totals — deployed to production
+
+## Bug: Duplicate Online Sales Records (Feb 14, 2026)
+- [ ] Investigate duplicate online sales records in staff interface and online sales history
+- [ ] Identify root cause (email sync importing duplicates, or display issue)
+- [ ] Fix the duplicates in the database
+- [ ] Prevent future duplicates from being created

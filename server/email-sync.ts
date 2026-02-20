@@ -339,6 +339,7 @@ async function importExcelData(content: Buffer): Promise<number> {
   const staffMapping = await db.getStaffMapping();
   
   let imported = 0;
+  let updated = 0;
   
   // Use header-based column detection (same approach as manual upload) for robustness
   const headerRow = rows[0];
@@ -533,20 +534,24 @@ async function importExcelData(content: Buffer): Promise<number> {
     
     // Check if order already exists to avoid duplicates (from manual upload or previous email sync)
     try {
-      const existingOrder = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? LIMIT 1",
+      const [existingRows] = await db.execute(
+        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' LIMIT 1",
         [orderName]
       );
-      // Check if any rows were returned - handle both array and object formats
-      const rows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
-      const hasExisting = rows && (Array.isArray(rows) ? rows.length > 0 : Object.keys(rows).length > 0);
-      if (hasExisting) {
-        console.log(`[EmailSync] Skipping duplicate order: ${orderName} (already exists in database)`);
+      // MySQL2 returns [rows, fields] - existingRows is the array of matched rows
+      if (existingRows && Array.isArray(existingRows) && existingRows.length > 0) {
+        // Order already exists - update it instead of skipping (upsert behavior)
+        const existingId = (existingRows as any[])[0].id;
+        await db.execute(
+          `UPDATE sales SET salesChannel = ?, netSales = ?, staffName = ?, emailMarketing = ?, smsMarketing = ?, customerEmail = ?, whatsappMarketing = ?, shippingPrice = ?, totalSales = ?, orderDate = ? WHERE id = ?`,
+          [salesChannel || "Online Store", netSales, staffName, emailMarketing, smsMarketing, customerEmail, whatsappMarketing, shippingPrice, totalSales, orderDate ? orderDate.toISOString().split('T')[0] : null, existingId]
+        );
+        updated++;
         continue;
       }
     } catch (dupCheckError: any) {
       console.log(`[EmailSync] Duplicate check error for ${orderName}: ${dupCheckError.message}`);
-      // Continue anyway - better to potentially have a duplicate than miss data
+      // Continue to insert - better to potentially have a duplicate than miss data
     }
     
     try {
@@ -565,7 +570,7 @@ async function importExcelData(content: Buffer): Promise<number> {
     }
   }
   
-  console.log(`[EmailSync] Excel import complete: ${imported} records`);
+  console.log(`[EmailSync] Excel import complete: ${imported} new, ${updated} updated`);
   return imported;
 }
 
