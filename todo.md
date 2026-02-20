@@ -625,3 +625,6 @@
 - [x] Cleaned up all 222 duplicate records from production database (779 → 557 records, HK$740,300.74)
 - [x] Fixed duplicate detection: proper MySQL2 destructuring + upsert logic (UPDATE existing, INSERT new)
 - [x] Deployed fix to Railway via GitHub push
+
+## Staff Interface: Total Online Sales = Net Sales** (Feb 20, 2026)
+- [ ] Change staff interface "Total Online Sales" to display the same Subtotal Net Sales** value already used in SUBTOTAL row

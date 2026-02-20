@@ -262,7 +262,21 @@ async function startServer() {
       // Calculate total
       const total = sales.reduce((sum, s) => sum + (parseFloat(s.netSales) || 0), 0);
       
-      res.json({ sales, total, count: sales.length });
+      // Calculate Net Sales** total for online sales — same formula as SUBTOTAL row
+      let totalNetSalesStar = total; // default to netSales total
+      if (saleType === 'online') {
+        totalNetSalesStar = sales.reduce((sum, s) => {
+          const _ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : 0;
+          const _ns = parseFloat(s.netSales) || 0;
+          const _spRaw = s.shippingPrice;
+          let _sp = (_spRaw !== null && _spRaw !== undefined && _spRaw !== '') ? parseFloat(_spRaw) : null;
+          if (_sp !== null && _sp === 0 && _ts !== 0) _sp = 30;
+          const _nsStar = (_ts && _sp !== null) ? (_ts - _sp) : _ns;
+          return sum + _nsStar;
+        }, 0);
+      }
+      
+      res.json({ sales, total, totalNetSalesStar, count: sales.length });
     } catch (error) {
       console.error("[API] Get sales error:", error);
       res.status(500).json({ error: "Failed to get sales" });
@@ -1615,7 +1629,8 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok) {
-                    document.getElementById('totalOnlineSales').textContent = 'HK$' + d.total.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    var onlineTotal = (d.totalNetSalesStar !== undefined) ? d.totalNetSalesStar : d.total;
+                    document.getElementById('totalOnlineSales').textContent = 'HK$' + onlineTotal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('onlineOrderCount').textContent = d.count;
                     onlineSalesData = d.sales || [];
                     onlineSortCol = null;
@@ -2430,7 +2445,21 @@ function getStaffViewHTML(): string {
             const rawSales = currentTab === 'online' ? onlineData : posData;
             const sales = sortCol ? sortData(rawSales, sortCol, sortDir) : rawSales;
             const typeLabel = currentTab === 'online' ? 'Online' : 'POS';
-            const total = sales.reduce((s, r) => s + (parseFloat(r.netSales) || 0), 0);
+            var total;
+            if (currentTab === 'online') {
+                // Use Net Sales** total — same formula as SUBTOTAL row
+                total = sales.reduce(function(sum, r) {
+                    var _ts = (r.totalSales !== null && r.totalSales !== undefined && r.totalSales !== '') ? parseFloat(r.totalSales) : 0;
+                    var _ns = parseFloat(r.netSales) || 0;
+                    var _spRaw = r.shippingPrice;
+                    var _sp = (_spRaw !== null && _spRaw !== undefined && _spRaw !== '') ? parseFloat(_spRaw) : null;
+                    if (_sp !== null && _sp === 0 && _ts !== 0) _sp = 30;
+                    var _nsStar = (_ts && _sp !== null) ? (_ts - _sp) : _ns;
+                    return sum + _nsStar;
+                }, 0);
+            } else {
+                total = sales.reduce(function(s, r) { return s + (parseFloat(r.netSales) || 0); }, 0);
+            }
 
             document.getElementById('totalAmount').textContent = fmtCurrency(total);
             document.getElementById('totalOrders').textContent = sales.length;
