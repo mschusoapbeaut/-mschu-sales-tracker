@@ -2147,7 +2147,7 @@ function getStaffViewHTML(): string {
         .staff-name { font-size: 17px; font-weight: 600; color: #333; }
         .staff-badge { font-size: 11px; color: #4A6B4A; background: #e8f0e8; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
         .logout-link { font-size: 14px; color: #999; cursor: pointer; border: none; background: none; }
-        .month-label { font-size: 13px; color: #888; margin-top: 4px; }
+        .month-label { font-size: 13px; color: #888; margin-top: 2px; }
 
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .tab-item { padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 15px; color: #666; border-radius: 8px; }
@@ -2198,11 +2198,13 @@ function getStaffViewHTML(): string {
             <div class="app-header-top">
                 <div class="app-header-logo">
                     <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663275117871/GeAxiPZgbGUciDuC.png" alt="Ms. Chu">
-                    <div><span class="staff-name" id="staffName"></span><span class="staff-badge">STAFF</span></div>
+                    <div>
+                        <div><span class="staff-name" id="staffName"></span><span class="staff-badge">STAFF</span></div>
+                        <div class="month-label" id="monthLabel"></div>
+                    </div>
                 </div>
                 <button class="logout-link" onclick="doLogout()">Logout</button>
             </div>
-            <div class="month-label" id="monthLabel"></div>
         </div>
         <div class="content">
           <div class="content-inner">
