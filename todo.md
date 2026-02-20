@@ -630,4 +630,10 @@
 - [x] Change staff interface "Total Online Sales" to display the same Subtotal Net Sales** value already used in SUBTOTAL row
 - [x] Bug: Staff Total Online Sales now matches SUBTOTAL Net Sales** — card updated inside renderOnlineTable using subtotalNetSalesStar
 - [x] Add current month display underneath logo on Sales Staff dashboard (staff-view page)
-- [ ] Exclude Excel Row 2 "Grand Total" from POS sales data so it doesn't inflate Total POS Sales card
+- [x] Exclude Excel Row 2 "Grand Total" from POS sales data so it doesn't inflate Total POS Sales card
+
+## Bug: POS Sales and Total Orders Doubled (Feb 20, 2026)
+- [ ] Investigate why Total Orders and POS Sales are doubled on production
+- [ ] Fix: remove Grand Total rows and/or deduplicate POS records
+- [ ] Clear all Feb 2026 POS data from production and re-import from pos_sales_attribution_final(9).xlsx
+- [ ] Fix email sync POS duplicate detection to prevent future duplicates

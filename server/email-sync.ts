@@ -539,8 +539,8 @@ async function importExcelData(content: Buffer): Promise<number> {
     // Check if order already exists to avoid duplicates (from manual upload or previous email sync)
     try {
       const [existingRows] = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' LIMIT 1",
-        [orderName]
+        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' AND netSales = ? LIMIT 1",
+        [orderName, netSales]
       );
       // MySQL2 returns [rows, fields] - existingRows is the array of matched rows
       if (existingRows && Array.isArray(existingRows) && existingRows.length > 0) {
@@ -700,8 +700,8 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     // Upsert: update existing POS records with richer data, or insert new ones
     try {
       const existingOrder = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' LIMIT 1",
-        [orderName]
+        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' AND netSales = ? LIMIT 1",
+        [orderName, netSales]
       );
       const existingRows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
       const hasExisting = existingRows && (Array.isArray(existingRows) ? existingRows.length > 0 : Object.keys(existingRows).length > 0);
