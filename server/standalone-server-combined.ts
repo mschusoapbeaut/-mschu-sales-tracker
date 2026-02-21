@@ -157,33 +157,9 @@ async function startServer() {
     console.error('[Cleanup] Error clearing Feb 2026 data:', e.message);
   }
 
-  // Auto-dedup: remove duplicate sales records (keep highest ID for each orderNo+netSales+saleType)
-  try {
-    const [dupRows] = await db.execute(
-      `SELECT orderNo, netSales, saleType, COUNT(*) as cnt, MIN(id) as minId, MAX(id) as maxId
-       FROM sales
-       WHERE orderNo IS NOT NULL
-       GROUP BY orderNo, netSales, saleType
-       HAVING COUNT(*) > 1`
-    );
-    const dupsArr = dupRows as any[];
-    if (dupsArr.length > 0) {
-      let totalDeleted = 0;
-      for (const dup of dupsArr) {
-        // Keep the record with the highest ID, delete all others
-        const [delResult] = await db.execute(
-          `DELETE FROM sales WHERE orderNo = ? AND netSales = ? AND saleType = ? AND id != ?`,
-          [dup.orderNo, dup.netSales, dup.saleType, dup.maxId]
-        );
-        totalDeleted += (delResult as any).affectedRows || 0;
-      }
-      console.log(`[Dedup] Removed ${totalDeleted} duplicate records across ${dupsArr.length} order groups`);
-    }
-  } catch (e: any) {
-    console.error('[Dedup] Error removing duplicates:', e.message);
-  }
-
   // Add unique index to prevent future duplicates at the database level
+  // Run dedup first only if index doesn't exist yet
+  let needsDedup = false;
   try {
     await db.execute(
       `CREATE UNIQUE INDEX idx_sales_unique_order ON sales (orderNo, netSales, saleType)`
@@ -191,11 +167,49 @@ async function startServer() {
     console.log('[Migration] Created unique index idx_sales_unique_order');
   } catch (e: any) {
     if (e.code === 'ER_DUP_KEYNAME' || e.errno === 1061) {
-      // Index already exists, skip
+      // Index already exists — no dedup needed, database enforces uniqueness
+      console.log('[Migration] Unique index already exists, skipping dedup');
     } else if (e.code === 'ER_DUP_ENTRY' || e.errno === 1062) {
-      console.log('[Migration] Cannot create unique index - duplicates still exist, will retry next restart');
+      console.log('[Migration] Cannot create unique index - duplicates exist, running dedup...');
+      needsDedup = true;
     } else {
       console.error('[Migration] Error creating unique index:', e.message);
+    }
+  }
+
+  // Only run dedup if unique index creation failed due to existing duplicates
+  if (needsDedup) {
+    try {
+      const [dupRows] = await db.execute(
+        `SELECT orderNo, netSales, saleType, COUNT(*) as cnt, MIN(id) as minId, MAX(id) as maxId
+         FROM sales
+         WHERE orderNo IS NOT NULL
+         GROUP BY orderNo, netSales, saleType
+         HAVING COUNT(*) > 1`
+      );
+      const dupsArr = dupRows as any[];
+      if (dupsArr.length > 0) {
+        let totalDeleted = 0;
+        for (const dup of dupsArr) {
+          const [delResult] = await db.execute(
+            `DELETE FROM sales WHERE orderNo = ? AND netSales = ? AND saleType = ? AND id != ?`,
+            [dup.orderNo, dup.netSales, dup.saleType, dup.maxId]
+          );
+          totalDeleted += (delResult as any).affectedRows || 0;
+        }
+        console.log(`[Dedup] Removed ${totalDeleted} duplicate records across ${dupsArr.length} order groups`);
+      }
+      // Retry creating the unique index after dedup
+      try {
+        await db.execute(`CREATE UNIQUE INDEX idx_sales_unique_order ON sales (orderNo, netSales, saleType)`);
+        console.log('[Migration] Created unique index after dedup');
+      } catch (e2: any) {
+        if (e2.code !== 'ER_DUP_KEYNAME' && e2.errno !== 1061) {
+          console.error('[Migration] Still cannot create unique index after dedup:', e2.message);
+        }
+      }
+    } catch (e: any) {
+      console.error('[Dedup] Error removing duplicates:', e.message);
     }
   }
 

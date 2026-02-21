@@ -638,3 +638,4 @@
 - [x] Clear all Feb 2026 POS data from production and re-import from pos_sales_attribution_final(9).xlsx (1,055 records, HK$759,719.70)
 - [x] Fix email sync POS duplicate detection: match by orderNo+netSales+saleType instead of just orderNo
 - [x] Bug: Fixed repeated POS orders (75561 had 22 copies, 75563 had 3) — added unique DB index + auto-dedup on startup + INSERT IGNORE everywhere
+- [ ] Bug: 503 SSL error on production — server crash-looping, likely caused by auto-dedup/unique index startup code
