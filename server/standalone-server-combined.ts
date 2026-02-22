@@ -1460,7 +1460,8 @@ function getAdminHTML(): string {
         // Sort state for Online and POS tables
         let onlineSalesData = [];
         let posSalesData = [];
-        let klaviyoWhatsAppStatuses = {};
+        let klaviyoOnlineStatuses = {};
+        let klaviyoPosStatuses = {};
 
         async function fetchKlaviyoWhatsApp(salesData, source) {
             if (!currentUser || currentUser.role !== 'admin') return;
@@ -1479,11 +1480,11 @@ function getAdminHTML(): string {
                 });
                 var d = await r.json();
                 if (d.statuses) {
-                    // Merge new statuses into existing map (so both tabs share the cache)
-                    Object.keys(d.statuses).forEach(function(k) { klaviyoWhatsAppStatuses[k] = d.statuses[k]; });
                     if (source === 'pos') {
+                        klaviyoPosStatuses = d.statuses;
                         renderPosTable();
                     } else {
+                        klaviyoOnlineStatuses = d.statuses;
                         renderOnlineTable();
                     }
                 }
@@ -1602,7 +1603,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 if (isAdmin) {
-                    var waStatus = (s.customerEmail && klaviyoWhatsAppStatuses[s.customerEmail]) ? klaviyoWhatsAppStatuses[s.customerEmail] : '';
+                    var waStatus = (s.customerEmail && klaviyoOnlineStatuses[s.customerEmail]) ? klaviyoOnlineStatuses[s.customerEmail] : '';
                     var waDisplay = '-';
                     var waStyle = '';
                     if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }
@@ -1653,7 +1654,7 @@ function getAdminHTML(): string {
                 if (isAdmin) html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 if (isAdmin) html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 if (isAdmin) {
-                    var waStatus = (s.customerEmail && klaviyoWhatsAppStatuses[s.customerEmail]) ? klaviyoWhatsAppStatuses[s.customerEmail] : '';
+                    var waStatus = (s.customerEmail && klaviyoPosStatuses[s.customerEmail]) ? klaviyoPosStatuses[s.customerEmail] : '';
                     var waDisplay = '-';
                     var waStyle = '';
                     if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }

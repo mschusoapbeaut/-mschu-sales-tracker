@@ -653,3 +653,6 @@
 - [x] Add Email Mkt column to POS Sales tab (after Customer Email, admin only)
 - [x] Add SMS Mkt column to POS Sales tab (after Email Mkt, admin only)
 - [x] Add Whatsapp Mkt column to POS Sales tab (after SMS Mkt, admin only) with Klaviyo integration
+
+## Separate Klaviyo WhatsApp Caches (Feb 22, 2026)
+- [ ] Separate Klaviyo WhatsApp status cache into independent online and POS caches (no shared data)
