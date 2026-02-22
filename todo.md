@@ -656,3 +656,6 @@
 
 ## Separate Klaviyo WhatsApp Caches (Feb 22, 2026)
 - [x] Separate Klaviyo WhatsApp status cache into independent online and POS caches (no shared data)
+
+## Auto-Delete Unknown Staff (Feb 22, 2026)
+- [ ] Automatically delete all "Unknown" staff entries when Staff Management tab loads
