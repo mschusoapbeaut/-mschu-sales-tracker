@@ -366,12 +366,13 @@ async function startServer() {
       // Klaviyo rate limit: 75/s burst, 700/m steady — process sequentially with small delay
       for (const email of uniqueEmails) {
         try {
-          const url = `https://a.klaviyo.com/api/profiles?filter=equals(email,"${encodeURIComponent(email)}")&additional-fields[profile]=subscriptions`;
+          const filterStr = `equals(email,"${email}")`;
+          const url = `https://a.klaviyo.com/api/profiles?filter=${encodeURIComponent(filterStr)}&additional-fields%5Bprofile%5D=subscriptions`;
           const resp = await fetch(url, {
             headers: {
               'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
               'accept': 'application/vnd.api+json',
-              'revision': '2026-01-15',
+              'revision': '2024-10-15',
             },
           });
           if (resp.ok) {
