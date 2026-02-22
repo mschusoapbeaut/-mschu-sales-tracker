@@ -339,7 +339,6 @@ async function importExcelData(content: Buffer): Promise<number> {
   const staffMapping = await db.getStaffMapping();
   
   let imported = 0;
-  let updated = 0;
   
   // Use header-based column detection (same approach as manual upload) for robustness
   const headerRow = rows[0];
@@ -379,12 +378,55 @@ async function importExcelData(content: Buffer): Promise<number> {
     return 0;
   }
   
-  // Skip header row (row 0), start from row 1
+  // Helper: parse Excel date (serial number or string) to YYYY-MM-DD
+  function parseExcelDateStr(raw: any): string | null {
+    if (!raw) return null;
+    if (typeof raw === 'number') {
+      const excelEpoch = new Date(1899, 11, 30);
+      const d = new Date(excelEpoch.getTime() + raw * 24 * 60 * 60 * 1000);
+      return d.toISOString().split('T')[0];
+    }
+    const s = String(raw).trim();
+    if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substring(0, 10);
+    if (s.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const [mm, dd, yyyy] = s.split('-');
+      return yyyy + '-' + mm + '-' + dd;
+    }
+    if (s.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
+      const parts = s.split('/');
+      const mm = parts[0].padStart(2, '0');
+      const dd = parts[1].padStart(2, '0');
+      let yyyy = parts[2];
+      if (yyyy.length === 2) yyyy = '20' + yyyy;
+      return yyyy + '-' + mm + '-' + dd;
+    }
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+    return null;
+  }
+
+  // === PASS 1: Parse all rows and collect valid records ===
+  type OnlineRecord = {
+    orderDate: string | null;
+    orderName: string;
+    salesChannel: string | null;
+    netSales: number;
+    staffId: string | null;
+    staffName: string | null;
+    emailMarketing: string | null;
+    smsMarketing: string | null;
+    customerEmail: string | null;
+    actualOrderDate: string | null;
+    whatsappMarketing: string | null;
+    shippingPrice: number | null;
+    totalSales: number | null;
+  };
+  const parsedRecords: OnlineRecord[] = [];
+  
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
     
-    // Log first data row for debugging
     if (i === 1) {
       console.log(`[EmailSync] First data row: ${JSON.stringify(row)}`);
       console.log(`[EmailSync] Row length: ${row.length}`);
@@ -398,6 +440,7 @@ async function importExcelData(content: Buffer): Promise<number> {
     const smsMarketing = smsMarketingIdx >= 0 ? (row[smsMarketingIdx] ? String(row[smsMarketingIdx]).trim() : null) : null;
     const customerEmail = customerEmailIdx >= 0 ? (row[customerEmailIdx] ? String(row[customerEmailIdx]).trim() : null) : null;
     const whatsappMarketing = whatsappMarketingIdx >= 0 ? (row[whatsappMarketingIdx] ? String(row[whatsappMarketingIdx]).trim() : null) : null;
+    
     // Parse Shipping Price
     let shippingPrice: number | null = null;
     if (shippingPriceIdx >= 0 && row[shippingPriceIdx] != null) {
@@ -420,69 +463,16 @@ async function importExcelData(content: Buffer): Promise<number> {
     }
     
     // Parse Actual Order Date
-    let actualOrderDate: string | null = null;
-    if (actualOrderDateIdx >= 0 && row[actualOrderDateIdx]) {
-      const rawAOD = row[actualOrderDateIdx];
-      if (typeof rawAOD === 'number') {
-        // Excel serial date number
-        const excelEpoch = new Date(1899, 11, 30);
-        const aodDate = new Date(excelEpoch.getTime() + rawAOD * 24 * 60 * 60 * 1000);
-        actualOrderDate = aodDate.toISOString().split('T')[0];
-      } else {
-        const rawStr = String(rawAOD).trim();
-        if (rawStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-          actualOrderDate = rawStr.substring(0, 10);
-        } else if (rawStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
-          const [mm, dd, yyyy] = rawStr.split('-');
-          actualOrderDate = yyyy + '-' + mm + '-' + dd;
-        } else if (rawStr.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
-          const parts = rawStr.split('/');
-          const mm = parts[0].padStart(2, '0');
-          const dd = parts[1].padStart(2, '0');
-          let yyyy = parts[2];
-          if (yyyy.length === 2) yyyy = '20' + yyyy;
-          actualOrderDate = yyyy + '-' + mm + '-' + dd;
-        } else {
-          const parsed = new Date(rawStr);
-          if (!isNaN(parsed.getTime())) {
-            actualOrderDate = parsed.toISOString().split('T')[0];
-          }
-        }
-      }
-    }
-    const netSalesRaw = row[netSalesIdx]; // Dynamically detected Net Sales column
+    const actualOrderDate = parseExcelDateStr(actualOrderDateIdx >= 0 ? row[actualOrderDateIdx] : null);
     
-    // Log parsed values for first few rows
+    const netSalesRaw = row[netSalesIdx];
+    
     if (i <= 3) {
       console.log(`[EmailSync] Row ${i}: date=${orderDateRaw}, order=${orderName}, channel=${salesChannel}, tags=${customerTags}, netSales=${netSalesRaw}`);
     }
     
-    // Parse order date
-    let orderDate: Date | null = null;
-    if (orderDateRaw) {
-      if (typeof orderDateRaw === "number") {
-        // Excel serial date number - convert to JS Date
-        // Excel dates are days since 1900-01-01 (with a bug for 1900 leap year)
-        const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
-        orderDate = new Date(excelEpoch.getTime() + orderDateRaw * 24 * 60 * 60 * 1000);
-      } else {
-        const rawDate = String(orderDateRaw).trim();
-        if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
-          const [mm, dd, yyyy] = rawDate.split("-");
-          orderDate = new Date(`${yyyy}-${mm}-${dd}`);
-        } else if (rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          orderDate = new Date(rawDate);
-        } else if (rawDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-          const parts = rawDate.split("/");
-          orderDate = new Date(`${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`);
-        } else {
-          const parsed = new Date(rawDate);
-          if (!isNaN(parsed.getTime())) {
-            orderDate = parsed;
-          }
-        }
-      }
-    }
+    // Parse order date to string
+    const orderDate = parseExcelDateStr(orderDateRaw);
     
     // Parse net sales
     let netSales = 0;
@@ -493,9 +483,8 @@ async function importExcelData(content: Buffer): Promise<number> {
     }
     
     if (isNaN(netSales)) continue;
-    // Note: We no longer skip netSales === 0, as these are valid orders (e.g., exchanges, gift orders)
     
-    // Skip Grand Total / summary rows — check ALL cells in the row
+    // Skip Grand Total / summary rows
     const isGrandTotalRow = row.some((cell: any) => {
       const lower = (cell != null ? String(cell).trim().toLowerCase() : '');
       return lower === 'grand total' || lower === 'total';
@@ -506,14 +495,13 @@ async function importExcelData(content: Buffer): Promise<number> {
     }
     
     // Skip Point of Sale orders from Online Sales import
-    // The Shopify "Online Orders by customer" report may include POS orders
     if (salesChannel && salesChannel.toLowerCase().includes("point of sale")) {
       console.log(`[EmailSync] Skipping POS order from Online Sales import: ${orderName} (channel: ${salesChannel})`);
       continue;
     }
     
-    // Try to find user ID and staff name from staff mapping using WVReferredByStaff
-    let userId = 1; // Default to admin user
+    // Resolve staff from customer tags
+    let userId = 1;
     let staffName: string | null = null;
     if (customerTags) {
       const staffIdMatch = customerTags.match(/WVReferredByStaff_(\d+)/);
@@ -522,7 +510,6 @@ async function importExcelData(content: Buffer): Promise<number> {
         if (staffMapping[matchedStaffId]) {
           userId = staffMapping[matchedStaffId];
         }
-        // Also look up staff name from users table for the staffName column
         try {
           const [staffRows] = await db.execute("SELECT name FROM users WHERE staffId = ? LIMIT 1", [matchedStaffId]);
           if ((staffRows as any[]).length > 0) {
@@ -536,49 +523,71 @@ async function importExcelData(content: Buffer): Promise<number> {
       }
     }
     
-    // Check if order already exists to avoid duplicates (from manual upload or previous email sync)
+    parsedRecords.push({
+      orderDate: orderDate || new Date().toISOString().split('T')[0],
+      orderName,
+      salesChannel: salesChannel || "Online Store",
+      netSales,
+      staffId: userId > 1 ? userId.toString() : null,
+      staffName,
+      emailMarketing,
+      smsMarketing,
+      customerEmail,
+      actualOrderDate,
+      whatsappMarketing,
+      shippingPrice,
+      totalSales,
+    });
+  }
+  
+  if (parsedRecords.length === 0) {
+    console.log(`[EmailSync] No valid online records found in Excel`);
+    return 0;
+  }
+  
+  // === PASS 2: Determine date range, delete old records, insert fresh ===
+  const dates = parsedRecords
+    .map(r => r.orderDate)
+    .filter((d): d is string => d !== null)
+    .sort();
+  
+  if (dates.length === 0) {
+    console.log(`[EmailSync] No valid dates found in online records, cannot determine date range`);
+    return 0;
+  }
+  
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
+  const maxDatePlusOne = new Date(new Date(maxDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  console.log(`[EmailSync] Full-replace: date range ${minDate} to ${maxDate} (${parsedRecords.length} online records)`);
+  
+  // Delete all existing online records within this date range
+  try {
+    const [deleteResult] = await db.execute(
+      "DELETE FROM sales WHERE (saleType = 'online' OR saleType IS NULL) AND orderDate >= ? AND orderDate < ?",
+      [minDate, maxDatePlusOne]
+    );
+    const deletedCount = (deleteResult as any).affectedRows || 0;
+    console.log(`[EmailSync] Deleted ${deletedCount} existing online records in range ${minDate} to ${maxDate}`);
+  } catch (delErr: any) {
+    console.error(`[EmailSync] Error deleting old online records: ${delErr.message}`);
+  }
+  
+  // Insert all parsed records fresh
+  for (const rec of parsedRecords) {
     try {
-      const [existingRows] = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'online' AND netSales = ? LIMIT 1",
-        [orderName, netSales]
+      await db.execute(
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [rec.orderDate, rec.orderName, rec.salesChannel, rec.netSales, rec.staffId, rec.staffName, "online", rec.emailMarketing, rec.smsMarketing, rec.customerEmail, rec.actualOrderDate, rec.whatsappMarketing, rec.shippingPrice, rec.totalSales]
       );
-      // MySQL2 returns [rows, fields] - existingRows is the array of matched rows
-      if (existingRows && Array.isArray(existingRows) && existingRows.length > 0) {
-        // Order already exists - update it instead of skipping (upsert behavior)
-        const existingId = (existingRows as any[])[0].id;
-        await db.execute(
-          `UPDATE sales SET salesChannel = ?, netSales = ?, staffName = ?, emailMarketing = ?, smsMarketing = ?, customerEmail = ?, whatsappMarketing = ?, shippingPrice = ?, totalSales = ?, orderDate = ? WHERE id = ?`,
-          [salesChannel || "Online Store", netSales, staffName, emailMarketing, smsMarketing, customerEmail, whatsappMarketing, shippingPrice, totalSales, orderDate ? orderDate.toISOString().split('T')[0] : null, existingId]
-        );
-        updated++;
-        continue;
-      }
-    } catch (dupCheckError: any) {
-      console.log(`[EmailSync] Duplicate check error for ${orderName}: ${dupCheckError.message}`);
-      // Continue to insert - better to potentially have a duplicate than miss data
-    }
-    
-    try {
-      console.log(`[EmailSync] Inserting: order=${orderName}, channel=${salesChannel}, amount=${netSales}, date=${orderDate}`);
-      // Use raw SQL to match production database schema (orderNo, not orderReference)
-      const saleDate = orderDate ? orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-      const [insertResult] = await db.execute(
-        `INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, staffId, staffName, saleType, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [saleDate, orderName || null, salesChannel || "Online Store", netSales, userId > 1 ? userId.toString() : null, staffName, "online", emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
-      );
-      if ((insertResult as any).affectedRows === 0) {
-        console.log(`[EmailSync] SKIPPED duplicate: ${orderName} - $${netSales}`);
-        continue;
-      }
       imported++;
-      console.log(`[EmailSync] Imported: ${orderName} - ${salesChannel} - $${netSales}`);
     } catch (error: any) {
-      // Log the actual error for debugging
-      console.error(`[EmailSync] Error inserting ${orderName}:`, error.message || error);
+      console.error(`[EmailSync] Error inserting ${rec.orderName}:`, error.message || error);
     }
   }
   
-  console.log(`[EmailSync] Excel import complete: ${imported} new, ${updated} updated`);
+  console.log(`[EmailSync] Full-replace complete: ${imported} online records inserted for date range ${minDate} to ${maxDate}`);
   return imported;
 }
 
@@ -599,8 +608,6 @@ async function importPosExcelData(content: Buffer): Promise<number> {
   }
   
   let imported = 0;
-  let updated = 0;
-  let inserted = 0;
   
   // Header-based column detection using original report column names
   const headerRow = rows[0];
@@ -668,6 +675,18 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     return isNaN(n) ? null : n;
   }
   
+  // === PASS 1: Parse all rows and collect valid records ===
+  const parsedRecords: Array<{
+    orderDate: string | null;
+    orderName: string;
+    locationName: string | null;
+    netSales: number;
+    staffName: string | null;
+    paymentGateway: string | null;
+    actualOrderDate: string | null;
+    totalSales: number | null;
+  }> = [];
+  
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
@@ -676,7 +695,6 @@ async function importPosExcelData(content: Buffer): Promise<number> {
       console.log(`[EmailSync-POS] Row ${i}: ${JSON.stringify(row)}`);
     }
     
-    // Get Order Name
     const orderName = orderNameIdx >= 0 ? (row[orderNameIdx] ? String(row[orderNameIdx]).trim() : null) : null;
     
     // Skip Grand Total / summary rows — check ALL cells in the row
@@ -689,7 +707,6 @@ async function importPosExcelData(content: Buffer): Promise<number> {
       continue;
     }
     
-    // Parse fields using original column names
     const actualOrderDate = actualOrderDateIdx >= 0 ? parseExcelDate(row[actualOrderDateIdx]) : null;
     const paymentGateway = paymentGatewaysIdx >= 0 ? (row[paymentGatewaysIdx] ? String(row[paymentGatewaysIdx]).trim() : null) : null;
     const staffName = staffNameIdx >= 0 ? (row[staffNameIdx] ? String(row[staffNameIdx]).trim() : null) : null;
@@ -701,49 +718,59 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     
     if (isNaN(netSales)) continue;
     
-    // Upsert: update existing POS records with richer data, or insert new ones
+    parsedRecords.push({ orderDate, orderName, locationName, netSales, staffName, paymentGateway, actualOrderDate, totalSales });
+  }
+  
+  if (parsedRecords.length === 0) {
+    console.log(`[EmailSync-POS] No valid records found in Excel`);
+    return 0;
+  }
+  
+  // === PASS 2: Determine date range, delete old records, insert fresh ===
+  const dates = parsedRecords
+    .map(r => r.orderDate || r.actualOrderDate)
+    .filter((d): d is string => d !== null)
+    .sort();
+  
+  if (dates.length === 0) {
+    console.log(`[EmailSync-POS] No valid dates found in records, cannot determine date range`);
+    return 0;
+  }
+  
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
+  // Add 1 day to maxDate for exclusive upper bound
+  const maxDatePlusOne = new Date(new Date(maxDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  console.log(`[EmailSync-POS] Full-replace: date range ${minDate} to ${maxDate} (${parsedRecords.length} records)`);
+  
+  // Delete all existing POS records within this date range
+  try {
+    const [deleteResult] = await db.execute(
+      "DELETE FROM sales WHERE saleType = 'pos' AND orderDate >= ? AND orderDate < ?",
+      [minDate, maxDatePlusOne]
+    );
+    const deletedCount = (deleteResult as any).affectedRows || 0;
+    console.log(`[EmailSync-POS] Deleted ${deletedCount} existing POS records in range ${minDate} to ${maxDate}`);
+  } catch (delErr: any) {
+    console.error(`[EmailSync-POS] Error deleting old records: ${delErr.message}`);
+    // Continue anyway — better to have some duplicates than lose data
+  }
+  
+  // Insert all parsed records fresh
+  for (const rec of parsedRecords) {
     try {
-      const existingOrder = await db.execute(
-        "SELECT id FROM sales WHERE orderNo = ? AND saleType = 'pos' AND netSales = ? LIMIT 1",
-        [orderName, netSales]
+      await db.execute(
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [rec.orderDate || null, rec.orderName, rec.locationName || null, rec.netSales, 'pos', rec.staffName, rec.paymentGateway, rec.actualOrderDate || null, rec.totalSales]
       );
-      const existingRows = Array.isArray(existingOrder) ? existingOrder[0] : existingOrder;
-      const hasExisting = existingRows && (Array.isArray(existingRows) ? existingRows.length > 0 : Object.keys(existingRows).length > 0);
-      if (hasExisting) {
-        // Update existing record with richer data from email report
-        const existingId = (existingRows as any[])[0].id;
-        console.log(`[EmailSync-POS] Updating existing POS order: ${orderName} (id: ${existingId})`);
-        await db.execute(
-          `UPDATE sales SET orderDate = COALESCE(?, orderDate), salesChannel = COALESCE(?, salesChannel), netSales = ?, staffName = COALESCE(?, staffName), paymentGateway = COALESCE(?, paymentGateway), actualOrderDate = COALESCE(?, actualOrderDate), totalSales = COALESCE(?, totalSales) WHERE id = ?`,
-          [orderDate || null, locationName || null, netSales, staffName, paymentGateway, actualOrderDate || null, totalSales, existingId]
-        );
-        imported++;
-        updated++;
-        continue;
-      }
-    } catch (dupErr: any) {
-      console.log(`[EmailSync-POS] Duplicate check/update error for ${orderName}: ${dupErr.message}`);
-    }
-    
-    try {
-      console.log(`[EmailSync-POS] Inserting new: order=${orderName}, location=${locationName}, payment=${paymentGateway}, staff=${staffName}, netSales=${netSales}`);
-      const [insertResult] = await db.execute(
-        `INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderDate || null, orderName || null, locationName || null, netSales, 'pos', staffName, paymentGateway, actualOrderDate || null, totalSales]
-      );
-      if ((insertResult as any).affectedRows === 0) {
-        console.log(`[EmailSync-POS] SKIPPED duplicate: ${orderName} - $${netSales}`);
-        continue;
-      }
       imported++;
-      inserted++;
-      console.log(`[EmailSync-POS] NEW: ${orderName} - ${locationName} - $${netSales}`);
     } catch (error: any) {
-      console.error(`[EmailSync-POS] Error inserting ${orderName}:`, error.message || error);
+      console.error(`[EmailSync-POS] Error inserting ${rec.orderName}:`, error.message || error);
     }
   }
   
-  console.log(`[EmailSync-POS] POS Excel import complete: ${imported} total (${inserted} new, ${updated} updated) from ${rows.length - 1} data rows`);
+  console.log(`[EmailSync-POS] Full-replace complete: ${imported} records inserted for date range ${minDate} to ${maxDate}`);
   return imported;
 }
 

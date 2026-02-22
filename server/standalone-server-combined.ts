@@ -484,7 +484,6 @@ async function startServer() {
       
       // Tracking counters
       let imported = 0;
-      let skippedDuplicate = 0;
       let skippedInvalid = 0;
       let skippedEmpty = 0;
       let failed = 0;
@@ -494,6 +493,25 @@ async function startServer() {
       let staffFromClientMap = 0;
       let staffFromServerCSV = 0;
       let staffTotal = 0;
+      
+      // === PASS 1: Parse all rows and collect valid records ===
+      type UploadRecord = {
+        orderDate: string | null;
+        orderNo: string | null;
+        salesChannel: string | null;
+        netSales: number;
+        staffName: string | null;
+        paymentGateway: string | null;
+        emailMarketing: string | null;
+        smsMarketing: string | null;
+        customerEmail: string | null;
+        actualOrderDate: string | null;
+        whatsappMarketing: string | null;
+        shippingPrice: number | null;
+        totalSales: number | null;
+        saleType: string;
+      };
+      const parsedRecords: UploadRecord[] = [];
       
       console.log('[Upload] Column detection - customerTagsIdx:', customerTagsIdx, 'orderIdx:', orderIdx, 'headers:', JSON.stringify(headerRaw));
       console.log('[Upload] Client staffMappings count:', Object.keys(orderStaffMap).length);
@@ -601,25 +619,6 @@ async function startServer() {
           skippedInvalid++; continue;
         }
         
-        // Check for duplicate
-        try {
-          if (orderNo && orderDate) {
-            const [existing] = await db.execute(
-              "SELECT id FROM sales WHERE orderNo = ? AND orderDate = ? AND netSales = ? AND saleType = ?",
-              [orderNo, orderDate, netSales, uploadSaleType || 'online']
-            );
-            if ((existing as any[]).length > 0) { skippedDuplicate++; continue; }
-          } else if (orderNo) {
-            const [existing] = await db.execute(
-              "SELECT id FROM sales WHERE orderNo = ? AND saleType = ?",
-              [orderNo, uploadSaleType || 'online']
-            );
-            if ((existing as any[]).length > 0) { skippedDuplicate++; continue; }
-          }
-        } catch (dupErr: any) {
-          console.error('[Upload] Duplicate check error:', dupErr.message);
-        }
-        
         // Get staff name: first try direct Staff_Name column (POS reports), then client-side Excel mapping, then server-side CSV Customer Tags column
         let staffName: string | null = null;
         // For POS reports: use Staff_Name column directly (Column D)
@@ -644,34 +643,82 @@ async function startServer() {
         }
         if (staffName) { staffTotal++; }
         
+        const saleType = uploadSaleType === 'pos' ? 'pos' : (uploadSaleType || 'online');
+        parsedRecords.push({
+          orderDate: orderDate || null,
+          orderNo: orderNo || null,
+          salesChannel: salesChannel || null,
+          netSales,
+          staffName,
+          paymentGateway: paymentGateway || null,
+          emailMarketing: emailMarketing || null,
+          smsMarketing: smsMarketing || null,
+          customerEmail: customerEmail || null,
+          actualOrderDate: actualOrderDate || null,
+          whatsappMarketing: whatsappMarketing || null,
+          shippingPrice,
+          totalSales,
+          saleType,
+        });
+      }
+      
+      // === PASS 2: Determine date range, delete old records, insert fresh ===
+      const uploadDates = parsedRecords
+        .map(r => r.orderDate)
+        .filter((d): d is string => d !== null)
+        .sort();
+      
+      if (uploadDates.length > 0) {
+        const minDate = uploadDates[0];
+        const maxDate = uploadDates[uploadDates.length - 1];
+        const maxDatePlusOne = new Date(new Date(maxDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const saleTypeForDelete = uploadSaleType === 'pos' ? 'pos' : (uploadSaleType || 'online');
+        
+        console.log(`[Upload] Full-replace: deleting ${saleTypeForDelete} records from ${minDate} to ${maxDate}`);
         try {
-          if (uploadSaleType === 'pos' && paymentGateway) {
+          const deleteCondition = saleTypeForDelete === 'online'
+            ? "(saleType = 'online' OR saleType IS NULL)"
+            : `saleType = '${saleTypeForDelete}'`;
+          const [deleteResult] = await db.execute(
+            `DELETE FROM sales WHERE ${deleteCondition} AND orderDate >= ? AND orderDate < ?`,
+            [minDate, maxDatePlusOne]
+          );
+          const deletedCount = (deleteResult as any).affectedRows || 0;
+          console.log(`[Upload] Deleted ${deletedCount} existing ${saleTypeForDelete} records in range ${minDate} to ${maxDate}`);
+        } catch (delErr: any) {
+          console.error('[Upload] Error deleting old records:', delErr.message);
+        }
+      }
+      
+      // Insert all parsed records fresh
+      for (const rec of parsedRecords) {
+        try {
+          if (rec.saleType === 'pos' && rec.paymentGateway) {
             await db.execute(
-              "INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, 'pos', staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [rec.orderDate, rec.orderNo, rec.salesChannel, rec.netSales, 'pos', rec.staffName, rec.paymentGateway, rec.emailMarketing, rec.smsMarketing, rec.customerEmail, rec.actualOrderDate, rec.whatsappMarketing, rec.shippingPrice, rec.totalSales]
             );
           } else {
             await db.execute(
-              "INSERT IGNORE INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [orderDate || null, orderNo || null, salesChannel || null, netSales, uploadSaleType || 'online', staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate || null, whatsappMarketing, shippingPrice, totalSales]
+              "INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, emailMarketing, smsMarketing, customerEmail, actualOrderDate, whatsappMarketing, shippingPrice, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [rec.orderDate, rec.orderNo, rec.salesChannel, rec.netSales, rec.saleType, rec.staffName, rec.emailMarketing, rec.smsMarketing, rec.customerEmail, rec.actualOrderDate, rec.whatsappMarketing, rec.shippingPrice, rec.totalSales]
             );
           }
           imported++;
-          importedTotal += netSales;
+          importedTotal += rec.netSales;
         } catch (insertErr: any) {
           failed++;
-          if (failedOrders.length < 10) failedOrders.push(orderNo || 'row ' + i);
-          console.error('[Upload] Insert error for ' + orderNo + ':', insertErr.message);
+          if (failedOrders.length < 10) failedOrders.push(rec.orderNo || 'unknown');
+          console.error('[Upload] Insert error for ' + rec.orderNo + ':', insertErr.message);
         }
       }
       
       // Build detailed summary
-      const totalSkipped = skippedDuplicate + skippedInvalid + skippedEmpty;
+      const totalSkipped = skippedInvalid + skippedEmpty;
       const summary = {
         success: failed === 0,
         imported,
         importedTotal: Math.round(importedTotal * 100) / 100,
-        skippedDuplicate,
         skippedInvalid,
         skippedEmpty,
         failed,
@@ -693,7 +740,6 @@ async function startServer() {
           clientMappingsReceived: Object.keys(orderStaffMap).length,
         },
         message: 'Imported ' + imported + ' orders (HK$' + importedTotal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')' +
-          (skippedDuplicate > 0 ? ', ' + skippedDuplicate + ' duplicates skipped' : '') +
           (skippedInvalid > 0 ? ', ' + skippedInvalid + ' invalid rows skipped' : '') +
           (failed > 0 ? ', ' + failed + ' FAILED' : '') +
           '. Total rows processed: ' + totalProcessed +
