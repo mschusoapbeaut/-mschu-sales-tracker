@@ -341,6 +341,70 @@ async function startServer() {
     }
   });
 
+  // API endpoint to get WhatsApp subscription status from Klaviyo
+  app.post("/api/klaviyo/whatsapp-status", async (req: Request, res: Response) => {
+    try {
+      const user = await authenticateRequest(req);
+      if (!user) {
+        res.status(401).json({ error: "Not authenticated" });
+        return;
+      }
+      const { emails } = req.body;
+      if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        res.json({ statuses: {} });
+        return;
+      }
+      const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
+      if (!KLAVIYO_API_KEY) {
+        console.error("[Klaviyo] KLAVIYO_API_KEY not set");
+        res.json({ statuses: {} });
+        return;
+      }
+      // Deduplicate and limit to 100 emails per batch
+      const uniqueEmails = [...new Set(emails.filter((e: string) => e && e.includes('@')))].slice(0, 100);
+      const statuses: Record<string, string> = {};
+      // Klaviyo rate limit: 75/s burst, 700/m steady — process sequentially with small delay
+      for (const email of uniqueEmails) {
+        try {
+          const url = `https://a.klaviyo.com/api/profiles?filter=equals(email,"${encodeURIComponent(email)}")&additional-fields[profile]=subscriptions`;
+          const resp = await fetch(url, {
+            headers: {
+              'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+              'accept': 'application/vnd.api+json',
+              'revision': '2026-01-15',
+            },
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.data && data.data.length > 0) {
+              const subs = data.data[0].attributes?.subscriptions;
+              const waMarketing = subs?.whatsapp?.marketing;
+              if (waMarketing) {
+                statuses[email] = waMarketing.consent || 'UNKNOWN';
+              } else {
+                statuses[email] = 'NO_DATA';
+              }
+            } else {
+              statuses[email] = 'NOT_FOUND';
+            }
+          } else {
+            console.error(`[Klaviyo] Error fetching ${email}: ${resp.status}`);
+            statuses[email] = 'ERROR';
+          }
+          // Small delay to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (err) {
+          console.error(`[Klaviyo] Error for ${email}:`, err);
+          statuses[email] = 'ERROR';
+        }
+      }
+      res.json({ statuses });
+    } catch (error) {
+      console.error("[Klaviyo] WhatsApp status error:", error);
+      res.status(500).json({ error: "Failed to fetch WhatsApp status" });
+    }
+  });
+
   // API endpoint to get distinct staff names for filter
   app.get("/api/sales/staff-names", async (req: Request, res: Response) => {
     try {
@@ -1395,6 +1459,32 @@ function getAdminHTML(): string {
         // Sort state for Online and POS tables
         let onlineSalesData = [];
         let posSalesData = [];
+        let klaviyoWhatsAppStatuses = {};
+
+        async function fetchKlaviyoWhatsApp(salesData) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            var emails = [];
+            salesData.forEach(function(s) {
+                if (s.customerEmail && s.customerEmail.includes('@') && emails.indexOf(s.customerEmail) === -1) {
+                    emails.push(s.customerEmail);
+                }
+            });
+            if (emails.length === 0) return;
+            try {
+                var r = await authFetch('/api/klaviyo/whatsapp-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails: emails })
+                });
+                var d = await r.json();
+                if (d.statuses) {
+                    klaviyoWhatsAppStatuses = d.statuses;
+                    renderOnlineTable();
+                }
+            } catch (e) {
+                console.error('Failed to fetch Klaviyo WhatsApp statuses:', e);
+            }
+        }
         let onlineSortCol = null;
         let onlineSortDir = null;
         let posSortCol = null;
@@ -1505,7 +1595,21 @@ function getAdminHTML(): string {
                 html += '<td style="font-size:12px">' + (s.customerEmail || '-') + '</td>';
                 html += '<td>' + (s.emailMarketing || '-') + '</td>';
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
-                html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
+                if (isAdmin) {
+                    var waStatus = (s.customerEmail && klaviyoWhatsAppStatuses[s.customerEmail]) ? klaviyoWhatsAppStatuses[s.customerEmail] : '';
+                    var waDisplay = '-';
+                    var waStyle = '';
+                    if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }
+                    else if (waStatus === 'UNSUBSCRIBED') { waDisplay = 'Unsubscribed'; waStyle = 'color:#ef4444'; }
+                    else if (waStatus === 'NEVER_SUBSCRIBED') { waDisplay = 'Never'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'NOT_FOUND') { waDisplay = 'Not Found'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'NO_DATA') { waDisplay = 'No Data'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'ERROR') { waDisplay = 'Error'; waStyle = 'color:#f59e0b'; }
+                    else if (waStatus === '') { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    html += '<td style="' + waStyle + '">' + waDisplay + '</td>';
+                } else {
+                    html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
+                }
                 if (isAdmin) { var spRaw = s.shippingPrice; var ts = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var sp = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null; if (sp !== null && sp === 0 && ts !== null && ts !== 0) sp = 30; var spDisplay = (sp !== null && sp !== 0) ? 'HK$' + sp.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (sp === 0 ? '-' : '-'); var spColor = (sp !== null && sp > 100) ? 'color:#d32f2f;font-weight:bold' : ''; html += '<td class="amount" style="' + spColor + '">' + spDisplay + '</td>'; }
                 if (isAdmin) { var tsVal = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var tsDisplay = (tsVal !== null) ? 'HK$' + tsVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + tsDisplay + '</td>'; }
                 if (isAdmin) { var tsVal2 = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null; var spRaw2 = s.shippingPrice; var spVal2 = (spRaw2 !== null && spRaw2 !== undefined && spRaw2 !== '') ? parseFloat(spRaw2) : null; if (spVal2 !== null && spVal2 === 0 && tsVal2 !== null && tsVal2 !== 0) spVal2 = 30; var netStarVal = (tsVal2 !== null && spVal2 !== null) ? (tsVal2 - spVal2) : null; var netStarDisplay = (netStarVal !== null) ? 'HK$' + netStarVal.toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'; html += '<td class="amount">' + netStarDisplay + '</td>'; }
@@ -1749,6 +1853,8 @@ function getAdminHTML(): string {
                     onlineSortCol = null;
                     onlineSortDir = null;
                     renderOnlineTable();
+                    // Fetch Klaviyo WhatsApp statuses in background (admin only), then re-render
+                    fetchKlaviyoWhatsApp(onlineSalesData);
                 }
             } catch (e) {
                 document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';

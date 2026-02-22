@@ -643,3 +643,7 @@
 - [x] Implement date-range full-replace sync: on each email sync, clear records within the report's date range and re-insert fresh
 - [x] Ensure manual uploads also use full-replace for the same month/type
 - [x] Remove need for manual cleanup — app should always match the latest Excel (full-replace approach)
+- [ ] Add WhatsApp Subscription status column to Online Sales tab (between SMS Mkt and Shipping Price)
+- [ ] Integrate Klaviyo API to fetch WhatsApp subscription status by customer email
+- [ ] Store WhatsApp subscription status in database for display
+- [ ] WhatsApp Subscription column from Klaviyo — admin interface only (between Whatsapp Mkt and Shipping Price)
