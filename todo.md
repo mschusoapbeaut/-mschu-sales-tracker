@@ -659,4 +659,4 @@
 
 ## Auto-Delete Unknown Staff (Feb 22, 2026)
 - [x] Automatically delete all "Unknown" staff entries when Staff Management tab loads
-- [ ] Fix: Unknown staff records not being auto-deleted — investigate and fix server-side delete logic
+- [x] Fix: Unknown staff records not being auto-deleted — moved cleanup to server-side DELETE in GET /api/staff
