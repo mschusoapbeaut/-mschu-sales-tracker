@@ -647,3 +647,9 @@
 - [ ] Integrate Klaviyo API to fetch WhatsApp subscription status by customer email
 - [ ] Store WhatsApp subscription status in database for display
 - [ ] WhatsApp Subscription column from Klaviyo — admin interface only (between Whatsapp Mkt and Shipping Price)
+
+## POS Sales Tab — Customer Email & Marketing Columns (Feb 22, 2026)
+- [ ] Add Customer Email column to POS Sales tab (after Staff Name, admin only)
+- [ ] Add Email Mkt column to POS Sales tab (after Customer Email, admin only)
+- [ ] Add SMS Mkt column to POS Sales tab (after Email Mkt, admin only)
+- [ ] Add Whatsapp Mkt column to POS Sales tab (after SMS Mkt, admin only) with Klaviyo integration

@@ -1462,7 +1462,7 @@ function getAdminHTML(): string {
         let posSalesData = [];
         let klaviyoWhatsAppStatuses = {};
 
-        async function fetchKlaviyoWhatsApp(salesData) {
+        async function fetchKlaviyoWhatsApp(salesData, source) {
             if (!currentUser || currentUser.role !== 'admin') return;
             var emails = [];
             salesData.forEach(function(s) {
@@ -1479,8 +1479,13 @@ function getAdminHTML(): string {
                 });
                 var d = await r.json();
                 if (d.statuses) {
-                    klaviyoWhatsAppStatuses = d.statuses;
-                    renderOnlineTable();
+                    // Merge new statuses into existing map (so both tabs share the cache)
+                    Object.keys(d.statuses).forEach(function(k) { klaviyoWhatsAppStatuses[k] = d.statuses[k]; });
+                    if (source === 'pos') {
+                        renderPosTable();
+                    } else {
+                        renderOnlineTable();
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch Klaviyo WhatsApp statuses:', e);
@@ -1635,11 +1640,31 @@ function getAdminHTML(): string {
             html += '<th class="' + sortClass('salesChannel', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;salesChannel&#39;)">Location Name</th>';
             html += '<th class="' + sortClass('paymentGateway', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;paymentGateway&#39;)">Payment Gateway</th>';
             if (isAdmin) html += '<th>Staff Name</th>';
+            if (isAdmin) html += '<th>Customer Email</th>';
+            if (isAdmin) html += '<th class="' + sortClass('emailMarketing', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;emailMarketing&#39;)">Email Mkt</th>';
+            if (isAdmin) html += '<th class="' + sortClass('smsMarketing', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;smsMarketing&#39;)">SMS Mkt</th>';
+            if (isAdmin) html += '<th class="' + sortClass('whatsappMarketing', posSortCol, posSortDir) + '" onclick="handlePosSort(&#39;whatsappMarketing&#39;)">Whatsapp Mkt</th>';
             html += '<th>Net sales exclude GC Payment</th></tr></thead><tbody>';
             data.forEach(s => {
                 const date = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '-';
                 html += '<tr><td>' + date + '</td><td>' + (s.orderNo || '-') + '</td><td>' + (s.salesChannel || '-') + '</td><td>' + (s.paymentGateway || '-') + '</td>';
                 if (isAdmin) html += '<td>' + (s.staffName || '-') + '</td>';
+                if (isAdmin) html += '<td style="font-size:12px">' + (s.customerEmail || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.emailMarketing || '-') + '</td>';
+                if (isAdmin) html += '<td>' + (s.smsMarketing || '-') + '</td>';
+                if (isAdmin) {
+                    var waStatus = (s.customerEmail && klaviyoWhatsAppStatuses[s.customerEmail]) ? klaviyoWhatsAppStatuses[s.customerEmail] : '';
+                    var waDisplay = '-';
+                    var waStyle = '';
+                    if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }
+                    else if (waStatus === 'UNSUBSCRIBED') { waDisplay = 'Unsubscribed'; waStyle = 'color:#ef4444'; }
+                    else if (waStatus === 'NEVER_SUBSCRIBED') { waDisplay = 'Never'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'NOT_FOUND') { waDisplay = 'Not Found'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'NO_DATA') { waDisplay = 'No Data'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === 'ERROR') { waDisplay = 'Error'; waStyle = 'color:#f59e0b'; }
+                    else if (waStatus === '') { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    html += '<td style="' + waStyle + '">' + waDisplay + '</td>';
+                }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';
             });
             html += '</tbody></table>';
@@ -1855,7 +1880,7 @@ function getAdminHTML(): string {
                     onlineSortDir = null;
                     renderOnlineTable();
                     // Fetch Klaviyo WhatsApp statuses in background (admin only), then re-render
-                    fetchKlaviyoWhatsApp(onlineSalesData);
+                    fetchKlaviyoWhatsApp(onlineSalesData, 'online');
                 }
             } catch (e) {
                 document.getElementById('onlineSalesTableContainer').innerHTML = '<p class="no-data">Failed to load sales data</p>';
@@ -1886,6 +1911,8 @@ function getAdminHTML(): string {
                     posSortCol = null;
                     posSortDir = null;
                     renderPosTable();
+                    // Fetch Klaviyo WhatsApp statuses in background (admin only), then re-render
+                    fetchKlaviyoWhatsApp(posSalesData, 'pos');
                 }
             } catch (e) {
                 document.getElementById('posSalesTableContainer').innerHTML = '<p class="no-data">Failed to load POS sales data</p>';
