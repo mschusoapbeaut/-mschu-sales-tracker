@@ -972,6 +972,13 @@ async function startServer() {
         return;
       }
       
+      // Auto-delete Unknown/null-name staff (except the current user) before returning list
+      try {
+        await db.execute("DELETE FROM users WHERE (name IS NULL OR name = '' OR name = 'Unknown') AND id != ?", [user.id]);
+      } catch (cleanupErr) {
+        console.error("[API] Staff cleanup error:", cleanupErr);
+      }
+      
       const [rows] = await db.execute("SELECT id, openId, name, role, staffId, pin FROM users ORDER BY name");
       res.json({ staff: rows });
     } catch (error) {
@@ -1926,18 +1933,6 @@ function getAdminHTML(): string {
                 const d = await r.json();
                 
                 if (r.ok && d.staff) {
-                    // Auto-delete Unknown staff entries silently
-                    var unknownStaff = d.staff.filter(function(s) { return !s.name || s.name === 'Unknown'; });
-                    if (unknownStaff.length > 0) {
-                        var deletePromises = unknownStaff.map(function(s) {
-                            return authFetch('/api/staff/' + s.id, { method: 'DELETE', credentials: 'include' }).catch(function() {});
-                        });
-                        Promise.all(deletePromises).then(function() {
-                            if (unknownStaff.length > 0) loadStaff();
-                        });
-                        // Filter out Unknown staff from current render
-                        d.staff = d.staff.filter(function(s) { return s.name && s.name !== 'Unknown'; });
-                    }
                     let html = '<table class="staff-table"><thead><tr><th>Name</th><th>Staff ID</th><th>PIN</th><th>Role</th><th>Action</th></tr></thead><tbody>';
                     d.staff.forEach(s => {
                         const isCurrentUser = s.id === currentUser.id;
