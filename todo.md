@@ -639,7 +639,7 @@
 - [x] Fix email sync POS duplicate detection: match by orderNo+netSales+saleType instead of just orderNo
 - [x] Bug: Fixed repeated POS orders (75561 had 22 copies, 75563 had 3) — added unique DB index + auto-dedup on startup + INSERT IGNORE everywhere
 - [x] Bug: 503 SSL error was intermittent during Railway deploy/restart — optimized startup to skip dedup when unique index exists
-- [ ] Bug: Deleted orders (75735, 75733, 75730) still appear in the app — investigate and fix
-- [ ] Implement date-range full-replace sync: on each email sync, clear records within the report's date range and re-insert fresh
-- [ ] Ensure manual uploads also use full-replace for the same month/type
-- [ ] Remove need for manual cleanup — app should always match the latest Excel
+- [x] Bug: Deleted orders (75735, 75733, 75730) — resolved by implementing full-replace sync
+- [x] Implement date-range full-replace sync: on each email sync, clear records within the report's date range and re-insert fresh
+- [x] Ensure manual uploads also use full-replace for the same month/type
+- [x] Remove need for manual cleanup — app should always match the latest Excel (full-replace approach)
