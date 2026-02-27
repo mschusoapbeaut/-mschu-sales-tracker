@@ -667,7 +667,7 @@
 - [x] Fix: Whatsapp Mkt column — parallel batches (10x faster), 30s timeout, error handling, shows Error/- instead of stuck '...'
 
 ## POS Sales Column Mapping (Feb 27, 2026)
-- [ ] Map POS Customer Email from column J of uploaded Excel
-- [ ] Map POS Email Mkt from column H of uploaded Excel
-- [ ] Map POS SMS Mkt from column I of uploaded Excel
-- [ ] Whatsapp Mkt for POS fetched from Klaviyo using Customer Email (already implemented, needs email data)
+- [x] Map POS Customer Email from column J of uploaded Excel
+- [x] Map POS Email Mkt from column H of uploaded Excel
+- [x] Map POS SMS Mkt from column I of uploaded Excel
+- [x] Whatsapp Mkt for POS fetched from Klaviyo using Customer Email (already implemented, now has email data)
