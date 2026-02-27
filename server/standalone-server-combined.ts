@@ -363,8 +363,9 @@ async function startServer() {
       // Deduplicate and limit to 100 emails per batch
       const uniqueEmails = [...new Set(emails.filter((e: string) => e && e.includes('@')))].slice(0, 100);
       const statuses: Record<string, string> = {};
-      // Klaviyo rate limit: 75/s burst, 700/m steady — process sequentially with small delay
-      for (const email of uniqueEmails) {
+      
+      // Helper to fetch one email's WhatsApp status from Klaviyo
+      async function fetchOneEmail(email: string): Promise<void> {
         try {
           const filterStr = `equals(email,"${email}")`;
           const url = `https://a.klaviyo.com/api/profiles?filter=${encodeURIComponent(filterStr)}&additional-fields%5Bprofile%5D=subscriptions`;
@@ -392,13 +393,23 @@ async function startServer() {
             console.error(`[Klaviyo] Error fetching ${email}: ${resp.status}`);
             statuses[email] = 'ERROR';
           }
-          // Small delay to respect rate limits
-          await new Promise(resolve => setTimeout(resolve, 50));
         } catch (err) {
           console.error(`[Klaviyo] Error for ${email}:`, err);
           statuses[email] = 'ERROR';
         }
       }
+      
+      // Process in parallel batches of 10 to stay within Klaviyo rate limits (75/s burst)
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
+        const batch = uniqueEmails.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(email => fetchOneEmail(email)));
+        // Small delay between batches to respect rate limits
+        if (i + BATCH_SIZE < uniqueEmails.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      console.log(`[Klaviyo] Fetched WhatsApp status for ${Object.keys(statuses).length} emails`);
       res.json({ statuses });
     } catch (error) {
       console.error("[Klaviyo] WhatsApp status error:", error);
@@ -1478,13 +1489,23 @@ function getAdminHTML(): string {
                     emails.push(s.customerEmail);
                 }
             });
-            if (emails.length === 0) return;
+            if (emails.length === 0) {
+                // No emails to look up — set empty statuses so column shows '-' instead of '...'
+                if (source === 'pos') { klaviyoPosStatuses = {__loaded: true}; renderPosTable(); }
+                else { klaviyoOnlineStatuses = {__loaded: true}; renderOnlineTable(); }
+                return;
+            }
             try {
+                // Use AbortController for 30s timeout
+                var controller = new AbortController();
+                var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
                 var r = await authFetch('/api/klaviyo/whatsapp-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ emails: emails })
+                    body: JSON.stringify({ emails: emails }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 var d = await r.json();
                 if (d.statuses) {
                     if (source === 'pos') {
@@ -1494,9 +1515,21 @@ function getAdminHTML(): string {
                         klaviyoOnlineStatuses = d.statuses;
                         renderOnlineTable();
                     }
+                } else {
+                    console.error('Klaviyo response missing statuses:', d);
+                    // Mark as loaded with error so column shows 'Error' instead of '...'
+                    var errStatuses = {};
+                    emails.forEach(function(e) { errStatuses[e] = 'ERROR'; });
+                    if (source === 'pos') { klaviyoPosStatuses = errStatuses; renderPosTable(); }
+                    else { klaviyoOnlineStatuses = errStatuses; renderOnlineTable(); }
                 }
             } catch (e) {
                 console.error('Failed to fetch Klaviyo WhatsApp statuses:', e);
+                // On error/timeout, show 'Error' instead of staying on '...'
+                var errStatuses = {};
+                emails.forEach(function(e2) { errStatuses[e2] = 'ERROR'; });
+                if (source === 'pos') { klaviyoPosStatuses = errStatuses; renderPosTable(); }
+                else { klaviyoOnlineStatuses = errStatuses; renderOnlineTable(); }
             }
         }
         let onlineSortCol = null;
@@ -1611,6 +1644,7 @@ function getAdminHTML(): string {
                 html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 if (isAdmin) {
                     var waStatus = (s.customerEmail && klaviyoOnlineStatuses[s.customerEmail]) ? klaviyoOnlineStatuses[s.customerEmail] : '';
+                    var waLoaded = Object.keys(klaviyoOnlineStatuses).length > 0;
                     var waDisplay = '-';
                     var waStyle = '';
                     if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }
@@ -1619,7 +1653,8 @@ function getAdminHTML(): string {
                     else if (waStatus === 'NOT_FOUND') { waDisplay = 'Not Found'; waStyle = 'color:#9ca3af'; }
                     else if (waStatus === 'NO_DATA') { waDisplay = 'No Data'; waStyle = 'color:#9ca3af'; }
                     else if (waStatus === 'ERROR') { waDisplay = 'Error'; waStyle = 'color:#f59e0b'; }
-                    else if (waStatus === '') { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === '' && !waLoaded) { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === '' && waLoaded) { waDisplay = '-'; waStyle = 'color:#9ca3af'; }
                     html += '<td style="' + waStyle + '">' + waDisplay + '</td>';
                 } else {
                     html += '<td>' + (s.whatsappMarketing || '-') + '</td>';
@@ -1662,6 +1697,7 @@ function getAdminHTML(): string {
                 if (isAdmin) html += '<td>' + (s.smsMarketing || '-') + '</td>';
                 if (isAdmin) {
                     var waStatus = (s.customerEmail && klaviyoPosStatuses[s.customerEmail]) ? klaviyoPosStatuses[s.customerEmail] : '';
+                    var waLoaded = Object.keys(klaviyoPosStatuses).length > 0;
                     var waDisplay = '-';
                     var waStyle = '';
                     if (waStatus === 'SUBSCRIBED') { waDisplay = 'Subscribed'; waStyle = 'color:#22c55e;font-weight:600'; }
@@ -1670,7 +1706,8 @@ function getAdminHTML(): string {
                     else if (waStatus === 'NOT_FOUND') { waDisplay = 'Not Found'; waStyle = 'color:#9ca3af'; }
                     else if (waStatus === 'NO_DATA') { waDisplay = 'No Data'; waStyle = 'color:#9ca3af'; }
                     else if (waStatus === 'ERROR') { waDisplay = 'Error'; waStyle = 'color:#f59e0b'; }
-                    else if (waStatus === '') { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === '' && !waLoaded) { waDisplay = '...'; waStyle = 'color:#9ca3af'; }
+                    else if (waStatus === '' && waLoaded) { waDisplay = '-'; waStyle = 'color:#9ca3af'; }
                     html += '<td style="' + waStyle + '">' + waDisplay + '</td>';
                 }
                 html += '<td class="amount">HK$' + (parseFloat(s.netSales) || 0).toLocaleString('en-HK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td></tr>';

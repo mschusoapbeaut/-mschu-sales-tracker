@@ -660,3 +660,8 @@
 ## Auto-Delete Unknown Staff (Feb 22, 2026)
 - [x] Automatically delete all "Unknown" staff entries when Staff Management tab loads
 - [x] Fix: Unknown staff records not being auto-deleted — moved cleanup to server-side DELETE in GET /api/staff
+
+## Fix Whatsapp Mkt Column Not Showing Data (Feb 27, 2026)
+- [ ] Fix: Whatsapp Mkt column stays on "..." and never shows data for user — likely fetch too slow or timing out
+- [ ] Show UNSUBSCRIBED status in Whatsapp Mkt column (both Online and POS tabs)
+- [ ] Fix: Whatsapp Mkt column showing all empty for user — fetch may be failing or re-render not triggering
