@@ -592,11 +592,12 @@ async function importExcelData(content: Buffer): Promise<number> {
 }
 
 // Import POS Excel data from POS_Sales_Attribution report
-// Column A: Actual Order Date, Column B: Order Name, Column C: Payment Gateways
-// Column D: Staff_Name, Column E: Sales Channel, Column F: Location Name
-// Column G: Order Date, Column H: Net Quantity, Column I: Purchase of GC
-// Column J: Net Sales, Column K: Returns, Column L: Total Sales
-// Column M: Amount paid with GC, Column N: Net sales exclude GC Payment
+// Column A: Order Name, Column B: Payment Gateways, Column C: Staff_Name
+// Column D: Sales Channel, Column E: Location Name, Column F: Order Date
+// Column G: Actual Order Date, Column H: Email_Marketing, Column I: SMS_Marketing
+// Column J: Customer Email, Column K: Net Quantity, Column L: Purchase of GC
+// Column M: Net Sales, Column N: Returns, Column O: Total Sales
+// Column P: Amount paid with GC, Column Q: Net sales exclude GC Payment
 async function importPosExcelData(content: Buffer): Promise<number> {
   const workbook = XLSX.read(content, { type: "buffer" });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -622,6 +623,10 @@ async function importPosExcelData(content: Buffer): Promise<number> {
   const locationNameIdx = headers.findIndex((h: string) => h === 'locationname' || h.includes('locationname'));
   const orderDateIdx = headers.findIndex((h: string) => h === 'orderdate' || h.includes('orderdate'));
   const totalSalesIdx = headers.findIndex((h: string) => h === 'totalsales' || h.includes('totalsales'));
+  // New columns: Email_Marketing (H), SMS_Marketing (I), Customer Email (J)
+  const emailMarketingIdx = headers.findIndex((h: string) => h === 'emailmarketing' || h.includes('emailmark'));
+  const smsMarketingIdx = headers.findIndex((h: string) => h === 'smsmarketing' || h.includes('smsmark'));
+  const customerEmailIdx = headers.findIndex((h: string) => h === 'customeremail' || h === 'email');
   // "Net sales exclude GC Payment" → this is what we display as net sales for POS
   const netSalesExclGCIdx = headers.findIndex((h: string) => h.includes('netsalesexcludegcpayment') || h.includes('netsalesexcludegc') || h.includes('excludegc'));
   // Fallback to regular "Net Sales" column if exclude GC column not found
@@ -631,7 +636,7 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     if (netSalesIdx === -1) netSalesIdx = headers.findIndex((h: string) => h.includes('netsales'));
   }
   
-  console.log(`[EmailSync-POS] Detected columns - actualOrderDate:${actualOrderDateIdx}, orderName:${orderNameIdx}, paymentGateways:${paymentGatewaysIdx}, staffName:${staffNameIdx}, locationName:${locationNameIdx}, orderDate:${orderDateIdx}, totalSales:${totalSalesIdx}, netSales:${netSalesIdx}`);
+  console.log(`[EmailSync-POS] Detected columns - actualOrderDate:${actualOrderDateIdx}, orderName:${orderNameIdx}, paymentGateways:${paymentGatewaysIdx}, staffName:${staffNameIdx}, locationName:${locationNameIdx}, orderDate:${orderDateIdx}, totalSales:${totalSalesIdx}, netSales:${netSalesIdx}, emailMarketing:${emailMarketingIdx}, smsMarketing:${smsMarketingIdx}, customerEmail:${customerEmailIdx}`);
   
   if (netSalesIdx === -1) {
     console.error("[EmailSync-POS] Could not find Net Sales column! Headers: " + JSON.stringify(headerRow));
@@ -685,6 +690,9 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     paymentGateway: string | null;
     actualOrderDate: string | null;
     totalSales: number | null;
+    emailMarketing: string | null;
+    smsMarketing: string | null;
+    customerEmail: string | null;
   }> = [];
   
   for (let i = 1; i < rows.length; i++) {
@@ -713,12 +721,15 @@ async function importPosExcelData(content: Buffer): Promise<number> {
     const locationName = locationNameIdx >= 0 ? (row[locationNameIdx] ? String(row[locationNameIdx]).trim() : null) : null;
     const orderDate = orderDateIdx >= 0 ? parseExcelDate(row[orderDateIdx]) : null;
     const totalSales = totalSalesIdx >= 0 ? parseNum(row[totalSalesIdx]) : null;
+    const emailMarketing = emailMarketingIdx >= 0 ? (row[emailMarketingIdx] ? String(row[emailMarketingIdx]).trim() : null) : null;
+    const smsMarketing = smsMarketingIdx >= 0 ? (row[smsMarketingIdx] ? String(row[smsMarketingIdx]).trim() : null) : null;
+    const customerEmail = customerEmailIdx >= 0 ? (row[customerEmailIdx] ? String(row[customerEmailIdx]).trim() : null) : null;
     const netSalesRaw = parseNum(row[netSalesIdx]);
     const netSales = netSalesRaw !== null ? netSalesRaw : 0;
     
     if (isNaN(netSales)) continue;
     
-    parsedRecords.push({ orderDate, orderName, locationName, netSales, staffName, paymentGateway, actualOrderDate, totalSales });
+    parsedRecords.push({ orderDate, orderName, locationName, netSales, staffName, paymentGateway, actualOrderDate, totalSales, emailMarketing, smsMarketing, customerEmail });
   }
   
   if (parsedRecords.length === 0) {
@@ -761,8 +772,8 @@ async function importPosExcelData(content: Buffer): Promise<number> {
   for (const rec of parsedRecords) {
     try {
       await db.execute(
-        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [rec.orderDate || null, rec.orderName, rec.locationName || null, rec.netSales, 'pos', rec.staffName, rec.paymentGateway, rec.actualOrderDate || null, rec.totalSales]
+        `INSERT INTO sales (orderDate, orderNo, salesChannel, netSales, saleType, staffName, paymentGateway, actualOrderDate, totalSales, emailMarketing, smsMarketing, customerEmail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [rec.orderDate || null, rec.orderName, rec.locationName || null, rec.netSales, 'pos', rec.staffName, rec.paymentGateway, rec.actualOrderDate || null, rec.totalSales, rec.emailMarketing, rec.smsMarketing, rec.customerEmail]
       );
       imported++;
     } catch (error: any) {

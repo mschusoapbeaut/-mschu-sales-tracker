@@ -665,3 +665,9 @@
 - [x] Fix: Whatsapp Mkt column stays on "..." and never shows data for user — fixed with parallel batches + timeout
 - [x] Show UNSUBSCRIBED status in Whatsapp Mkt column (both Online and POS tabs) — was already implemented
 - [x] Fix: Whatsapp Mkt column — parallel batches (10x faster), 30s timeout, error handling, shows Error/- instead of stuck '...'
+
+## POS Sales Column Mapping (Feb 27, 2026)
+- [ ] Map POS Customer Email from column J of uploaded Excel
+- [ ] Map POS Email Mkt from column H of uploaded Excel
+- [ ] Map POS SMS Mkt from column I of uploaded Excel
+- [ ] Whatsapp Mkt for POS fetched from Klaviyo using Customer Email (already implemented, needs email data)
