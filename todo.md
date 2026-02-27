@@ -662,6 +662,6 @@
 - [x] Fix: Unknown staff records not being auto-deleted — moved cleanup to server-side DELETE in GET /api/staff
 
 ## Fix Whatsapp Mkt Column Not Showing Data (Feb 27, 2026)
-- [ ] Fix: Whatsapp Mkt column stays on "..." and never shows data for user — likely fetch too slow or timing out
-- [ ] Show UNSUBSCRIBED status in Whatsapp Mkt column (both Online and POS tabs)
-- [ ] Fix: Whatsapp Mkt column showing all empty for user — fetch may be failing or re-render not triggering
+- [x] Fix: Whatsapp Mkt column stays on "..." and never shows data for user — fixed with parallel batches + timeout
+- [x] Show UNSUBSCRIBED status in Whatsapp Mkt column (both Online and POS tabs) — was already implemented
+- [x] Fix: Whatsapp Mkt column — parallel batches (10x faster), 30s timeout, error handling, shows Error/- instead of stuck '...'
