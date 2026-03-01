@@ -2660,7 +2660,8 @@ function getStaffViewHTML(): string {
             document.getElementById('staffName').textContent = staffUser.name;
             const now = new Date();
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            document.getElementById('monthLabel').textContent = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+            const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            document.getElementById('monthLabel').textContent = monthNames[prevMonth.getMonth()] + ' ' + prevMonth.getFullYear() + ' - ' + monthNames[now.getMonth()] + ' ' + now.getFullYear();
             loadSales();
         }
 
@@ -2766,7 +2767,7 @@ function getStaffViewHTML(): string {
 
             const listEl = document.getElementById('ordersList');
             if (sales.length === 0) {
-                listEl.innerHTML = '<div class="no-data">No ' + typeLabel.toLowerCase() + ' orders this month</div>';
+                listEl.innerHTML = '<div class="no-data">No ' + typeLabel.toLowerCase() + ' orders found</div>';
                 return;
             }
 

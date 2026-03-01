@@ -675,3 +675,7 @@
 ## Staff Dashboard - Show Previous Month Data (Mar 1, 2026)
 - [x] Update Staff dashboard Online Sales tab to show both current month and previous month data
 - [x] Update Staff dashboard POS Sales tab to show both current month and previous month data
+- [ ] Fix: Staff dashboard not showing current + previous month data
+- [ ] Fix: Admin dashboard suddenly not working after login
+- [ ] Staff dashboard: show previous month data (without changing admin dashboard)
+- [ ] Fix: Admin login issue after logging out (come back to this later)
