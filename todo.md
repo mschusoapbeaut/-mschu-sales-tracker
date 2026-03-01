@@ -671,3 +671,7 @@
 - [x] Map POS Email Mkt from column H of uploaded Excel
 - [x] Map POS SMS Mkt from column I of uploaded Excel
 - [x] Whatsapp Mkt for POS fetched from Klaviyo using Customer Email (already implemented, now has email data)
+
+## Staff Dashboard - Show Previous Month Data (Mar 1, 2026)
+- [ ] Update Staff dashboard Online Sales tab to show both current month and previous month data
+- [ ] Update Staff dashboard POS Sales tab to show both current month and previous month data

@@ -287,11 +287,12 @@ async function startServer() {
           whereConditions.push("(staffId = ? OR staffName LIKE ?)");
           params.push(user.staffId, `%${user.staffId}%`);
         }
-        // Staff: current month only
+        // Staff: current month + previous month
         const now = new Date();
-        const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevMonthStart = prevMonth.getFullYear() + '-' + String(prevMonth.getMonth() + 1).padStart(2, '0') + '-01';
         whereConditions.push("orderDate >= ?");
-        params.push(monthStart);
+        params.push(prevMonthStart);
       } else {
         // Admin: apply month filter
         if (month && month !== 'all') {
