@@ -2487,6 +2487,10 @@ function getStaffViewHTML(): string {
         .sales-table .amount { font-weight: 600; color: #1a6b3c; white-space: nowrap; }
         .no-data { text-align: center; padding: 40px 20px; color: #bbb; font-size: 14px; }
         .loading { text-align: center; padding: 30px; color: #999; font-size: 14px; }
+        .month-filter { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .month-filter label { font-size: 13px; font-weight: 600; color: #555; }
+        .month-filter select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; background: white; color: #333; cursor: pointer; min-width: 180px; }
+        .month-filter select:focus { outline: none; border-color: #6B8E6B; }
     </style>
 </head>
 <body>
@@ -2522,6 +2526,10 @@ function getStaffViewHTML(): string {
                 <div class="tab-item active" id="tabOnline" onclick="switchTab('online')">Online Sales</div>
                 <div class="tab-item" id="tabPos" onclick="switchTab('pos')">POS Sales</div>
             </div>
+            <div class="month-filter">
+                <label>Month:</label>
+                <select id="monthFilter" onchange="onMonthFilterChange()"></select>
+            </div>
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="amount" id="totalAmount">HK$0</div>
@@ -2548,6 +2556,7 @@ function getStaffViewHTML(): string {
         let onlineData = [];
         let posData = [];
         let currentTab = 'online';
+        let selectedMonth = 'current';
 
         // Simple single PIN field
         const pinField = document.getElementById('pinField');
@@ -2661,7 +2670,12 @@ function getStaffViewHTML(): string {
             const now = new Date();
             const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            document.getElementById('monthLabel').textContent = monthNames[prevMonth.getMonth()] + ' ' + prevMonth.getFullYear() + ' - ' + monthNames[now.getMonth()] + ' ' + now.getFullYear();
+            const curLabel = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+            const prevLabel = monthNames[prevMonth.getMonth()] + ' ' + prevMonth.getFullYear();
+            const filterEl = document.getElementById('monthFilter');
+            filterEl.innerHTML = '<option value="current">' + curLabel + '</option><option value="previous">' + prevLabel + '</option>';
+            selectedMonth = 'current';
+            document.getElementById('monthLabel').textContent = curLabel;
             loadSales();
         }
 
@@ -2740,8 +2754,47 @@ function getStaffViewHTML(): string {
             return 'sortable sort-' + sortDir;
         }
 
+        function onMonthFilterChange() {
+            const filterEl = document.getElementById('monthFilter');
+            selectedMonth = filterEl.value;
+            const now = new Date();
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            if (selectedMonth === 'current') {
+                document.getElementById('monthLabel').textContent = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+            } else {
+                const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                document.getElementById('monthLabel').textContent = monthNames[prevMonth.getMonth()] + ' ' + prevMonth.getFullYear();
+            }
+            sortCol = null;
+            sortDir = null;
+            renderTab();
+        }
+
+        function filterByMonth(data) {
+            const now = new Date();
+            if (selectedMonth === 'current') {
+                const curYear = now.getFullYear();
+                const curMonth = now.getMonth();
+                return data.filter(function(r) {
+                    if (!r.orderDate) return false;
+                    var d = new Date(r.orderDate);
+                    return d.getFullYear() === curYear && d.getMonth() === curMonth;
+                });
+            } else {
+                var prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                var prevYear = prev.getFullYear();
+                var prevMo = prev.getMonth();
+                return data.filter(function(r) {
+                    if (!r.orderDate) return false;
+                    var d = new Date(r.orderDate);
+                    return d.getFullYear() === prevYear && d.getMonth() === prevMo;
+                });
+            }
+        }
+
         function renderTab() {
-            const rawSales = currentTab === 'online' ? onlineData : posData;
+            const allSales = currentTab === 'online' ? onlineData : posData;
+            const rawSales = filterByMonth(allSales);
             const sales = sortCol ? sortData(rawSales, sortCol, sortDir) : rawSales;
             const typeLabel = currentTab === 'online' ? 'Online' : 'POS';
             var total;
