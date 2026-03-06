@@ -680,3 +680,7 @@
 - [x] Staff dashboard: show previous month data (without changing admin dashboard)
 - [ ] Fix: Admin login issue after logging out (come back to this later)
 - [x] Add month dropdown to staff dashboard (Current Month / Previous Month), default to Current Month
+
+## Export to Excel (Mar 6, 2026)
+- [ ] Add Export to Excel button for Online Sales tab in Admin dashboard
+- [ ] Add Export to Excel button for POS Sales tab in Admin dashboard

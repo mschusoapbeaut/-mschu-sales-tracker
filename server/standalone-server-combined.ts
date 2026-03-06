@@ -1280,6 +1280,7 @@ function getAdminHTML(): string {
             .form-row input, .form-row select { width: 100%; }
         }
     </style>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1336,6 +1337,7 @@ function getAdminHTML(): string {
                         <div style="display:flex;gap:8px;align-items:center">
                             <select id="onlineStaffFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
                             <select id="onlineMonthFilter" onchange="loadOnlineSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <button id="exportOnlineBtn" onclick="exportOnlineExcel()" style="padding:8px 16px;border-radius:8px;border:1px solid #6B8E6B;font-size:14px;background:#6B8E6B;color:#fff;cursor:pointer;display:none;white-space:nowrap">Export Excel</button>
                         </div>
                     </div>
                     <div id="onlineSalesTableContainer">
@@ -1361,6 +1363,7 @@ function getAdminHTML(): string {
                         <div style="display:flex;gap:8px;align-items:center">
                             <select id="posStaffFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
                             <select id="posMonthFilter" onchange="loadPosSales()" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:14px;background:#fff;display:none"></select>
+                            <button id="exportPosBtn" onclick="exportPosExcel()" style="padding:8px 16px;border-radius:8px;border:1px solid #6B8E6B;font-size:14px;background:#6B8E6B;color:#fff;cursor:pointer;display:none;white-space:nowrap">Export Excel</button>
                         </div>
                     </div>
                     <div id="posSalesTableContainer">
@@ -1791,6 +1794,8 @@ function getAdminHTML(): string {
                 document.getElementById('adminTab').style.display = 'block';
                 document.getElementById('uploadTab').style.display = 'block';
                 document.getElementById('emailTab').style.display = 'block';
+                document.getElementById('exportOnlineBtn').style.display = 'inline-block';
+                document.getElementById('exportPosBtn').style.display = 'inline-block';
             } else {
                 // Staff: COMPLETELY REMOVE admin tabs and panels from DOM (not just hide)
                 var adminTabEl = document.getElementById('adminTab');
@@ -1806,11 +1811,13 @@ function getAdminHTML(): string {
                 if (uploadPanelEl) uploadPanelEl.parentNode.removeChild(uploadPanelEl);
                 var emailPanelEl = document.getElementById('emailPanel');
                 if (emailPanelEl) emailPanelEl.parentNode.removeChild(emailPanelEl);
-                // Hide month and staff filters for staff
+                // Hide month and staff filters and export buttons for staff
                 document.getElementById('onlineMonthFilter').style.display = 'none';
                 document.getElementById('posMonthFilter').style.display = 'none';
                 document.getElementById('onlineStaffFilter').style.display = 'none';
                 document.getElementById('posStaffFilter').style.display = 'none';
+                document.getElementById('exportOnlineBtn').style.display = 'none';
+                document.getElementById('exportPosBtn').style.display = 'none';
             }
             
             // Ensure correct default panel visibility - always start on Online Sales
@@ -2422,6 +2429,85 @@ function getAdminHTML(): string {
         })();
         
         pinInput.focus();
+
+        function exportOnlineExcel() {
+            if (!onlineSalesData || onlineSalesData.length === 0) { alert('No data to export'); return; }
+            var data = onlineSortCol ? sortData(onlineSalesData, onlineSortCol, onlineSortDir) : onlineSalesData;
+            var rows = [['Order Date', 'Order Name', 'Sales Channel', 'Staff Name', 'Customer Email', 'Email Mkt', 'SMS Mkt', 'Whatsapp Mkt', 'Shipping Price', 'Total Sales', 'Net Sales**', 'Net Sales']];
+            data.forEach(function(s) {
+                var orderDateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '';
+                var tsVal = (s.totalSales !== null && s.totalSales !== undefined && s.totalSales !== '') ? parseFloat(s.totalSales) : null;
+                var spRaw = s.shippingPrice;
+                var spVal = (spRaw !== null && spRaw !== undefined && spRaw !== '') ? parseFloat(spRaw) : null;
+                if (spVal !== null && spVal === 0 && tsVal !== null && tsVal !== 0) spVal = 30;
+                var netStarVal = (tsVal !== null && spVal !== null) ? (tsVal - spVal) : (parseFloat(s.netSales) || 0);
+                var waStatus = (s.customerEmail && klaviyoOnlineStatuses[s.customerEmail]) ? klaviyoOnlineStatuses[s.customerEmail] : '';
+                var waDisplay = '';
+                if (waStatus === 'SUBSCRIBED') waDisplay = 'Subscribed';
+                else if (waStatus === 'UNSUBSCRIBED') waDisplay = 'Unsubscribed';
+                else if (waStatus === 'NEVER_SUBSCRIBED') waDisplay = 'Never';
+                else if (waStatus === 'NOT_FOUND') waDisplay = 'Not Found';
+                else if (waStatus === 'NO_DATA') waDisplay = 'No Data';
+                else if (waStatus === 'ERROR') waDisplay = 'Error';
+                rows.push([
+                    orderDateStr,
+                    s.orderNo || '',
+                    s.salesChannel || '',
+                    s.staffName || '',
+                    s.customerEmail || '',
+                    s.emailMarketing || '',
+                    s.smsMarketing || '',
+                    waDisplay,
+                    spVal !== null ? spVal : '',
+                    tsVal !== null ? tsVal : '',
+                    netStarVal,
+                    parseFloat(s.netSales) || 0
+                ]);
+            });
+            var ws = XLSX.utils.aoa_to_sheet(rows);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Online Sales');
+            var monthSel = document.getElementById('onlineMonthFilter');
+            var monthLabel = monthSel ? monthSel.options[monthSel.selectedIndex].text : '';
+            var filename = 'Online_Sales_' + monthLabel.replace(/\s+/g, '_') + '.xlsx';
+            XLSX.writeFile(wb, filename);
+        }
+
+        function exportPosExcel() {
+            if (!posSalesData || posSalesData.length === 0) { alert('No data to export'); return; }
+            var data = posSortCol ? sortData(posSalesData, posSortCol, posSortDir) : posSalesData;
+            var rows = [['Order Date', 'Order Name', 'Location Name', 'Payment Gateway', 'Staff Name', 'Customer Email', 'Email Mkt', 'SMS Mkt', 'Whatsapp Mkt', 'Net sales exclude GC Payment']];
+            data.forEach(function(s) {
+                var dateStr = s.orderDate ? new Date(s.orderDate).toLocaleDateString() : '';
+                var waStatus = (s.customerEmail && klaviyoPosStatuses[s.customerEmail]) ? klaviyoPosStatuses[s.customerEmail] : '';
+                var waDisplay = '';
+                if (waStatus === 'SUBSCRIBED') waDisplay = 'Subscribed';
+                else if (waStatus === 'UNSUBSCRIBED') waDisplay = 'Unsubscribed';
+                else if (waStatus === 'NEVER_SUBSCRIBED') waDisplay = 'Never';
+                else if (waStatus === 'NOT_FOUND') waDisplay = 'Not Found';
+                else if (waStatus === 'NO_DATA') waDisplay = 'No Data';
+                else if (waStatus === 'ERROR') waDisplay = 'Error';
+                rows.push([
+                    dateStr,
+                    s.orderNo || '',
+                    s.salesChannel || '',
+                    s.paymentGateway || '',
+                    s.staffName || '',
+                    s.customerEmail || '',
+                    s.emailMarketing || '',
+                    s.smsMarketing || '',
+                    waDisplay,
+                    parseFloat(s.netSales) || 0
+                ]);
+            });
+            var ws = XLSX.utils.aoa_to_sheet(rows);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'POS Sales');
+            var monthSel = document.getElementById('posMonthFilter');
+            var monthLabel = monthSel ? monthSel.options[monthSel.selectedIndex].text : '';
+            var filename = 'POS_Sales_' + monthLabel.replace(/\s+/g, '_') + '.xlsx';
+            XLSX.writeFile(wb, filename);
+        }
     </script>
 </body>
 </html>`;
